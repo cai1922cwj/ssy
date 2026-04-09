@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-camera" style="color: #43a047;"></i> 拍照识别食物</h2>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="text-muted">上传食物照片，系统将自动识别食物名称并估算营养成分</p>
+        
+        <!-- 拍照/上传区域 -->
+        <div class="text-center py-4" id="uploadArea">
+            <div id="cameraContainer" class="mb-3" style="display: none;">
+                <video id="video" width="100%" max-width="500" style="border-radius: 10px;"></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-success" onclick="takePhoto()">
+                        <i class="bi bi-camera-fill"></i> 拍照
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="stopCamera()">
+                        <i class="bi bi-x-lg"></i> 取消
+                    </button>
+                </div>
+            </div>
+            
+            <div id="previewArea" class="mb-3" style="display: none;">
+                <img id="previewImage" src="" alt="预览" style="max-width: 100%; max-height: 400px; border-radius: 10px;">
+                <div class="mt-3">
+                    <button type="button" class="btn btn-primary" onclick="uploadImage()">
+                        <i class="bi bi-search"></i> 识别食物
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="resetCamera()">
+                        <i class="bi bi-arrow-repeat"></i> 重新拍照
+                    </button>
+                </div>
+            </div>
+            
+            <div id="uploadPrompt">
+                <i class="bi bi-camera-fill display-1 text-muted"></i>
+                <p class="mt-3">点击按钮拍照或上传照片</p>
+            </div>
+            
+            <div class="mt-3">
+                <button type="button" class="btn btn-lg me-2" style="background: #43a047; color: white;" onclick="startCamera()">
+                    <i class="bi bi-webcam"></i> 开启摄像头
+                </button>
+                <label class="btn btn-lg btn-outline-primary mb-0">
+                    <i class="bi bi-upload"></i> 上传照片
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 识别结果 -->
+<div class="card" id="resultCard" style="display: none;">
+    <div class="card-header" style="background: #43a047; color: white;">
+        <h5 class="mb-0"><i class="bi bi-check-circle"></i> 识别结果</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <img id="resultImage" src="" alt="食物图片" style="max-width: 100%; border-radius: 10px;">
+            </div>
+            <div class="col-md-6">
+                <h4 id="foodName" class="text-success"></h4>
+                <p id="foodDesc" class="text-muted"></p>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>营养成分</th>
+                                <th>每100g</th>
+                                <th>估算份量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i class="bi bi-fire text-danger"></i> 热量</td>
+                                <td id="cal100">-</td>
+                                <td id="calServing">-</td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-egg text-warning"></i> 蛋白质</td>
+                                <td id="protein100">-</td>
+                                <td id="proteinServing">-</td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-bread text-info"></i> 碳水</td>
+                                <td id="carbs100">-</td>
+                                <td id="carbsServing">-</td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-droplet text-success"></i> 脂肪</td>
+                                <td id="fat100">-</td>
+                                <td id="fatServing">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 份量调整 -->
+                <div class="mb-3">
+                    <label class="form-label">估算份量 (克)</label>
+                    <input type="range" class="form-range" min="50" max="500" value="150" id="servingSize" onchange="updateServing()">
+                    <div class="text-center"><span id="servingDisplay">150</span>g</div>
+                </div>
+                
+                <button class="btn w-100" style="background: #43a047; color: white;" onclick="saveFoodRecord()">
+                    <i class="bi bi-plus-lg"></i> 添加到今日饮食
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 加载状态 -->
+<div class="card" id="loadingCard" style="display: none;">
+    <div class="card-body text-center py-5">
+        <div class="spinner-border text-success mb-3" role="status"></div>
+        <p>正在识别食物...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let stream = null;
+let capturedImage = null;
+let recognizedFood = null;
+
+async function startCamera() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        document.getElementById('video').srcObject = stream;
+        document.getElementById('cameraContainer').style.display = 'block';
+        document.getElementById('uploadPrompt').style.display = 'none';
+    } catch (err) {
+        alert('无法访问摄像头，请确保已授权摄像头权限');
+        console.error(err);
+    }
+}
+
+function stopCamera() {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+    document.getElementById('cameraContainer').style.display = 'none';
+    document.getElementById('uploadPrompt').style.display = 'block';
+}
+
+function takePhoto() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    capturedImage = canvas.toDataURL('image/jpeg');
+    
+    document.getElementById('previewImage').src = capturedImage;
+    document.getElementById('cameraContainer').style.display = 'none';
+    document.getElementById('previewArea').style.display = 'block';
+    
+    stopCamera();
+}
+
+function resetCamera() {
+    capturedImage = null;
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('uploadPrompt').style.display = 'block';
+    document.getElementById('resultCard').style.display = 'none';
+}
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            capturedImage = e.target.result;
+            document.getElementById('previewImage').src = capturedImage;
+            document.getElementById('previewArea').style.display = 'block';
+            document.getElementById('uploadPrompt').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+async function uploadImage() {
+    if (!capturedImage) return;
+    
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('loadingCard').style.display = 'block';
+    
+    // 模拟AI识别（实际项目中需要调用图像识别API）
+    setTimeout(() => {
+        // 模拟识别结果
+        const mockFoods = [
+            { name: '红烧肉', desc: '典型中式菜肴，富含蛋白质和脂肪', calories: 295, protein: 13, carbs: 7, fat: 24 },
+            { name: '清炒西兰花', desc: '低热量蔬菜，富含维生素C和膳食纤维', calories: 34, protein: 3, carbs: 5, fat: 0.6 },
+            { name: '白米饭', desc: '主要碳水化合物来源，提供能量', calories: 130, protein: 2.5, carbs: 28, fat: 0.3 },
+            { name: '番茄炒蛋', desc: '家常菜，蛋白质与维生素结合', calories: 89, protein: 6, carbs: 4, fat: 5 }
+        ];
+        recognizedFood = mockFoods[Math.floor(Math.random() * mockFoods.length)];
+        
+        document.getElementById('loadingCard').style.display = 'none';
+        document.getElementById('resultCard').style.display = 'block';
+        document.getElementById('resultImage').src = capturedImage;
+        document.getElementById('foodName').textContent = recognizedFood.name;
+        document.getElementById('foodDesc').textContent = recognizedFood.desc;
+        document.getElementById('cal100').textContent = recognizedFood.calories + ' kcal';
+        document.getElementById('protein100').textContent = recognizedFood.protein + 'g';
+        document.getElementById('carbs100').textContent = recognizedFood.carbs + 'g';
+        document.getElementById('fat100').textContent = recognizedFood.fat + 'g';
+        updateServing();
+    }, 1500);
+}
+
+function updateServing() {
+    const size = document.getElementById('servingSize').value;
+    document.getElementById('servingDisplay').textContent = size;
+    
+    if (recognizedFood) {
+        const factor = size / 100;
+        document.getElementById('calServing').textContent = Math.round(recognizedFood.calories * factor) + ' kcal';
+        document.getElementById('proteinServing').textContent = (recognizedFood.protein * factor).toFixed(1) + 'g';
+        document.getElementById('carbsServing').textContent = (recognizedFood.carbs * factor).toFixed(1) + 'g';
+        document.getElementById('fatServing').textContent = (recognizedFood.fat * factor).toFixed(1) + 'g';
+    }
+}
+
+function saveFoodRecord() {
+    if (!recognizedFood) return;
+    
+    const size = document.getElementById('servingSize').value;
+    const factor = size / 100;
+    
+    // 提交到后端
+    fetch('{{ url_for("add_diet_record") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            food_name: recognizedFood.name,
+            calories: Math.round(recognizedFood.calories * factor),
+            protein: Math.round(recognizedFood.protein * factor * 10) / 10,
+            carbs: Math.round(recognizedFood.carbs * factor * 10) / 10,
+            fat: Math.round(recognizedFood.fat * factor * 10) / 10,
+            serving_size: size
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('已添加到今日饮食记录！');
+            window.location.href = '{{ url_for("diet") }}';
+        } else {
+            alert('添加失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加失败，请重试');
+    });
+}
+</script>
+{% endblock %}

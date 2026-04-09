@@ -440,31 +440,79 @@ def diet():
 def add_diet_record():
     """添加饮食记录"""
     if request.method == 'POST':
-        food_id = request.form.get('food_id')
-        food_name = request.form.get('food_name')
-        quantity = float(request.form.get('quantity', 100))
-        meal_type = request.form.get('meal_type', 'snack')
+        # 支持JSON和表单两种格式
+        if request.is_json:
+            data = request.get_json()
+            food_name = data.get('food_name')
+            calories = float(data.get('calories', 0))
+            protein = float(data.get('protein', 0))
+            carbs = float(data.get('carbs', 0))
+            fat = float(data.get('fat', 0))
+            quantity = float(data.get('serving_size', 100))
+            input_method = data.get('input_method', 'text')
+            
+            # 支持批量添加（语音输入）
+            foods = data.get('foods', [])
+            if foods:
+                for item in foods:
+                    record = FoodRecord(
+                        user_id=current_user.id,
+                        food_name=item.get('name', '未知'),
+                        quantity=item.get('quantity', 1),
+                        meal_type='snack',
+                        calories=float(item.get('calories', 0)),
+                        protein=float(item.get('protein', 0)),
+                        carbs=float(item.get('carbs', 0)),
+                        fat=float(item.get('fat', 0)),
+                        input_method=input_method
+                    )
+                    db.session.add(record)
+                db.session.commit()
+                return jsonify({'success': True, 'message': '批量添加成功'})
+        else:
+            food_id = request.form.get('food_id')
+            food_name = request.form.get('food_name')
+            quantity = float(request.form.get('quantity', 100))
+            meal_type = request.form.get('meal_type', 'snack')
+            
+            food = Food.query.get(food_id) if food_id else None
+            
+            record = FoodRecord(
+                user_id=current_user.id,
+                food_id=food_id,
+                food_name=food_name or (food.name if food else '未知食物'),
+                quantity=quantity,
+                meal_type=meal_type,
+                calories=(food.calories * quantity / 100) if food else 0,
+                protein=(food.protein * quantity / 100) if food else 0,
+                carbs=(food.carbs * quantity / 100) if food else 0,
+                fat=(food.fat * quantity / 100) if food else 0,
+                input_method=request.form.get('input_method', 'text')
+            )
+            
+            db.session.add(record)
+            db.session.commit()
+            
+            flash('饮食记录已添加！', 'success')
+            return redirect(url_for('diet'))
         
-        food = Food.query.get(food_id) if food_id else None
-        
+        # JSON单条记录
         record = FoodRecord(
             user_id=current_user.id,
-            food_id=food_id,
-            food_name=food_name or (food.name if food else '未知食物'),
+            food_name=food_name or '未知食物',
             quantity=quantity,
-            meal_type=meal_type,
-            calories=(food.calories * quantity / 100) if food else 0,
-            protein=(food.protein * quantity / 100) if food else 0,
-            carbs=(food.carbs * quantity / 100) if food else 0,
-            fat=(food.fat * quantity / 100) if food else 0,
-            input_method=request.form.get('input_method', 'text')
+            meal_type='snack',
+            calories=calories,
+            protein=protein,
+            carbs=carbs,
+            fat=fat,
+            input_method=input_method
         )
         
         db.session.add(record)
         db.session.commit()
         
-        flash('饮食记录已添加！', 'success')
-        return redirect(url_for('diet'))
+        return jsonify({'success': True, 'message': '添加成功'})
     
     # 获取常用食物
     recent_foods = db.session.query(
@@ -477,6 +525,82 @@ def add_diet_record():
     ).limit(10).all()
     
     return render_template('add_diet.html', recent_foods=recent_foods)
+
+
+# ==================== 拍照识别食物 ====================
+
+@app.route('/food/camera')
+@login_required
+def food_camera():
+    """拍照识别食物页面"""
+    return render_template('food_camera.html')
+
+
+# ==================== 语音输入食物 ====================
+
+@app.route('/food/voice')
+@login_required
+def food_voice():
+    """语音输入食物页面"""
+    return render_template('food_voice.html')
+
+
+# ==================== 文字输入食物 ====================
+
+@app.route('/food/text')
+@login_required
+def food_text():
+    """文字输入食物页面"""
+    # 获取食物库
+    foods = Food.query.order_by(Food.name).all()
+    
+    # 获取今日已添加的食物
+    today = date.today()
+    today_records = FoodRecord.query.filter_by(
+        user_id=current_user.id,
+        date=today
+    ).order_by(FoodRecord.created_at.desc()).all() if hasattr(FoodRecord, 'created_at') else []
+    
+    today_foods = [{'name': r.food_name, 'portion': r.quantity, 'calories': r.calories} for r in today_records]
+    
+    # 转换为JSON格式
+    foods_json = json.dumps([{
+        'id': f.id,
+        'name': f.name,
+        'name_en': getattr(f, 'name_en', ''),
+        'calories': f.calories,
+        'protein': f.protein,
+        'carbs': f.carbs,
+        'fat': f.fat
+    } for f in foods], ensure_ascii=False)
+    
+    return render_template('food_text.html', 
+                         foods=foods,
+                         foods_json=foods_json,
+                         today_foods=today_foods)
+
+
+# ==================== 条形码扫描 ====================
+
+@app.route('/food/barcode')
+@login_required
+def food_barcode():
+    """条形码扫描页面"""
+    # 获取扫描历史
+    history = db.session.query(
+        FoodRecord.food_name,
+        FoodRecord.calories,
+        db.func.count(FoodRecord.id).label('count')
+    ).filter(
+        FoodRecord.user_id == current_user.id,
+        FoodRecord.food_name.like('%#%')  # 包含条形码标记
+    ).group_by(FoodRecord.food_name, FoodRecord.calories).order_by(
+        db.func.count(FoodRecord.id).desc()
+    ).limit(10).all()
+    
+    scan_history = [{'name': h[0].split('#')[0], 'barcode': h[0].split('#')[1] if '#' in h[0] else '', 'calories': h[1]} for h in history]
+    
+    return render_template('food_barcode.html', history=scan_history)
 
 
 @app.route('/api/diet/search')

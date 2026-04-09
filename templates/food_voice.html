@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-mic" style="color: #43a047;"></i> 语音输入食物</h2>
+
+<div class="card mb-4">
+    <div class="card-body text-center py-5">
+        <p class="text-muted mb-4">点击麦克风，说出食物名称和份量，系统将自动识别并记录</p>
+        
+        <div id="voiceArea" class="mb-4">
+            <button type="button" class="btn btn-lg rounded-circle p-4" id="micButton" onclick="startVoiceInput()" 
+                    style="background: linear-gradient(135deg, #43a047, #2e7d32); color: white; width: 120px; height: 120px;">
+                <i class="bi bi-mic-fill display-3"></i>
+            </button>
+            <p class="mt-3 text-muted" id="voiceHint">点击麦克风开始说话</p>
+        </div>
+        
+        <div id="recordingIndicator" style="display: none;">
+            <div class="recording-animation">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <p class="mt-3 text-danger" id="voiceStatus">正在聆听...</p>
+        </div>
+        
+        <div class="mt-3">
+            <button type="button" class="btn btn-outline-secondary me-2" onclick="showExamples()">
+                <i class="bi bi-question-circle"></i> 查看示例
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="switchToText()">
+                <i class="bi bi-keyboard"></i> 切换到文字输入
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 语音识别结果 -->
+<div class="card" id="resultCard" style="display: none;">
+    <div class="card-header" style="background: #43a047; color: white;">
+        <h5 class="mb-0"><i class="bi bi-check-circle"></i> 识别结果</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-quora"></i> <strong>您说的：</strong><span id="recognizedText"></span>
+        </div>
+        
+        <h5 class="mb-3">识别到的食物：</h5>
+        <div id="foodList"></div>
+        
+        <div class="table-responsive mt-3">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>食物</th>
+                        <th>份量</th>
+                        <th>热量</th>
+                        <th>蛋白质</th>
+                        <th>碳水</th>
+                        <th>脂肪</th>
+                    </tr>
+                </thead>
+                <tbody id="nutritionTable">
+                </tbody>
+                <tfoot>
+                    <tr class="table-success">
+                        <td><strong>合计</strong></td>
+                        <td></td>
+                        <td><strong id="totalCal">0</strong> kcal</td>
+                        <td><strong id="totalProtein">0</strong>g</td>
+                        <td><strong id="totalCarbs">0</strong>g</td>
+                        <td><strong id="totalFat">0</strong>g</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <button class="btn w-100 mt-3" style="background: #43a047; color: white;" onclick="saveAllRecords()">
+            <i class="bi bi-plus-lg"></i> 全部添加到今日饮食
+        </button>
+    </div>
+</div>
+
+<!-- 示例对话框 -->
+<div class="modal fade" id="exampleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">语音输入示例</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>您可以这样说：</p>
+                <ul class="list-group">
+                    <li class="list-group-item">"一碗米饭"</li>
+                    <li class="list-group-item">"两个鸡蛋"</li>
+                    <li class="list-group-item">"一杯牛奶"</li>
+                    <li class="list-group-item">"100克鸡胸肉"</li>
+                    <li class="list-group-item">"一碗番茄炒蛋"</li>
+                </ul>
+                <hr>
+                <p class="text-muted small">系统会识别食物名称和数量，自动计算营养成分</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let recognition = null;
+let isRecording = false;
+let recognizedFoods = [];
+
+const foodDatabase = {
+    '米饭': { calories: 130, protein: 2.5, carbs: 28, fat: 0.3, serving: '一碗(150g)' },
+    '粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2, serving: '一碗(240g)' },
+    '面条': { calories: 284, protein: 8, carbs: 59, fat: 0.8, serving: '一碗(200g)' },
+    '馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
+    '鸡蛋': { calories: 144, protein: 13, carbs: 1, fat: 10, serving: '一个(50g)' },
+    '鸡胸肉': { calories: 133, protein: 31, carbs: 0, fat: 1, serving: '100g' },
+    '猪肉': { calories: 143, protein: 21, carbs: 0, fat: 6, serving: '100g' },
+    '牛肉': { calories: 125, protein: 26, carbs: 0, fat: 3, serving: '100g' },
+    '鱼肉': { calories: 90, protein: 20, carbs: 0, fat: 1, serving: '100g' },
+    '牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '酸奶': { calories: 72, protein: 3, carbs: 10, fat: 2, serving: '一杯(200g)' },
+    '苹果': { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, serving: '一个(200g)' },
+    '香蕉': { calories: 93, protein: 1, carbs: 23, fat: 0.3, serving: '一根(100g)' },
+    '橙子': { calories: 47, protein: 1, carbs: 12, fat: 0.1, serving: '一个(150g)' },
+    '西瓜': { calories: 30, protein: 0.6, carbs: 8, fat: 0.1, serving: '一块(300g)' },
+    '白菜': { calories: 17, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '菠菜': { calories: 23, protein: 3, carbs: 4, fat: 0.3, serving: '100g' },
+    '番茄': { calories: 19, protein: 1, carbs: 4, fat: 0.2, serving: '一个(150g)' },
+    '土豆': { calories: 76, protein: 2, carbs: 17, fat: 0.1, serving: '一个(150g)' },
+    '豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
+    '豆浆': { calories: 33, protein: 3, carbs: 2, fat: 2, serving: '一杯(300ml)' },
+    '咖啡': { calories: 1, protein: 0, carbs: 0, fat: 0, serving: '一杯(240ml)' },
+    '可乐': { calories: 42, protein: 0, carbs: 11, fat: 0, serving: '一瓶(500ml)' },
+    '红烧肉': { calories: 295, protein: 13, carbs: 7, fat: 24, serving: '100g' },
+    '番茄炒蛋': { calories: 89, protein: 6, carbs: 4, fat: 5, serving: '一份(200g)' },
+    '宫保鸡丁': { calories: 197, protein: 15, carbs: 9, fat: 12, serving: '一份(200g)' },
+    '炒青菜': { calories: 35, protein: 2, carbs: 4, fat: 1, serving: '一份(150g)' }
+};
+
+const quantityMap = {
+    '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5,
+    '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+    '1': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+    '6': 6, '7': 7, '8': 8, '9': 9, '10': 10
+};
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.onresult = function(event) {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+        
+        document.getElementById('voiceHint').textContent = interimTranscript || '正在聆听...';
+        
+        if (finalTranscript) {
+            processVoiceInput(finalTranscript);
+        }
+    };
+    
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        stopRecording();
+        if (event.error === 'not-allowed') {
+            alert('请允许使用麦克风');
+        }
+    };
+    
+    recognition.onend = function() {
+        if (isRecording) {
+            recognition.start();
+        }
+    };
+}
+
+function startVoiceInput() {
+    if (!recognition) {
+        alert('您的浏览器不支持语音识别，请使用Chrome浏览器并允许麦克风权限');
+        return;
+    }
+    
+    if (isRecording) {
+        stopRecording();
+        return;
+    }
+    
+    isRecording = true;
+    recognition.start();
+    
+    document.getElementById('voiceArea').style.display = 'none';
+    document.getElementById('recordingIndicator').style.display = 'block';
+}
+
+function stopRecording() {
+    isRecording = false;
+    if (recognition) {
+        recognition.stop();
+    }
+    document.getElementById('voiceArea').style.display = 'block';
+    document.getElementById('recordingIndicator').style.display = 'none';
+    document.getElementById('voiceHint').textContent = '点击麦克风开始说话';
+}
+
+function processVoiceInput(text) {
+    stopRecording();
+    
+    document.getElementById('recognizedText').textContent = text;
+    recognizedFoods = parseVoiceText(text);
+    
+    if (recognizedFoods.length === 0) {
+        document.getElementById('foodList').innerHTML = 
+            '<div class="alert alert-warning">未能识别食物，请尝试说出食物名称和数量</div>';
+    } else {
+        let html = '';
+        recognizedFoods.forEach((item, index) => {
+            html += `
+                <div class="card mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${item.quantity}${item.unit || '份'}</strong> ${item.name}
+                            </div>
+                            <span class="badge bg-success">${item.calories} kcal</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('foodList').innerHTML = html;
+        
+        updateNutritionTable();
+    }
+    
+    document.getElementById('resultCard').style.display = 'block';
+}
+
+function parseVoiceText(text) {
+    const results = [];
+    const patterns = [
+        /([一二两三四五六七八九十\d]+)\s*(个|碗|杯|瓶|份|块|根|盘|克|g)?\s*(.+?)(?:好?|了|$)/g,
+        /(一碗|一杯|一个|一瓶|一份|一块|一根|一盘)(.+?)(?:好?|了|$)/g,
+        /(\d+)\s*克\s*(.+?)(?:好?|了|$)/g
+    ];
+    
+    for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            let quantity = 1;
+            let unit = '';
+            let name = '';
+            
+            if (match[2] && match[3]) {
+                quantity = quantityMap[match[1]] || 1;
+                unit = match[2];
+                name = match[3];
+            } else if (match[1].startsWith('一')) {
+                quantity = 1;
+                unit = match[1].replace('一', '');
+                name = match[2];
+            } else {
+                continue;
+            }
+            
+            name = name.trim();
+            
+            for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
+                if (name.includes(foodName) || foodName.includes(name)) {
+                    const factor = quantity;
+                    results.push({
+                        name: foodName,
+                        quantity: quantity,
+                        unit: unit || nutrition.serving,
+                        calories: Math.round(nutrition.calories * factor),
+                        protein: Math.round(nutrition.protein * factor * 10) / 10,
+                        carbs: Math.round(nutrition.carbs * factor * 10) / 10,
+                        fat: Math.round(nutrition.fat * factor * 10) / 10
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    
+    return results;
+}
+
+function updateNutritionTable() {
+    let tbody = document.getElementById('nutritionTable');
+    tbody.innerHTML = '';
+    
+    let totalCal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    
+    recognizedFoods.forEach(item => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}${item.unit}</td>
+                <td>${item.calories} kcal</td>
+                <td>${item.protein}g</td>
+                <td>${item.carbs}g</td>
+                <td>${item.fat}g</td>
+            </tr>
+        `;
+        totalCal += item.calories;
+        totalProtein += item.protein;
+        totalCarbs += item.carbs;
+        totalFat += item.fat;
+    });
+    
+    document.getElementById('totalCal').textContent = totalCal;
+    document.getElementById('totalProtein').textContent = totalProtein;
+    document.getElementById('totalCarbs').textContent = totalCarbs;
+    document.getElementById('totalFat').textContent = totalFat;
+}
+
+function saveAllRecords() {
+    fetch('{{ url_for("add_diet_record") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foods: recognizedFoods })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('已添加到今日饮食记录！');
+            window.location.href = '{{ url_for("diet") }}';
+        }
+    });
+}
+
+function showExamples() {
+    new bootstrap.Modal(document.getElementById('exampleModal')).show();
+}
+
+function switchToText() {
+    window.location.href = '{{ url_for("food_text") }}';
+}
+</script>
+<style>
+.recording-animation {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    height: 60px;
+    gap: 6px;
+}
+
+.recording-animation span {
+    width: 12px;
+    height: 12px;
+    background: #dc3545;
+    border-radius: 50%;
+    animation: bounce 1s infinite;
+}
+
+.recording-animation span:nth-child(1) { animation-delay: 0s; }
+.recording-animation span:nth-child(2) { animation-delay: 0.1s; }
+.recording-animation span:nth-child(3) { animation-delay: 0.2s; }
+.recording-animation span:nth-child(4) { animation-delay: 0.3s; }
+.recording-animation span:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+    0%, 100% { height: 12px; }
+    50% { height: 50px; }
+}
+</style>
+{% endblock %}
