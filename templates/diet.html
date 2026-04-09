@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-egg-fried text-primary"></i> 饮食记录</h2>
-    <a href="{{ url_for('add_diet_record') }}" class="btn btn-primary">
+    <h2><i class="bi bi-egg-fried" style="color: #43a047;"></i> 饮食记录</h2>
+    <a href="{{ url_for('add_diet_record') }}" class="btn" style="background: #43a047; color: white;">
         <i class="bi bi-plus-lg"></i> 添加记录
     </a>
 </div>
@@ -12,7 +13,7 @@
 <div class="card mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('diet', date=(target_date - timedelta(days=1)).isoformat()) }}" class="btn btn-outline-primary btn-sm">
+            <a href="{{ url_for('diet', date=(target_date - timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
                 <i class="bi bi-chevron-left"></i> 前一天
             </a>
             <h4 class="mb-0">
@@ -20,7 +21,7 @@
                        value="{{ target_date.isoformat() }}" 
                        onchange="window.location.href='{{ url_for('diet') }}?date=' + this.value">
             </h4>
-            <a href="{{ url_for('diet', date=(target_date + timedelta(days=1)).isoformat()) }}" class="btn btn-outline-primary btn-sm">
+            <a href="{{ url_for('diet', date=(target_date + timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
                 后一天 <i class="bi bi-chevron-right"></i>
             </a>
         </div>

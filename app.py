@@ -34,6 +34,18 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+# ==================== 模板上下文处理器 ====================
+
+@app.context_processor
+def inject_variables():
+    """向所有模板注入通用变量"""
+    life_expectancy_bonus = 0
+    return dict(
+        life_expectancy_bonus=life_expectancy_bonus,
+        timedelta=timedelta
+    )
+
+
 # ==================== 辅助函数 ====================
 
 def init_database():
@@ -205,8 +217,12 @@ def calculate_life_expectancy():
     bonus_years = 0
     tips = []
     
+    # 检查用户是否登录
+    if not current_user.is_authenticated:
+        return bonus_years, tips
+    
     # BMI评估
-    if current_user.is_authenticated:
+    try:
         bmi = current_user.get_bmi()
         if 18.5 <= bmi <= 24.9:
             bonus_years += 2.5
@@ -254,6 +270,8 @@ def calculate_life_expectancy():
             tips.append('✅ 您的睡眠时间充足')
         elif avg_sleep and avg_sleep < 7:
             tips.append('⚠️ 建议保证7-9小时睡眠')
+    except Exception as e:
+        pass  # 忽略计算错误
     
     return round(bonus_years, 1), tips
 
@@ -809,7 +827,8 @@ def ai_analysis():
                          stats=stats,
                          analysis=analysis,
                          life_bonus=life_bonus,
-                         tips=tips)
+                         tips=tips,
+                         current_user=current_user)
 
 
 def generate_ai_analysis(stats):

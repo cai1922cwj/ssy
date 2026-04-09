@@ -9,10 +9,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <!-- 导航栏 - 清新绿色主题 -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);">
+    <!-- 导航栏 - 浅绿背景深色文字 -->
+    <nav class="navbar navbar-expand-lg navbar-light" style="background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%); border-bottom: 3px solid #43a047;">
         <div class="container">
-            <a class="navbar-brand text-white fw-bold" href="{{ url_for('index') }}">
+            <a class="navbar-brand fw-bold" href="{{ url_for('index') }}" style="color: #1b5e20;">
                 <i class="bi bi-heart-pulse"></i> 熵食源
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -21,20 +21,20 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('index') }}"><i class="bi bi-house"></i> 首页</a>
+                        <a class="nav-link" href="{{ url_for('index') }}" style="color: #2e7d32; font-weight: 600;"><i class="bi bi-house"></i> 首页</a>
                     </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('diet') }}"><i class="bi bi-egg-fried"></i> 饮食记录</a>
+                        <a class="nav-link" href="{{ url_for('diet') }}" style="color: #2e7d32; font-weight: 600;"><i class="bi bi-egg-fried"></i> 饮食记录</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('foods') }}"><i class="bi bi-apple"></i> 食物库</a>
+                        <a class="nav-link" href="{{ url_for('foods') }}" style="color: #2e7d32; font-weight: 600;"><i class="bi bi-apple"></i> 食物库</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('exercise') }}"><i class="bi bi-person-walking"></i> 运动</a>
+                        <a class="nav-link" href="{{ url_for('exercise') }}" style="color: #2e7d32; font-weight: 600;"><i class="bi bi-person-walking"></i> 运动</a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link text-white dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" style="color: #2e7d32; font-weight: 600;">
                             <i class="bi bi-grid"></i> 更多
                         </a>
                         <ul class="dropdown-menu">
@@ -48,13 +48,13 @@
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('news') }}"><i class="bi bi-newspaper"></i> 健康新闻</a>
+                        <a class="nav-link" href="{{ url_for('news') }}" style="color: #2e7d32; font-weight: 600;"><i class="bi bi-newspaper"></i> 健康新闻</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link text-white dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" style="color: #2e7d32; font-weight: 600;">
                             <i class="bi bi-person-circle"></i> {{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
@@ -65,10 +65,10 @@
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('login') }}">登录</a>
+                        <a class="nav-link" href="{{ url_for('login') }}" style="color: #2e7d32; font-weight: 600;">登录</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="{{ url_for('register') }}">注册</a>
+                        <a class="nav-link" href="{{ url_for('register') }}" style="color: #2e7d32; font-weight: 600;">注册</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -76,14 +76,14 @@
         </div>
     </nav>
 
-    <!-- 寿命计算横幅 - 绿色主题 -->
+    <!-- 寿命计算横幅 - 绿色主题+蓝色字体 -->
     {% if current_user.is_authenticated and life_expectancy_bonus > 0 %}
     <div class="life-banner" style="background: linear-gradient(90deg, #43a047, #2e7d32);">
         <div class="container">
             <div class="d-flex align-items-center justify-content-center flex-wrap">
-                <span class="me-3"><i class="bi bi-stars"></i> 按照当前健康生活方式，您预计可以延长</span>
-                <span class="life-years">{{ life_expectancy_bonus }} 年</span>
-                <span class="ms-2">寿命！</span>
+                <span class="me-3" style="color: #1565c0;"><i class="bi bi-stars"></i> 按照当前健康生活方式，您预计可以延长</span>
+                <span class="life-years" style="color: #0d47a1;">{{ life_expectancy_bonus }} 年</span>
+                <span class="ms-2" style="color: #1565c0;">寿命！</span>
                 <a href="{{ url_for('ai_analysis') }}" class="btn btn-sm btn-light ms-3">查看详情</a>
             </div>
         </div>

@@ -134,8 +134,7 @@ body {
 
 /* 寿命计算横幅 */
 .life-banner {
-    background: linear-gradient(90deg, #a29bfe, #6c5ce7);
-    color: white;
+    background: linear-gradient(90deg, #43a047, #2e7d32);
     padding: 12px 0;
     font-size: 0.95rem;
 }
@@ -143,7 +142,7 @@ body {
 .life-years {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #ffeaa7;
+    color: #0d47a1;
 }
 
 /* 表单样式 */

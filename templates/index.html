@@ -8,8 +8,8 @@
         <div class="card stat-card calorie-card">
             <div class="card-body text-center">
                 <i class="bi bi-fire stat-icon"></i>
-                <h3 class="mb-0">{{ today_stats.calories_consumed|int }}</h3>
-                <small>摄入热量 (kcal)</small>
+                <h3 class="mb-0 text-white">{{ today_stats.calories_consumed|int }}</h3>
+                <small class="text-white">摄入热量 (kcal)</small>
                 <div class="progress mt-2" style="height: 6px;">
                     <div class="progress-bar bg-danger" style="width: {{ (today_stats.calories_consumed / current_user.target_calories * 100)|round|int }}%"></div>
                 </div>
@@ -20,8 +20,8 @@
         <div class="card stat-card burned-card">
             <div class="card-body text-center">
                 <i class="bi bi-lightning-charge stat-icon"></i>
-                <h3 class="mb-0">{{ today_stats.calories_burned|int }}</h3>
-                <small>消耗热量 (kcal)</small>
+                <h3 class="mb-0 text-white">{{ today_stats.calories_burned|int }}</h3>
+                <small class="text-white">消耗热量 (kcal)</small>
             </div>
         </div>
     </div>
@@ -29,8 +29,8 @@
         <div class="card stat-card protein-card">
             <div class="card-body text-center">
                 <i class="bi bi-egg stat-icon"></i>
-                <h3 class="mb-0">{{ today_stats.protein|int }}g</h3>
-                <small>蛋白质</small>
+                <h3 class="mb-0 text-white">{{ today_stats.protein|int }}g</h3>
+                <small class="text-white">蛋白质</small>
             </div>
         </div>
     </div>
@@ -38,8 +38,8 @@
         <div class="card stat-card net-card">
             <div class="card-body text-center">
                 <i class="bi bi-calculator stat-icon"></i>
-                <h3 class="mb-0">{{ (today_stats.calories_consumed - today_stats.calories_burned)|int }}</h3>
-                <small>净热量</small>
+                <h3 class="mb-0 text-white">{{ (today_stats.calories_consumed - today_stats.calories_burned)|int }}</h3>
+                <small class="text-white">净热量</small>
             </div>
         </div>
     </div>
@@ -51,33 +51,33 @@
     <div class="col-lg-8">
         <!-- 快捷操作 -->
         <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header" style="background: linear-gradient(135deg, #43a047, #2e7d32); color: white;">
                 <h5 class="mb-0"><i class="bi bi-lightning"></i> 快速记录</h5>
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6 col-md-3">
-                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-primary w-100 py-3 quick-btn">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn w-100 py-3 quick-btn" style="background: #e8f5e9; color: #2e7d32; border: 2px solid #43a047;">
                             <i class="bi bi-camera"></i>
-                            <div>拍照识别</div>
+                            <div><strong>拍照识别</strong></div>
                         </a>
                     </div>
                     <div class="col-6 col-md-3">
-                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-success w-100 py-3 quick-btn">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn w-100 py-3 quick-btn" style="background: #e8f5e9; color: #2e7d32; border: 2px solid #43a047;">
                             <i class="bi bi-pencil"></i>
-                            <div>文字输入</div>
+                            <div><strong>文字输入</strong></div>
                         </a>
                     </div>
                     <div class="col-6 col-md-3">
-                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-warning w-100 py-3 quick-btn">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn w-100 py-3 quick-btn" style="background: #e8f5e9; color: #2e7d32; border: 2px solid #43a047;">
                             <i class="bi bi-mic"></i>
-                            <div>语音输入</div>
+                            <div><strong>语音输入</strong></div>
                         </a>
                     </div>
                     <div class="col-6 col-md-3">
-                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-info w-100 py-3 quick-btn">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn w-100 py-3 quick-btn" style="background: #e8f5e9; color: #2e7d32; border: 2px solid #43a047;">
                             <i class="bi bi-upc-scan"></i>
-                            <div>条形码</div>
+                            <div><strong>条形码</strong></div>
                         </a>
                     </div>
                 </div>
@@ -92,9 +92,9 @@
                         <div class="feature-icon" style="background: linear-gradient(135deg, #00b894, #00cec9);">
                             <i class="bi bi-egg-fried"></i>
                         </div>
-                        <h5>食物营养</h5>
-                        <p class="text-muted small">查询食物热量与营养成分，了解每日摄入</p>
-                        <a href="{{ url_for('foods') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                        <h5 style="color: #1b5e20;">食物营养</h5>
+                        <p class="small" style="color: #2e7d32;">查询食物热量与营养成分，了解每日摄入</p>
+                        <a href="{{ url_for('foods') }}" class="btn btn-sm" style="background: #43a047; color: white;">进入</a>
                     </div>
                 </div>
             </div>
@@ -104,9 +104,9 @@
                         <div class="feature-icon" style="background: linear-gradient(135deg, #e17055, #fdcb6e);">
                             <i class="bi bi-person-walking"></i>
                         </div>
-                        <h5>运动管理</h5>
-                        <p class="text-muted small">记录运动消耗，制定个性化运动计划</p>
-                        <a href="{{ url_for('exercise') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                        <h5 style="color: #1b5e20;">运动管理</h5>
+                        <p class="small" style="color: #2e7d32;">记录运动消耗，制定个性化运动计划</p>
+                        <a href="{{ url_for('exercise') }}" class="btn btn-sm" style="background: #43a047; color: white;">进入</a>
                     </div>
                 </div>
             </div>
@@ -116,9 +116,9 @@
                         <div class="feature-icon" style="background: linear-gradient(135deg, #6c5ce7, #a29bfe);">
                             <i class="bi bi-robot"></i>
                         </div>
-                        <h5>AI健康分析</h5>
-                        <p class="text-muted small">智能分析饮食与运动，给出专业建议</p>
-                        <a href="{{ url_for('ai_analysis') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                        <h5 style="color: #1b5e20;">AI健康分析</h5>
+                        <p class="small" style="color: #2e7d32;">智能分析饮食与运动，给出专业建议</p>
+                        <a href="{{ url_for('ai_analysis') }}" class="btn btn-sm" style="background: #43a047; color: white;">进入</a>
                     </div>
                 </div>
             </div>
@@ -128,9 +128,9 @@
                         <div class="feature-icon" style="background: linear-gradient(135deg, #fd79a8, #e84393);">
                             <i class="bi bi-moon-stars"></i>
                         </div>
-                        <h5>睡眠管理</h5>
-                        <p class="text-muted small">记录睡眠质量，分析饮食对睡眠的影响</p>
-                        <a href="{{ url_for('sleep') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                        <h5 style="color: #1b5e20;">睡眠管理</h5>
+                        <p class="small" style="color: #2e7d32;">记录睡眠质量，分析饮食对睡眠的影响</p>
+                        <a href="{{ url_for('sleep') }}" class="btn btn-sm" style="background: #43a047; color: white;">进入</a>
                     </div>
                 </div>
             </div>
