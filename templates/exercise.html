@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-walking text-warning"></i> 运动记录</h2>
+    <a href="{{ url_for('add_exercise') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> 添加运动
+    </a>
+</div>
+
+<!-- 热量统计 -->
+<div class="card bg-gradient mb-4" style="background: linear-gradient(135deg, #fdcb6e, #e17055);">
+    <div class="card-body text-white text-center">
+        <h3 class="mb-0"><i class="bi bi-fire"></i> {{ total_burned|int }} kcal</h3>
+        <small>今日消耗</small>
+    </div>
+</div>
+
+<!-- 日期选择 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('exercise', date=(target_date - timedelta(days=1)).isoformat()) }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-chevron-left"></i> 前一天
+            </a>
+            <h4 class="mb-0">
+                {{ target_date.strftime('%Y年%m月%d日') }}
+            </h4>
+            <a href="{{ url_for('exercise', date=(target_date + timedelta(days=1)).isoformat()) }}" class="btn btn-outline-primary btn-sm">
+                后一天 <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 运动列表 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">运动记录</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if records %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>运动项目</th>
+                        <th>时长</th>
+                        <th>强度</th>
+                        <th>消耗热量</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-activity text-success me-2"></i>
+                            {{ record.exercise_name }}
+                        </td>
+                        <td>{{ record.duration }} 分钟</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if record.intensity == 'low' else 'warning' if record.intensity == 'moderate' else 'danger' }}">
+                                {{ {'low': '低', 'moderate': '中', 'high': '高'}.get(record.intensity, '中') }}
+                            </span>
+                        </td>
+                        <td class="text-danger fw-bold">{{ record.calories_burned|int }} kcal</td>
+                        <td>{{ record.time.strftime('%H:%M') if record.time else '--:--' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-emoji-smile display-3"></i>
+            <p class="mt-3">今日暂无运动记录</p>
+            <a href="{{ url_for('add_exercise') }}" class="btn btn-primary">开始运动</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 运动建议 -->
+<div class="card mt-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 运动建议</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-heart-pulse display-6 text-danger"></i>
+                    <h6 class="mt-2">有氧运动</h6>
+                    <small>每周3-5次，每次30分钟</small>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-barbell display-6 text-primary"></i>
+                    <h6 class="mt-2">力量训练</h6>
+                    <small>每周2-3次，每次20分钟</small>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="text-center p-3 bg-light rounded">
+                    <i class="bi bi-yoga display-6 text-success"></i>
+                    <h6 class="mt-2">柔韧训练</h6>
+                    <small>每天拉伸，改善灵活性</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

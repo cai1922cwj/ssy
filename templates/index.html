@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- 快速统计卡片 -->
+{% if current_user.is_authenticated and today_stats %}
+<div class="row mb-4">
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card calorie-card">
+            <div class="card-body text-center">
+                <i class="bi bi-fire stat-icon"></i>
+                <h3 class="mb-0">{{ today_stats.calories_consumed|int }}</h3>
+                <small>摄入热量 (kcal)</small>
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar bg-danger" style="width: {{ (today_stats.calories_consumed / current_user.target_calories * 100)|round|int }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card burned-card">
+            <div class="card-body text-center">
+                <i class="bi bi-lightning-charge stat-icon"></i>
+                <h3 class="mb-0">{{ today_stats.calories_burned|int }}</h3>
+                <small>消耗热量 (kcal)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card protein-card">
+            <div class="card-body text-center">
+                <i class="bi bi-egg stat-icon"></i>
+                <h3 class="mb-0">{{ today_stats.protein|int }}g</h3>
+                <small>蛋白质</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card net-card">
+            <div class="card-body text-center">
+                <i class="bi bi-calculator stat-icon"></i>
+                <h3 class="mb-0">{{ (today_stats.calories_consumed - today_stats.calories_burned)|int }}</h3>
+                <small>净热量</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- 左侧功能区 -->
+    <div class="col-lg-8">
+        <!-- 快捷操作 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> 快速记录</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-primary w-100 py-3 quick-btn">
+                            <i class="bi bi-camera"></i>
+                            <div>拍照识别</div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-success w-100 py-3 quick-btn">
+                            <i class="bi bi-pencil"></i>
+                            <div>文字输入</div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-warning w-100 py-3 quick-btn">
+                            <i class="bi bi-mic"></i>
+                            <div>语音输入</div>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('add_diet_record') }}" class="btn btn-outline-info w-100 py-3 quick-btn">
+                            <i class="bi bi-upc-scan"></i>
+                            <div>条形码</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能模块 -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon" style="background: linear-gradient(135deg, #00b894, #00cec9);">
+                            <i class="bi bi-egg-fried"></i>
+                        </div>
+                        <h5>食物营养</h5>
+                        <p class="text-muted small">查询食物热量与营养成分，了解每日摄入</p>
+                        <a href="{{ url_for('foods') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon" style="background: linear-gradient(135deg, #e17055, #fdcb6e);">
+                            <i class="bi bi-person-walking"></i>
+                        </div>
+                        <h5>运动管理</h5>
+                        <p class="text-muted small">记录运动消耗，制定个性化运动计划</p>
+                        <a href="{{ url_for('exercise') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon" style="background: linear-gradient(135deg, #6c5ce7, #a29bfe);">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <h5>AI健康分析</h5>
+                        <p class="text-muted small">智能分析饮食与运动，给出专业建议</p>
+                        <a href="{{ url_for('ai_analysis') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon" style="background: linear-gradient(135deg, #fd79a8, #e84393);">
+                            <i class="bi bi-moon-stars"></i>
+                        </div>
+                        <h5>睡眠管理</h5>
+                        <p class="text-muted small">记录睡眠质量，分析饮食对睡眠的影响</p>
+                        <a href="{{ url_for('sleep') }}" class="btn btn-sm btn-outline-primary">进入</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 今日提醒 -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-bell"></i> 今日建议</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% if tips %}
+                        {% for tip in tips %}
+                        <li class="list-group-item d-flex align-items-center">
+                            <span class="me-2">{{ tip }}</span>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-info-circle text-primary me-2"></i>
+                            <span>记录今天的饮食和运动，获得个性化建议</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧健康新闻 -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-newspaper"></i> 权威健康动态</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if news %}
+                <div class="list-group list-group-flush">
+                    {% for item in news %}
+                    <a href="{{ url_for('news') }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1 text-truncate" style="max-width: 80%;">{{ item.title }}</h6>
+                            <small class="text-muted">{{ item.published_at.strftime('%m/%d') }}</small>
+                        </div>
+                        <p class="mb-1 small text-muted text-truncate">{{ item.summary }}</p>
+                        <small class="text-primary">{{ item.source }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-3 text-center text-muted">
+                    <p>暂无最新新闻</p>
+                </div>
+                {% endif %}
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('news') }}" class="btn btn-sm btn-outline-primary">查看更多</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 趣味计算 -->
+        <div class="card bg-gradient text-white" style="background: linear-gradient(135deg, #74b9ff, #0984e3);">
+            <div class="card-body text-center">
+                <i class="bi bi-stars display-4 mb-3"></i>
+                <h4>健康生活，延年益寿</h4>
+                <p class="mb-3">根据科学研究，坚持健康生活方式可以延长寿命</p>
+                {% if current_user.is_authenticated %}
+                <div class="bg-white rounded-3 p-3 text-dark">
+                    <p class="mb-1">按照您的健康生活方式</p>
+                    <h2 class="text-primary mb-1">{{ life_expectancy_bonus }} 年</h2>
+                    <p class="small text-muted mb-0">预计可延长寿命</p>
+                </div>
+                {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-light">开始记录，获得专属分析</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 快捷链接 -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-link-45deg"></i> 快捷链接</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ url_for('beverages') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-cup-hot"></i> 茶与咖啡
+                    </a>
+                    <a href="{{ url_for('fasting') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-clock"></i> 轻断食
+                    </a>
+                    <a href="{{ url_for('weight') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-scale"></i> 体重记录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

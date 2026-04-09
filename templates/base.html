@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if title %}{{ title }} - {% endif %}熵食源 - 智能营养分析</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 - 清新绿色主题 -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);">
+        <div class="container">
+            <a class="navbar-brand text-white fw-bold" href="{{ url_for('index') }}">
+                <i class="bi bi-heart-pulse"></i> 熵食源
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('index') }}"><i class="bi bi-house"></i> 首页</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('diet') }}"><i class="bi bi-egg-fried"></i> 饮食记录</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('foods') }}"><i class="bi bi-apple"></i> 食物库</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('exercise') }}"><i class="bi bi-person-walking"></i> 运动</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link text-white dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-grid"></i> 更多
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('weight') }}"><i class="bi bi-scale"></i> 体重管理</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('sleep') }}"><i class="bi bi-moon-stars"></i> 睡眠记录</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('beverages') }}"><i class="bi bi-cup-hot"></i> 茶与咖啡</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('fasting') }}"><i class="bi bi-clock"></i> 轻断食</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('ai_analysis') }}"><i class="bi bi-robot"></i> AI分析</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('news') }}"><i class="bi bi-newspaper"></i> 健康新闻</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link text-white dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-gear"></i> 设置</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> 退出</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('login') }}">登录</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="{{ url_for('register') }}">注册</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 寿命计算横幅 - 绿色主题 -->
+    {% if current_user.is_authenticated and life_expectancy_bonus > 0 %}
+    <div class="life-banner" style="background: linear-gradient(90deg, #43a047, #2e7d32);">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-center flex-wrap">
+                <span class="me-3"><i class="bi bi-stars"></i> 按照当前健康生活方式，您预计可以延长</span>
+                <span class="life-years">{{ life_expectancy_bonus }} 年</span>
+                <span class="ms-2">寿命！</span>
+                <a href="{{ url_for('ai_analysis') }}" class="btn btn-sm btn-light ms-3">查看详情</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 消息提示 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert" style="background: rgba(255, 255, 255, 0.95);">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- 主内容 - 半透明卡片式布局 -->
+    <main class="container my-4">
+        <div style="background: rgba(255, 255, 255, 0.92); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+        {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- 页脚 - 清新绿色主题 -->
+    <footer class="py-4 mt-4" style="background: rgba(46, 125, 50, 0.1); border-top: 2px solid #a5d6a7;">
+        <div class="container text-center">
+            <p class="mb-1" style="color: #2e7d32;">
+                <i class="bi bi-heart-pulse-fill" style="color: #43a047;"></i> 熵食源 - 让健康饮食更简单
+            </p>
+            <p class="small" style="color: #558b2f;">
+                数据仅供参考，请结合实际情况和专业建议使用
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

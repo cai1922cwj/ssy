@@ -1,0 +1,305 @@
+/* 熵食源 - 淡蓝色主题样式 */
+
+:root {
+    --primary-color: #74b9ff;
+    --primary-dark: #0984e3;
+    --primary-light: #a8d8ff;
+    --success-color: #00b894;
+    --warning-color: #fdcb6e;
+    --danger-color: #e17055;
+    --info-color: #00cec9;
+}
+
+/* 全局样式 - 浅嫩绿色背景 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+    background-attachment: fixed;
+    color: #2d3436;
+    min-height: 100vh;
+}
+
+/* 内容容器 */
+.container, .container-fluid {
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.navbar {
+    box-shadow: 0 2px 10px rgba(27, 94, 32, 0.15);
+    background: linear-gradient(135deg, #43a047, #2e7d32) !important;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.nav-link {
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+}
+
+/* 卡片样式 */
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+    border-radius: 16px 16px 0 0 !important;
+    font-weight: 600;
+}
+
+/* 统计卡片 */
+.stat-card {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: scale(1.02);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.calorie-card {
+    background: linear-gradient(135deg, #ff7675, #d63031);
+    color: white;
+}
+
+.burned-card {
+    background: linear-gradient(135deg, #fdcb6e, #f39c12);
+    color: white;
+}
+
+.protein-card {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    color: white;
+}
+
+.net-card {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+    color: white;
+}
+
+/* 快速操作按钮 */
+.quick-btn {
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.quick-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* 功能卡片 */
+.feature-card {
+    cursor: pointer;
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+    color: white;
+}
+
+/* 寿命计算横幅 */
+.life-banner {
+    background: linear-gradient(90deg, #a29bfe, #6c5ce7);
+    color: white;
+    padding: 12px 0;
+    font-size: 0.95rem;
+}
+
+.life-years {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ffeaa7;
+}
+
+/* 表单样式 */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(116, 185, 255, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    color: #2d3436;
+}
+
+/* 按钮样式 */
+.btn-primary {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+    border: none;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0984e3, #0652a8);
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #fdcb6e, #f39c12);
+    border: none;
+}
+
+/* 进度条 */
+.progress {
+    border-radius: 10px;
+}
+
+/* 表格样式 */
+.table {
+    font-size: 0.9rem;
+}
+
+.table thead th {
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary-light);
+}
+
+/* 徽章 */
+.badge {
+    font-weight: 500;
+}
+
+/* 模态框 */
+.modal-content {
+    border-radius: 16px;
+    border: none;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .stat-card h3 {
+        font-size: 1.5rem;
+    }
+    
+    .life-banner {
+        font-size: 0.85rem;
+    }
+    
+    .life-years {
+        font-size: 1.2rem;
+    }
+}
+
+/* 动画效果 */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* 加载状态 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 浮动元素 */
+.float-action {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1000;
+}
+
+/* 页脚 */
+footer {
+    border-top: 1px solid #c8e6c9;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* 背景渐变卡片 */
+.bg-gradient {
+    background: linear-gradient(135deg, #74b9ff, #0984e3) !important;
+}
+
+/* 消息提示 */
+.alert {
+    border-radius: 12px;
+    border: none;
+}
+
+/* 下拉菜单 */
+.dropdown-menu {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* 输入组 */
+.input-group-text {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* 列表组 */
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}

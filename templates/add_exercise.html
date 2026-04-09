@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-plus-circle text-primary"></i> 添加运动记录</h2>
+
+<form method="POST" class="card">
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">选择运动项目</label>
+            <div class="row g-2 mb-3">
+                {% for ex in exercises %}
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="form-check card p-2">
+                        <input class="form-check-input" type="radio" name="exercise_id" value="{{ ex.id }}" id="ex{{ ex.id }}">
+                        <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                            <div class="text-center">
+                                <small>{{ ex.name }}</small>
+                                <div class="small text-muted">{{ ex.calories_per_hour }} kcal/h</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">运动时长 (分钟)</label>
+                <input type="number" name="duration" class="form-control" value="30" min="1" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">运动强度</label>
+                <select name="intensity" class="form-select">
+                    <option value="low">低强度</option>
+                    <option value="moderate" selected>中等强度</option>
+                    <option value="high">高强度</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">或手动输入运动名称</label>
+            <input type="text" name="exercise_name" class="form-control" placeholder="如果上方没有您要的运动">
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> 
+            预计消耗: <span id="calories_preview" class="fw-bold">150</span> kcal
+        </div>
+        
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-check-lg"></i> 确认添加
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('input[name="exercise_id"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const selected = document.querySelector('input[name="exercise_id"]:checked');
+        if (selected) {
+            const label = selected.nextElementSibling;
+            const caloriesText = label.querySelector('.text-muted').textContent;
+            const perHour = parseInt(caloriesText);
+            const duration = parseInt(document.querySelector('input[name="duration"]').value);
+            const estimated = Math.round(perHour * duration / 60);
+            document.getElementById('calories_preview').textContent = estimated;
+        }
+    });
+});
+
+document.querySelector('input[name="duration"]').addEventListener('input', function() {
+    const selected = document.querySelector('input[name="exercise_id"]:checked');
+    if (selected) {
+        selected.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

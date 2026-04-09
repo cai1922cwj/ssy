@@ -1,0 +1,17 @@
+# 熵食源 - 依赖包
+
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+Werkzeug==3.0.1
+WTForms==3.1.1
+Pillow==10.1.0
+requests==2.31.0
+python-dotenv==1.0.0
+bcrypt==4.1.2
+email-validator==2.1.0
+pandas==2.1.4
+numpy==1.26.2
+matplotlib==3.8.2
+plotly==5.17.0

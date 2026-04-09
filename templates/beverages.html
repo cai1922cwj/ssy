@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-cup-hot text-warning"></i> 茶与咖啡</h2>
+
+<!-- 饮用建议 -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-cup text-success me-2"></i>绿茶</h5>
+                <p class="text-muted">{{ suggestions.green_tea }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-cup-fill text-danger me-2"></i>红茶</h5>
+                <p class="text-muted">{{ suggestions.black_tea }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-cup-hot text-warning me-2"></i>咖啡</h5>
+                <p class="text-muted">{{ suggestions.coffee }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-droplet-half text-info me-2"></i>乌龙茶</h5>
+                <p class="text-muted">{{ suggestions.oolong }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加记录 -->
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-plus-circle"></i> 添加饮用记录</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_beverage') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">饮品类型</label>
+                    <select name="drink_type" class="form-select" required>
+                        <option value="green_tea">绿茶</option>
+                        <option value="black_tea">红茶</option>
+                        <option value="coffee">咖啡</option>
+                        <option value="oolong">乌龙茶</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">用量 (ml)</label>
+                    <input type="number" name="amount" class="form-control" value="250" min="1">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">提神效果 (1-10)</label>
+                    <input type="number" name="alertness" class="form-control" value="5" min="1" max="10">
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="form-label">对睡眠影响 (1-10, 越高影响越大)</label>
+                <input type="number" name="sleep_impact" class="form-control" value="3" min="1" max="10">
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-plus"></i> 记录
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 历史记录 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">饮用历史</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if logs %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>日期</th>
+                        <th>类型</th>
+                        <th>用量</th>
+                        <th>咖啡因</th>
+                        <th>提神</th>
+                        <th>睡眠影响</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if log.drink_type == 'green_tea' else 'danger' if log.drink_type == 'coffee' else 'secondary' }}">
+                                {{ {'green_tea': '绿茶', 'black_tea': '红茶', 'coffee': '咖啡', 'oolong': '乌龙茶'}.get(log.drink_type, '其他') }}
+                            </span>
+                        </td>
+                        <td>{{ log.amount|int }} ml</td>
+                        <td>{{ log.caffeine_content|int }} mg</td>
+                        <td>{{ log.alertness }}/10</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if log.sleep_impact <= 3 else 'warning' if log.sleep_impact <= 6 else 'danger' }}">
+                                {{ log.sleep_impact }}/10
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-cup-straw display-3"></i>
+            <p class="mt-3">暂无饮用记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
