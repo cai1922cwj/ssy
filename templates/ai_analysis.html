@@ -3,20 +3,78 @@
 {% block content %}
 <h2><i class="bi bi-robot text-primary"></i> AI健康分析</h2>
 
-<!-- 寿命预测 -->
-<div class="card bg-gradient mb-4" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7);">
-    <div class="card-body text-center py-5" style="color: #1a237e;">
-        <i class="bi bi-stars display-1 mb-3"></i>
-        <h3 style="color: #1a237e;">健康生活可延长的寿命</h3>
-        <h1 class="display-1 my-4" style="color: #1a237e;">+{{ life_bonus }} 年</h1>
-        <p class="lead" style="color: #283593;">根据您近期的饮食、运动和睡眠习惯综合评估</p>
-        {% if tips %}
-        <div class="mt-4 text-start" style="max-width: 500px; margin: 0 auto;">
-            {% for tip in tips %}
-            <p class="mb-2" style="color: #1a237e;"><i class="bi bi-check-circle-fill me-2"></i>{{ tip }}</p>
-            {% endfor %}
+<!-- 寿命预测 - 精美版 -->
+<div class="card mb-4 border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; overflow: hidden;">
+    <div class="card-body p-0" style="color: white;">
+        <div class="row g-0">
+            <!-- 左侧：寿命预测 -->
+            <div class="col-md-3 p-4 text-center d-flex flex-column justify-content-center" style="background: rgba(255,255,255,0.1);">
+                <div class="mb-3">
+                    <i class="bi bi-stars" style="font-size: 3rem; opacity: 0.8;"></i>
+                </div>
+                <h5 class="mb-2 opacity-75">健康寿命</h5>
+                <div class="display-2 fw-bold mb-0" style="text-shadow: 2px 2px 8px rgba(0,0,0,0.3);">+{{ life_bonus }}</div>
+                <div class="h4 opacity-75">年</div>
+                <small class="opacity-50 mt-2">基于健康生活方式</small>
+            </div>
+            <!-- 右侧：健康指标 -->
+            <div class="col-md-9 p-4">
+                <h5 class="mb-4"><i class="bi bi-clipboard2-pulse me-2"></i>健康指标概览</h5>
+                <div class="row g-3 mb-4">
+                    <!-- BMI -->
+                    <div class="col-6 col-md-3">
+                        <div class="bg-white rounded-3 p-3 text-center h-100" style="color: #333;">
+                            <div class="mb-2"><i class="bi bi-person-standing text-primary" style="font-size: 1.5rem;"></i></div>
+                            <div class="small text-muted mb-1">BMI指数</div>
+                            <div class="h5 fw-bold mb-1 text-dark">{{ "%.1f"|format(current_user.weight / ((current_user.height/100) ** 2)) if current_user.height > 0 else 0 }}</div>
+                            {% set bmi = (current_user.weight / ((current_user.height/100) ** 2)) if current_user.height > 0 else 0 %}
+                            <span class="badge {% if bmi >= 18.5 and bmi <= 24.9 %}bg-success{% elif bmi > 25 %}bg-warning{% else %}bg-info{% endif %}">
+                                {% if bmi >= 18.5 and bmi <= 24.9 %}正常{% elif bmi > 25 %}偏重{% else %}偏轻{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <!-- 蛋白质 -->
+                    <div class="col-6 col-md-3">
+                        <div class="bg-white rounded-3 p-3 text-center h-100" style="color: #333;">
+                            <div class="mb-2"><i class="bi bi-egg-fried text-success" style="font-size: 1.5rem;"></i></div>
+                            <div class="small text-muted mb-1">日均蛋白质</div>
+                            <div class="h5 fw-bold mb-1 text-dark">{{ stats.avg_protein|int }}g</div>
+                            <small class="text-muted">目标 {{ current_user.target_protein|int }}g</small>
+                        </div>
+                    </div>
+                    <!-- 运动 -->
+                    <div class="col-6 col-md-3">
+                        <div class="bg-white rounded-3 p-3 text-center h-100" style="color: #333;">
+                            <div class="mb-2"><i class="bi bi-lightning-charge text-warning" style="font-size: 1.5rem;"></i></div>
+                            <div class="small text-muted mb-1">本周运动</div>
+                            <div class="h5 fw-bold mb-1 text-dark">{{ stats.total_exercise_minutes|int }}min</div>
+                            <small class="text-muted">累计时长</small>
+                        </div>
+                    </div>
+                    <!-- 睡眠 -->
+                    <div class="col-6 col-md-3">
+                        <div class="bg-white rounded-3 p-3 text-center h-100" style="color: #333;">
+                            <div class="mb-2"><i class="bi bi-moon-stars text-info" style="font-size: 1.5rem;"></i></div>
+                            <div class="small text-muted mb-1">平均睡眠</div>
+                            <div class="h5 fw-bold mb-1 text-dark">{{ stats.avg_sleep_duration|int }}h</div>
+                            <small class="text-muted">每天平均</small>
+                        </div>
+                    </div>
+                </div>
+                <!-- 热量进度 -->
+                {% set cal_percent = ((stats.avg_calories / current_user.target_calories) * 100)|int %}
+                <div class="bg-white rounded-3 p-3" style="color: #333;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="bi bi-fire text-danger me-2"></i>今日热量摄入</span>
+                        <span class="fw-bold text-dark">{{ stats.avg_calories|int }} / {{ current_user.target_calories|int }} kcal</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {% if cal_percent > 100 %}100{% else %}{{ cal_percent }}{% endif %}%"></div>
+                    </div>
+                    <div class="text-end mt-1 small text-muted">{{ cal_percent }}% 完成</div>
+                </div>
+            </div>
         </div>
-        {% endif %}
     </div>
 </div>
 
@@ -110,6 +168,76 @@
                 <i class="bi bi-gear"></i> 修改目标设置
             </a>
         </div>
+    </div>
+</div>
+
+<!-- 导出健康报告 -->
+<div class="card mt-4" style="border: 2px solid #6c5ce7;">
+    <div class="card-header" style="background: #6c5ce7; color: white;">
+        <h5 class="mb-0"><i class="bi bi-file-earmark-word"></i> 健康报告导出</h5>
+    </div>
+    <div class="card-body text-center py-4">
+        <i class="bi bi-file-earmark-word display-1 text-primary mb-3"></i>
+        <h5>生成并导出您的个性化健康分析报告</h5>
+        <p class="text-muted">报告包含：健康评估、营养分析、运动建议、延长寿命预测等详细内容</p>
+        <a href="{{ url_for('export_report') }}" class="btn btn-lg" style="background: #6c5ce7; color: white;">
+            <i class="bi bi-download me-2"></i> 导出Word健康报告
+        </a>
+    </div>
+</div>
+
+<!-- 权威健康动态 -->
+<div class="card mt-4 border-0 shadow-sm">
+    <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+        <h5 class="mb-0"><i class="bi bi-newspaper me-2"></i>权威健康动态</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if news_items %}
+        <div class="row g-0">
+            {% for item in news_items[:4] %}
+            <div class="col-md-6 border-end border-bottom p-3">
+                <div class="d-flex align-items-start">
+                    <span class="badge bg-{{ 'success' if item.category == 'nutrition' else 'warning' if item.category == 'exercise' else 'info' if item.category == 'sleep' else 'secondary' }} me-2 mt-1">
+                        {{ {'nutrition': '营养', 'exercise': '运动', 'sleep': '睡眠', 'research': '研究'}.get(item.category, '综合') }}
+                    </span>
+                    <div>
+                        <h6 class="mb-1 text-dark">{{ item.title }}</h6>
+                        <p class="small text-muted mb-1">{{ item.summary[:60] }}...</p>
+                        <small class="text-primary">{{ item.source }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if news_items|length > 4 %}
+        <div class="row g-0">
+            {% for item in news_items[4:8] %}
+            <div class="col-md-6 border-end p-3">
+                <div class="d-flex align-items-start">
+                    <span class="badge bg-{{ 'success' if item.category == 'nutrition' else 'warning' if item.category == 'exercise' else 'info' if item.category == 'sleep' else 'secondary' }} me-2 mt-1">
+                        {{ {'nutrition': '营养', 'exercise': '运动', 'sleep': '睡眠', 'research': '研究'}.get(item.category, '综合') }}
+                    </span>
+                    <div>
+                        <h6 class="mb-1 text-dark">{{ item.title }}</h6>
+                        <p class="small text-muted mb-1">{{ item.summary[:60] }}...</p>
+                        <small class="text-primary">{{ item.source }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="text-center py-3 border-top">
+            <a href="{{ url_for('news') }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-arrow-right me-1"></i>查看更多健康资讯
+            </a>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-newspaper display-3"></i>
+            <p class="mt-3">暂无健康新闻</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

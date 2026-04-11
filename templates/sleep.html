@@ -86,20 +86,33 @@
                         <th>质量</th>
                         <th>影响因素</th>
                         <th>备注</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for record in records %}
                     <tr>
                         <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ record.duration|default(0) }} 小时</td>
                         <td>
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar bg-{{ 'success' if record.quality >= 7 else 'warning' if record.quality >= 5 else 'danger' }}" 
-                                     style="width: {{ (record.quality or 5) * 10 }}%">
-                                    {{ record.quality or '-' }}/10
+                            {% if record.duration %}
+                                {{ "%.1f"|format(record.duration) }} 小时
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.quality %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height: 20px;">
+                                    <div class="progress-bar bg-{{ 'success' if record.quality >= 7 else 'warning' if record.quality >= 5 else 'danger' }}" 
+                                         style="width: {{ record.quality * 10 }}%">
+                                    </div>
                                 </div>
+                                <span class="small fw-bold">{{ record.quality }}/10</span>
                             </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if record.caffeine_before_bed %}
@@ -113,6 +126,17 @@
                             {% endif %}
                         </td>
                         <td>{{ record.notes or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_sleep', record_id=record.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </a>
+                            <form method="POST" action="{{ url_for('delete_sleep', record_id=record.id) }}" class="d-inline"
+                                  onsubmit="return confirm('确定要删除这条睡眠记录吗？');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

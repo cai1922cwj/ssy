@@ -74,11 +74,11 @@
         </div>
         
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label">份量 (克)</label>
                 <input type="number" name="quantity" id="quantity" class="form-control" value="100" min="1" required>
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label">餐次</label>
                 <select name="meal_type" class="form-select" required>
                     <option value="breakfast">早餐</option>
@@ -86,6 +86,25 @@
                     <option value="dinner">晚餐</option>
                     <option value="snack">零食/加餐</option>
                 </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">热量 (kcal) <span class="text-danger">*</span></label>
+                <input type="number" name="calories" id="calories" class="form-control" placeholder="热量(kcal)" step="0.1" min="0" required>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">蛋白质 (g)</label>
+                <input type="number" name="protein" id="protein" class="form-control" step="0.1" min="0" placeholder="可留空">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">碳水化合物 (g)</label>
+                <input type="number" name="carbs" id="carbs" class="form-control" step="0.1" min="0" placeholder="可留空">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">脂肪 (g)</label>
+                <input type="number" name="fat" id="fat" class="form-control" step="0.1" min="0" placeholder="可留空">
             </div>
         </div>
         
@@ -165,6 +184,13 @@ function selectFoodData(food) {
     document.getElementById('food_id').value = food.id;
     document.getElementById('search_results').style.display = 'none';
     
+    // 填充营养数据字段
+    document.getElementById('calories').value = food.calories;
+    document.getElementById('protein').value = food.protein || 0;
+    document.getElementById('carbs').value = food.carbs || 0;
+    document.getElementById('fat').value = food.fat || 0;
+    
+    // 更新预览
     document.getElementById('preview_calories').textContent = food.calories;
     document.getElementById('preview_protein').textContent = food.protein;
     document.getElementById('preview_carbs').textContent = food.carbs;
@@ -189,11 +215,21 @@ function switchMode(mode) {
     }
 }
 
-// 份量变化时更新预览
+// 份量变化时更新预览和计算
 document.getElementById('quantity').addEventListener('input', function() {
+    const qty = parseFloat(this.value) || 100;
     if (selectedFood) {
-        const factor = this.value / 100;
+        const factor = qty / 100;
         document.getElementById('preview_calories').textContent = Math.round(selectedFood.calories * factor);
+        document.getElementById('preview_protein').textContent = (selectedFood.protein * factor).toFixed(1);
+        document.getElementById('preview_carbs').textContent = (selectedFood.carbs * factor).toFixed(1);
+        document.getElementById('preview_fat').textContent = (selectedFood.fat * factor).toFixed(1);
+        
+        // 同时更新营养输入字段（按份量计算后的值）
+        document.getElementById('calories').value = Math.round(selectedFood.calories * factor);
+        document.getElementById('protein').value = (selectedFood.protein * factor).toFixed(1);
+        document.getElementById('carbs').value = (selectedFood.carbs * factor).toFixed(1);
+        document.getElementById('fat').value = (selectedFood.fat * factor).toFixed(1);
     }
 });
 
@@ -202,6 +238,16 @@ document.getElementById('food_name').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         searchFood();
+    }
+});
+
+// 表单提交验证
+document.querySelector('form').addEventListener('submit', function(e) {
+    const calories = document.getElementById('calories').value;
+    if (!calories || parseFloat(calories) <= 0) {
+        e.preventDefault();
+        alert('请输入食物的热量值，或从上方搜索并选择食物');
+        document.getElementById('calories').focus();
     }
 });
 </script>

@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 """
 熵食源 - 在线食物营养分析APP
 主应用文件
 """
+from __future__ import unicode_literals
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -60,6 +62,34 @@ def init_database():
             init_exercises()
         if HealthNews.query.count() == 0:
             init_news()
+
+
+@app.route('/api/init-foods')
+@login_required
+def api_init_foods():
+    """手动初始化食物数据库（用于修复数据问题）"""
+    try:
+        # 清空并重新初始化
+        Food.query.delete()
+        db.session.commit()
+        init_foods()
+        return jsonify({'success': True, 'message': f'食物数据库已初始化，共 {Food.query.count()} 种食物'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/refresh-news')
+@login_required
+def api_refresh_news():
+    """手动刷新健康新闻数据"""
+    try:
+        # 清空并重新初始化
+        HealthNews.query.delete()
+        db.session.commit()
+        init_news()
+        return jsonify({'success': True, 'message': f'健康新闻已刷新，共 {HealthNews.query.count()} 条'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 
 def init_foods():
@@ -169,19 +199,13 @@ def init_exercises():
 def init_news():
     """初始化健康新闻"""
     news_items = [
+        # 营养学 (4条)
         {
             'title': '研究表明：地中海饮食可降低心血管疾病风险',
             'summary': '最新研究显示，坚持地中海饮食模式可显著降低心血管疾病发生率。',
             'source': '哈佛公共卫生学院',
             'category': 'nutrition',
             'published_at': datetime.now() - timedelta(days=2)
-        },
-        {
-            'title': '适度运动如何改善睡眠质量',
-            'summary': '研究发现，每天进行30分钟中等强度运动可显著改善睡眠质量。',
-            'source': 'NIH国立睡眠研究所',
-            'category': 'exercise',
-            'published_at': datetime.now() - timedelta(days=5)
         },
         {
             'title': '蛋白质摄入时机对肌肉合成的影响',
@@ -191,6 +215,79 @@ def init_news():
             'published_at': datetime.now() - timedelta(days=7)
         },
         {
+            'title': '膳食纤维摄入不足的健康风险',
+            'summary': '专家建议每日摄入25-30克膳食纤维，可降低肠癌和心血管疾病风险。',
+            'source': '中国营养学会',
+            'category': 'nutrition',
+            'published_at': datetime.now() - timedelta(days=15)
+        },
+        {
+            'title': 'Omega-3脂肪酸对大脑健康的益处',
+            'summary': '研究表明，适量摄入Omega-3可改善认知功能，预防老年痴呆。',
+            'source': '美国神经病学杂志',
+            'category': 'nutrition',
+            'published_at': datetime.now() - timedelta(days=20)
+        },
+        # 运动健康 (4条)
+        {
+            'title': '适度运动如何改善睡眠质量',
+            'summary': '研究发现，每天进行30分钟中等强度运动可显著改善睡眠质量。',
+            'source': 'NIH国立睡眠研究所',
+            'category': 'exercise',
+            'published_at': datetime.now() - timedelta(days=5)
+        },
+        {
+            'title': 'HIIT训练：高效燃脂的最佳选择',
+            'summary': '高强度间歇训练能在短时间内高效燃烧脂肪，提升心肺功能。',
+            'source': '运动医学杂志',
+            'category': 'exercise',
+            'published_at': datetime.now() - timedelta(days=10)
+        },
+        {
+            'title': '久坐不动带来的健康隐患',
+            'summary': '研究表明，每坐1小时应起身活动5分钟，可降低代谢综合征风险。',
+            'source': '英国运动医学杂志',
+            'category': 'exercise',
+            'published_at': datetime.now() - timedelta(days=18)
+        },
+        {
+            'title': '力量训练对骨密度的保护作用',
+            'summary': '定期力量训练可增强骨密度，预防骨质疏松，尤其对中老年人重要。',
+            'source': '国际骨质疏松杂志',
+            'category': 'exercise',
+            'published_at': datetime.now() - timedelta(days=25)
+        },
+        # 睡眠健康 (4条)
+        {
+            'title': '睡眠不足与肥胖的关联机制',
+            'summary': '研究表明睡眠不足会影响荷尔蒙平衡，导致食欲增加和代谢减慢。',
+            'source': '斯坦福大学睡眠研究中心',
+            'category': 'sleep',
+            'published_at': datetime.now() - timedelta(days=12)
+        },
+        {
+            'title': '睡眠质量比睡眠时间更重要',
+            'summary': '深度睡眠和REM睡眠阶段对身体修复和记忆整合最为关键。',
+            'source': '睡眠研究杂志',
+            'category': 'sleep',
+            'published_at': datetime.now() - timedelta(days=14)
+        },
+        {
+            'title': '蓝光如何影响你的睡眠',
+            'summary': '睡前使用电子设备会抑制褪黑素分泌，建议睡前一小时远离屏幕。',
+            'source': '美国国家睡眠基金会',
+            'category': 'sleep',
+            'published_at': datetime.now() - timedelta(days=22)
+        },
+        {
+            'title': '午睡的最佳时长：20-30分钟',
+            'summary': '研究表明，午睡超过30分钟可能影响夜间睡眠质量，建议小憩即可。',
+            'source': '欧洲睡眠研究会',
+            'category': 'sleep',
+            'published_at': datetime.now() - timedelta(days=28)
+        },
+        # 前沿研究 (4条)
+        {
             'title': '间歇性禁食的健康益处研究进展',
             'summary': '多项研究表明，间歇性禁食可能改善代谢健康和延长寿命。',
             'source': '《新英格兰医学杂志》',
@@ -198,11 +295,25 @@ def init_news():
             'published_at': datetime.now() - timedelta(days=10)
         },
         {
-            'title': '睡眠不足与肥胖的关联机制',
-            'summary': '研究表明睡眠不足会影响荷尔蒙平衡，导致食欲增加和代谢减慢。',
-            'source': '斯坦福大学睡眠研究中心',
-            'category': 'sleep',
-            'published_at': datetime.now() - timedelta(days=12)
+            'title': '肠道菌群与大脑功能的最新发现',
+            'summary': '研究表明肠道菌群会影响情绪和认知，益生菌可能成为新的治疗方法。',
+            'source': '自然杂志',
+            'category': 'research',
+            'published_at': datetime.now() - timedelta(days=16)
+        },
+        {
+            'title': '个性化营养：基因检测指导饮食',
+            'summary': '基因检测可帮助制定个性化饮食方案，实现更精准的营养干预。',
+            'source': '细胞 metabolism',
+            'category': 'research',
+            'published_at': datetime.now() - timedelta(days=24)
+        },
+        {
+            'title': '抗衰老研究新突破：热量限制的分子机制',
+            'summary': '科学家发现热量限制通过特定分子通路延缓衰老，为抗衰老药物开发提供新思路。',
+            'source': '科学杂志',
+            'category': 'research',
+            'published_at': datetime.now() - timedelta(days=30)
         },
     ]
     
@@ -226,13 +337,13 @@ def calculate_life_expectancy():
         bmi = current_user.get_bmi()
         if 18.5 <= bmi <= 24.9:
             bonus_years += 2.5
-            tips.append('✅ 您的BMI在健康范围内')
+            tips.append('[OK] 您的BMI在健康范围内')
         elif 25 <= bmi <= 29.9:
             bonus_years += 1.0
-            tips.append('⚠️ 适当减重可增加寿命')
+            tips.append('[!] 适当减重可增加寿命')
         else:
             bonus_years += 0.5
-            tips.append('⚠️ 建议咨询医生制定减重计划')
+            tips.append('[!] 建议咨询医生制定减重计划')
         
         # 运动习惯
         recent_exercises = ExerciseRecord.query.filter(
@@ -242,12 +353,12 @@ def calculate_life_expectancy():
         
         if recent_exercises >= 12:
             bonus_years += 3.0
-            tips.append('✅ 您的运动习惯良好')
+            tips.append('[OK] 您的运动习惯良好')
         elif recent_exercises >= 4:
             bonus_years += 1.5
-            tips.append('⚠️ 增加运动频率可延年益寿')
+            tips.append('[!] 增加运动频率可延年益寿')
         else:
-            tips.append('⚠️ 建议每周至少运动3次')
+            tips.append('[!] 建议每周至少运动3次')
         
         # 饮食记录
         recent_foods = FoodRecord.query.filter(
@@ -257,7 +368,7 @@ def calculate_life_expectancy():
         
         if recent_foods >= 60:
             bonus_years += 1.5
-            tips.append('✅ 您的饮食记录习惯很好')
+            tips.append('[OK] 您的饮食记录习惯很好')
         
         # 睡眠质量
         avg_sleep = db.session.query(db.func.avg(SleepRecord.duration)).filter(
@@ -267,9 +378,9 @@ def calculate_life_expectancy():
         
         if avg_sleep and 7 <= avg_sleep <= 9:
             bonus_years += 2.0
-            tips.append('✅ 您的睡眠时间充足')
+            tips.append('[OK] 您的睡眠时间充足')
         elif avg_sleep and avg_sleep < 7:
-            tips.append('⚠️ 建议保证7-9小时睡眠')
+            tips.append('[!] 建议保证7-9小时睡眠')
     except Exception as e:
         pass  # 忽略计算错误
     
@@ -477,16 +588,47 @@ def add_diet_record():
             
             food = Food.query.get(food_id) if food_id else None
             
+            # 优先使用用户手动输入的营养数据，否则尝试从食物库获取
+            user_calories = float(request.form.get('calories', 0) or 0)
+            user_protein = float(request.form.get('protein', 0) or 0)
+            user_carbs = float(request.form.get('carbs', 0) or 0)
+            user_fat = float(request.form.get('fat', 0) or 0)
+            
+            if user_calories > 0 or user_protein > 0 or user_carbs > 0 or user_fat > 0:
+                # 用户手动输入了营养数据
+                calories = user_calories
+                protein = user_protein
+                carbs = user_carbs
+                fat = user_fat
+            elif food:
+                # 从食物库获取营养数据
+                calories = food.calories * quantity / 100
+                protein = food.protein * quantity / 100
+                carbs = food.carbs * quantity / 100
+                fat = food.fat * quantity / 100
+            else:
+                # 尝试模糊匹配食物库
+                matched_food = Food.query.filter(Food.name.like(f'%' + food_name + '%')).first()
+                if matched_food:
+                    calories = matched_food.calories * quantity / 100
+                    protein = matched_food.protein * quantity / 100
+                    carbs = matched_food.carbs * quantity / 100
+                    fat = matched_food.fat * quantity / 100
+                else:
+                    # 无法获取营养数据，使用0并提示用户
+                    flash('请从搜索结果中选择食物，或手动输入营养数据', 'warning')
+                    return redirect(url_for('add_diet'))
+            
             record = FoodRecord(
                 user_id=current_user.id,
-                food_id=food_id,
+                food_id=food_id or (matched_food.id if 'matched_food' in dir() else None),
                 food_name=food_name or (food.name if food else '未知食物'),
                 quantity=quantity,
                 meal_type=meal_type,
-                calories=(food.calories * quantity / 100) if food else 0,
-                protein=(food.protein * quantity / 100) if food else 0,
-                carbs=(food.carbs * quantity / 100) if food else 0,
-                fat=(food.fat * quantity / 100) if food else 0,
+                calories=calories,
+                protein=protein,
+                carbs=carbs,
+                fat=fat,
                 input_method=request.form.get('input_method', 'text')
             )
             
@@ -612,6 +754,40 @@ def api_diet_search():
     return jsonify([f.to_dict() for f in foods])
 
 
+@app.route('/api/diet/update/<int:record_id>', methods=['POST'])
+@login_required
+def api_diet_update(record_id):
+    """更新饮食记录"""
+    record = FoodRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
+    if not record:
+        return jsonify({'success': False, 'message': '记录不存在'})
+    
+    data = request.get_json()
+    record.food_name = data.get('food_name', record.food_name)
+    record.quantity = float(data.get('quantity', record.quantity))
+    record.calories = float(data.get('calories', record.calories))
+    record.protein = float(data.get('protein', record.protein))
+    record.carbs = float(data.get('carbs', record.carbs))
+    record.fat = float(data.get('fat', record.fat))
+    record.meal_type = data.get('meal_type', record.meal_type)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': '修改成功'})
+
+
+@app.route('/api/diet/delete/<int:record_id>', methods=['POST'])
+@login_required
+def api_diet_delete(record_id):
+    """删除饮食记录"""
+    record = FoodRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
+    if not record:
+        return jsonify({'success': False, 'message': '记录不存在'})
+    
+    db.session.delete(record)
+    db.session.commit()
+    return jsonify({'success': True, 'message': '删除成功'})
+
+
 # ==================== 运动管理 ====================
 
 @app.route('/exercise')
@@ -669,6 +845,52 @@ def add_exercise():
     
     exercises = Exercise.query.order_by(Exercise.name).all()
     return render_template('add_exercise.html', exercises=exercises)
+
+
+@app.route('/exercise/edit/<int:record_id>', methods=['GET', 'POST'])
+@login_required
+def edit_exercise(record_id):
+    """编辑运动记录"""
+    record = ExerciseRecord.query.get_or_404(record_id)
+
+    if record.user_id != current_user.id:
+        flash('无权操作', 'error')
+        return redirect(url_for('exercise'))
+
+    if request.method == 'POST':
+        record.exercise_name = request.form.get('exercise_name')
+        record.duration = int(request.form.get('duration', 30))
+        record.intensity = request.form.get('intensity', 'moderate')
+
+        # 重新计算热量
+        exercise = Exercise.query.get(record.exercise_id) if record.exercise_id else None
+        if exercise:
+            record.calories_burned = exercise.get_calories_burned(current_user.weight, record.duration)
+        else:
+            record.calories_burned = record.duration * 5
+
+        db.session.commit()
+        flash('运动记录已更新！', 'success')
+        return redirect(url_for('exercise'))
+
+    exercises = Exercise.query.order_by(Exercise.name).all()
+    return render_template('edit_exercise.html', record=record, exercises=exercises)
+
+
+@app.route('/exercise/delete/<int:record_id>', methods=['POST'])
+@login_required
+def delete_exercise(record_id):
+    """删除运动记录"""
+    record = ExerciseRecord.query.get_or_404(record_id)
+
+    if record.user_id != current_user.id:
+        flash('无权操作', 'error')
+        return redirect(url_for('exercise'))
+
+    db.session.delete(record)
+    db.session.commit()
+    flash('运动记录已删除！', 'success')
+    return redirect(url_for('exercise'))
 
 
 @app.route('/api/exercises')
@@ -781,6 +1003,59 @@ def add_sleep():
     db.session.commit()
     
     flash('睡眠记录已添加！', 'success')
+    return redirect(url_for('sleep'))
+
+
+@app.route('/sleep/edit/<int:record_id>', methods=['GET', 'POST'])
+@login_required
+def edit_sleep(record_id):
+    """编辑睡眠记录"""
+    record = SleepRecord.query.get_or_404(record_id)
+
+    if record.user_id != current_user.id:
+        flash('无权操作', 'error')
+        return redirect(url_for('sleep'))
+
+    if request.method == 'POST':
+        try:
+            bed_time_str = request.form.get('bed_time')
+            wake_time_str = request.form.get('wake_time')
+
+            if bed_time_str and wake_time_str:
+                record.bed_time = datetime.strptime(bed_time_str, '%Y-%m-%dT%H:%M')
+                record.wake_time = datetime.strptime(wake_time_str, '%Y-%m-%dT%H:%M')
+                record.duration = (record.wake_time - record.bed_time).total_seconds() / 3600
+            else:
+                record.duration = float(request.form.get('duration', 7))
+
+            record.quality = int(request.form.get('quality', 7))
+            record.caffeine_before_bed = bool(request.form.get('caffeine'))
+            record.heavy_meal_before_bed = bool(request.form.get('heavy_meal'))
+            record.notes = request.form.get('notes')
+
+            db.session.commit()
+            flash('睡眠记录已更新！', 'success')
+        except Exception as e:
+            flash(f'更新失败：{str(e)}', 'error')
+
+        return redirect(url_for('sleep'))
+
+    return render_template('sleep_edit.html', record=record)
+
+
+@app.route('/sleep/delete/<int:record_id>', methods=['POST'])
+@login_required
+def delete_sleep(record_id):
+    """删除睡眠记录"""
+    record = SleepRecord.query.get_or_404(record_id)
+
+    if record.user_id != current_user.id:
+        flash('无权操作', 'error')
+        return redirect(url_for('sleep'))
+
+    db.session.delete(record)
+    db.session.commit()
+    flash('睡眠记录已删除！', 'success')
     return redirect(url_for('sleep'))
 
 
@@ -947,12 +1222,238 @@ def ai_analysis():
     # 寿命增加
     life_bonus, tips = calculate_life_expectancy()
     
+    # 获取健康新闻
+    news_items = HealthNews.query.order_by(HealthNews.published_at.desc()).limit(8).all()
+    
     return render_template('ai_analysis.html',
                          stats=stats,
                          analysis=analysis,
                          life_bonus=life_bonus,
                          tips=tips,
+                         news_items=news_items,
                          current_user=current_user)
+
+
+
+
+
+
+
+@app.route('/export_report')
+@login_required
+def export_report():
+    """导出健康报告为Word文档"""
+    # 获取近期数据
+    last_30_days = date.today() - timedelta(days=30)
+    
+    food_records = FoodRecord.query.filter(
+        FoodRecord.user_id == current_user.id,
+        FoodRecord.date >= last_30_days
+    ).all()
+    
+    exercise_records = ExerciseRecord.query.filter(
+        ExerciseRecord.user_id == current_user.id,
+        ExerciseRecord.date >= last_30_days
+    ).all()
+    
+    sleep_records = SleepRecord.query.filter(
+        SleepRecord.user_id == current_user.id,
+        SleepRecord.date >= last_30_days
+    ).all()
+    
+    # 计算统计数据
+    total_calories = sum(r.calories for r in food_records) if food_records else 0
+    total_protein = sum(r.protein for r in food_records) if food_records else 0
+    total_carbs = sum(r.carbs for r in food_records) if food_records else 0
+    total_fat = sum(r.fat for r in food_records) if food_records else 0
+    total_exercise_minutes = sum(r.duration for r in exercise_records) if exercise_records else 0
+    total_calories_burned = sum(r.calories_burned for r in exercise_records) if exercise_records else 0
+    avg_sleep = sum(r.duration for r in sleep_records if r.duration) / len(sleep_records) if sleep_records else 0
+    
+    # 寿命增加计算
+    life_bonus, tips = calculate_life_expectancy()
+    
+    # 生成Word文件
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    
+    # 创建Word文档
+    doc = Document()
+    
+    # 中文内容定义（避免f-string编码问题）
+    REPORT_TITLE = '熵食源健康报告'
+    SUBTITLE = f'{current_user.username} \u4e2a\u6027\u5316\u5065\u5eb7\u5206\u6790'  # 个性化健康分析
+    DATE_LABEL = f'\u62a5\u544a\u751f\u6210\u65e5\u671f\uff1a{date.today().strftime("%Y-%m-%d")}'  # 报告生成日期
+    
+    # 标题
+    title = doc.add_heading(REPORT_TITLE, 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # 副标题
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run(SUBTITLE)
+    run.font.size = Pt(16)
+    
+    # 日期
+    date_para = doc.add_paragraph()
+    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = date_para.add_run(DATE_LABEL)
+    run.font.size = Pt(10)
+    
+    doc.add_paragraph()
+    
+    # 一、寿命预测
+    LIFE_HEADING = '\u4e00\u3001\u5bff\u547d\u9884\u6d4b'  # 一、寿命预测
+    LIFE_TEXT1 = '\u6839\u636e\u60a8\u7684\u5065\u5eb7\u751f\u6d3b\u65b9\u5f0f\uff0c\u9884\u8ba1\u53ef\u5ef6\u957f\u5bff\u547d'  # 根据您的健康生活方式，预计可延长寿命
+    LIFE_TEXT2 = f'+{life_bonus} \u5e74'  # 年
+    
+    doc.add_heading(LIFE_HEADING, level=1)
+    life_para = doc.add_paragraph()
+    life_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = life_para.add_run(LIFE_TEXT1)
+    run.font.size = Pt(14)
+    
+    life_num = doc.add_paragraph()
+    life_num.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = life_num.add_run(LIFE_TEXT2)
+    run.font.size = Pt(48)
+    run.font.color.rgb = RGBColor(108, 92, 231)
+    
+    doc.add_paragraph()
+    
+    # 二、营养摄入统计
+    NUTRITION_HEADING = '\u4e8c\u3001\u8fd130\u5929\u8425\u517b\u6444\u5165\u7edf\u8ba1'  # 二、近30天营养摄入统计
+    HEADERS = ['\u9879\u76ee', '\u6570\u503c', '\u8bf4\u660e']  # 项目、数值、说明
+    
+    doc.add_heading(NUTRITION_HEADING, level=1)
+    table1 = doc.add_table(rows=5, cols=3)
+    table1.style = 'Table Grid'
+    table1.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    for i, header in enumerate(HEADERS):
+        cell = table1.rows[0].cells[i]
+        cell.text = header
+        cell.paragraphs[0].runs[0].font.bold = True
+    
+    # 使用英文标签避免编码问题
+    data1 = [
+        ('\u603b\u70ed\u91cf\u6444\u5165', f'{total_calories:.0f} kcal', f'\u65e5\u5747 {total_calories/30:.0f} kcal'),  # 总热量摄入、日均
+        ('\u603b\u86cb\u767d\u8d28\u6444\u5165', f'{total_protein:.1f} g', f'\u65e5\u5747 {total_protein/30:.1f} g'),  # 总蛋白质摄入
+        ('\u603b\u78b3\u6c34\u6444\u5165', f'{total_carbs:.1f} g', f'\u65e5\u5747 {total_carbs/30:.1f} g'),  # 总碳水摄入
+        ('\u603b\u8102\u80aa\u6444\u5165', f'{total_fat:.1f} g', f'\u65e5\u5747 {total_fat/30:.1f} g'),  # 总脂肪摄入
+    ]
+    for i, row_data in enumerate(data1):
+        for j, text in enumerate(row_data):
+            table1.rows[i+1].cells[j].text = text
+    
+    doc.add_paragraph()
+    
+    # 三、运动统计
+    EXERCISE_HEADING = '\u4e09\u3001\u8fd130\u5929\u8fd0\u52a8\u7edf\u8ba1'  # 三、近30天运动统计
+    
+    doc.add_heading(EXERCISE_HEADING, level=1)
+    table2 = doc.add_table(rows=3, cols=3)
+    table2.style = 'Table Grid'
+    table2.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    for i, header in enumerate(HEADERS):
+        cell = table2.rows[0].cells[i]
+        cell.text = header
+        cell.paragraphs[0].runs[0].font.bold = True
+    
+    data2 = [
+        ('\u603b\u8fd0\u52a8\u65f6\u957f', f'{total_exercise_minutes:.0f} \u5206\u949f', f'\u65e5\u5747 {total_exercise_minutes/30:.1f} \u5206\u949f'),  # 总运动时长、分钟
+        ('\u603b\u6d88\u8017\u70ed\u91cf', f'{total_calories_burned:.0f} kcal', f'\u65e5\u5747 {total_calories_burned/30:.0f} kcal'),  # 总消耗热量
+    ]
+    for i, row_data in enumerate(data2):
+        for j, text in enumerate(row_data):
+            table2.rows[i+1].cells[j].text = text
+    
+    doc.add_paragraph()
+    
+    # 四、睡眠质量
+    SLEEP_HEADING = '\u56db\u3001\u7761\u7720\u8d28\u91cf\u5206\u6790'  # 四、睡眠质量分析
+    sleep_level = '\u4f18\u79c0' if avg_sleep >= 8 else '\u826f\u597d' if avg_sleep >= 7 else '\u4e00\u822c' if avg_sleep >= 6 else '\u9700\u6539\u5584'  # 优秀、良好、一般、需改善
+    
+    doc.add_heading(SLEEP_HEADING, level=1)
+    doc.add_paragraph(f'\u00b7 \u5e73\u5747\u7761\u7720\u65f6\u957f\uff1a{avg_sleep:.1f} \u5c0f\u65f6/\u5929')  # 平均睡眠时长、小时/天
+    doc.add_paragraph(f'\u00b7 \u7761\u7720\u8d28\u91cf\u8bc4\u7ea7\uff1a{sleep_level}')  # 睡眠质量评级
+    
+    doc.add_paragraph()
+    
+    # 五、健康建议
+    RECOMMEND_HEADING = '\u4e94\u3001\u4e2a\u6027\u5316\u5065\u5eb7\u5efa\u8bae'  # 五、个性化健康建议
+    
+    doc.add_heading(RECOMMEND_HEADING, level=1)
+    doc.add_paragraph('\u300a\u76ee\u6807\u8bbe\u7f6e\u300b')  # 【目标设置】
+    doc.add_paragraph(f'\u00b7 \u6bcf\u65e5\u76ee\u6807\u70ed\u91cf\uff1a{current_user.target_calories:.0f} kcal')
+    doc.add_paragraph(f'\u00b7 \u6bcf\u65e5\u76ee\u6807\u86cb\u767d\u8d28\uff1a{current_user.target_protein:.0f} g')
+    doc.add_paragraph(f'\u00b7 \u5f53\u524d\u4f53\u91cd\uff1a{current_user.weight:.1f} kg')
+    
+    doc.add_paragraph()
+    doc.add_paragraph('\u300a\u5065\u5eb7\u5efa\u8bae\u300b')  # 【健康建议】
+    for tip in tips:
+        doc.add_paragraph(f'\u00b7 {tip}')
+    
+    doc.add_paragraph()
+    
+    # 六、季节饮食建议
+    SEASON_HEADING = '\u516d\u3001\u5b63\u8282\u996e\u98df\u5efa\u8bae\uff08\u6625\u5b63\uff09'  # 六、季节饮食建议（春季）
+    
+    doc.add_heading(SEASON_HEADING, level=1)
+    
+    table3 = doc.add_table(rows=5, cols=2)
+    table3.style = 'Table Grid'
+    table3.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    table3.rows[0].cells[0].text = '\u5efa\u8bae\u591a\u5403'  # 建议多吃
+    table3.rows[0].cells[1].text = '\u5efa\u8bae\u5c11\u5403'  # 建议少吃
+    table3.rows[0].cells[0].paragraphs[0].runs[0].font.bold = True
+    table3.rows[0].cells[1].paragraphs[0].runs[0].font.bold = True
+    
+    more_foods = '\u00b7 \u65b0\u9c9c\u6625\u7b0b\u3001\u9999\u69df\u3001\u8367\u83c9\u7b49\u65f6\u4ee4\u852c\u83dc\n\u00b7 \u8349\u8393\u3001\u6a31\u6843\u3001\u67d0\u67d0\u7b49\u6625\u5b63\u6c34\u679c\n\u00b7 \u6e05\u6de1\u6613\u6d88\u5316\u7684\u98df\u7269\uff0c\u5982\u7ca5\u3001\u6c64\n\u00b7 \u5bcc\u542b\u7ef4\u751f\u7d20C\u7684\u8944\u69d0\u7c7b\u98df\u7269'
+    less_foods = '\u00b7 \u6cb9\u80a0\u3001\u8fa3\u6cb9\u523a\u6fc0\u6027\u98df\u7269\n\u00b7 \u751f\u51b7\u51b0\u51c9\u7684\u98df\u7269\u996e\u6599\n\u00b7 \u8fc7\u54b8\u8fc7\u751c\u7684\u91cd\u53e3\u5473\u98df\u54c1\n\u00b7 \u6613\u5f15\u53d1\u8fc7\u654f\u7684\u9c7c\u867e\u6d77\u9c7c'
+    
+    for i in range(1, 5):
+        table3.rows[i].cells[0].text = more_foods.split('\n')[i-1] if i <= len(more_foods.split('\n')) else ''
+        table3.rows[i].cells[1].text = less_foods.split('\n')[i-1] if i <= len(less_foods.split('\n')) else ''
+    
+    doc.add_paragraph()
+    doc.add_paragraph()
+    
+    # 页脚
+    FOOTER1 = '熵食源 - 让健康饮食更简单'
+    FOOTER2 = '\u672c\u62a5\u544a\u7531AI\u81ea\u52a8\u751f\u6210\uff0c\u6570\u636e\u4ec5\u4f9b\u53c2\u8003\uff0c\u8bf7\u7ed3\u5408\u5b9e\u9645\u60c5\u51b5\u548c\u4e13\u4e1a\u5efa\u8bae\u4f7f\u7528'  # 本报告由AI自动生成，数据仅供参考，请结合实际情况和专业建议使用
+    
+    footer = doc.add_paragraph()
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = footer.add_run(FOOTER1)
+    run.font.size = Pt(10)
+    
+    footer2 = doc.add_paragraph()
+    footer2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = footer2.add_run(FOOTER2)
+    run.font.size = Pt(9)
+    run.font.color.rgb = RGBColor(128, 128, 128)
+    
+    # 保存文件
+    from flask import make_response
+    import urllib.parse
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    response = make_response(buffer.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    # 安全处理文件名 - 使用纯ASCII避免编码问题
+    safe_username = str(current_user.username).replace('/', '_').replace('\\', '_')
+    filename = f'HealthReport_{safe_username}_{date.today().strftime("%Y%m%d")}.docx'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
 
 
 def generate_ai_analysis(stats):

@@ -158,6 +158,35 @@
                 </ul>
             </div>
         </div>
+
+        <!-- 季节饮食建议 -->
+        <div class="card mb-4" style="border-left: 4px solid #ff7675;">
+            <div class="card-header" style="background: linear-gradient(135deg, #ff7675, #d63031); color: white;">
+                <h5 class="mb-0"><i class="bi bi-calendar-event"></i> 季节饮食建议</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="bi bi-check-circle"></i> 建议多吃</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check2 text-success me-2"></i>新鲜春笋、香椿、荠菜等时令蔬菜</li>
+                            <li><i class="bi bi-check2 text-success me-2"></i>草莓、樱桃、枇杷等春季水果</li>
+                            <li><i class="bi bi-check2 text-success me-2"></i>清淡易消化的食物，如粥、汤</li>
+                            <li><i class="bi bi-check2 text-success me-2"></i>富含维生素C的柑橘类食物</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="bi bi-x-circle"></i> 建议少吃</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-x text-danger me-2"></i>油腻、辛辣刺激性食物</li>
+                            <li><i class="bi bi-x text-danger me-2"></i>生冷冰凉的食物饮料</li>
+                            <li><i class="bi bi-x text-danger me-2"></i>过咸过甜的重口味食品</li>
+                            <li><i class="bi bi-x text-danger me-2"></i>易引发过敏的鱼虾海鲜</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 右侧健康新闻 -->
@@ -191,21 +220,67 @@
             </div>
         </div>
 
-        <!-- 趣味计算 -->
-        <div class="card bg-gradient text-white" style="background: linear-gradient(135deg, #74b9ff, #0984e3);">
-            <div class="card-body text-center">
-                <i class="bi bi-stars display-4 mb-3"></i>
-                <h4>健康生活，延年益寿</h4>
-                <p class="mb-3">根据科学研究，坚持健康生活方式可以延长寿命</p>
-                {% if current_user.is_authenticated %}
-                <div class="bg-white rounded-3 p-3 text-dark">
-                    <p class="mb-1">按照您的健康生活方式</p>
-                    <h2 class="text-primary mb-1">{{ life_expectancy_bonus }} 年</h2>
-                    <p class="small text-muted mb-0">预计可延长寿命</p>
+        <!-- 日期时间天气卡片 -->
+        <div class="card text-white" style="background: linear-gradient(135deg, #00b894, #00cec9); box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);">
+            <div class="card-body text-center p-4">
+                <!-- 年月日 -->
+                <div class="mb-3">
+                    <div id="current-date" class="display-4 fw-bold" style="font-size: 1.8rem; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">2026年4月10日 周五</div>
                 </div>
-                {% else %}
-                <a href="{{ url_for('register') }}" class="btn btn-light">开始记录，获得专属分析</a>
-                {% endif %}
+                
+                <!-- 电子时钟 -->
+                <div class="bg-white rounded-3 p-3 mb-3" style="background: rgba(255,255,255,0.95);">
+                    <div id="current-time" class="fw-bold" style="font-family: 'Courier New', monospace; font-size: 3.2rem; letter-spacing: 4px; color: #00b894; text-shadow: 0 0 15px rgba(0, 184, 148, 0.4);">
+                        22:57:00
+                    </div>
+                </div>
+                
+                <!-- 城市选择 -->
+                <div class="mb-3">
+                    <select id="city-select" class="form-select form-select-sm" style="background: rgba(255,255,255,0.95); color: #333; border: 2px solid rgba(255,255,255,0.5);" onchange="updateWeather()">
+                        <option value="">选择城市查看天气</option>
+                        <option value="beijing">北京</option>
+                        <option value="shanghai">上海</option>
+                        <option value="guangzhou">广州</option>
+                        <option value="shenzhen">深圳</option>
+                        <option value="hangzhou">杭州</option>
+                        <option value="nanjing">南京</option>
+                        <option value="wuhan">武汉</option>
+                        <option value="chengdu">成都</option>
+                        <option value="chongqing">重庆</option>
+                        <option value="xian">西安</option>
+                        <option value="tianjin">天津</option>
+                        <option value="suzhou">苏州</option>
+                        <option value="zhengzhou">郑州</option>
+                        <option value="changsha">长沙</option>
+                        <option value="shenyang">沈阳</option>
+                        <option value="qingdao">青岛</option>
+                        <option value="jinan">济南</option>
+                        <option value="shijiazhuang">石家庄</option>
+                        <option value="fuzhou">福州</option>
+                        <option value="xiamen">厦门</option>
+                        <option value="nanchang">南昌</option>
+                        <option value="kunming">昆明</option>
+                        <option value="guiyang">贵阳</option>
+                        <option value="nanning">南宁</option>
+                        <option value="hefei">合肥</option>
+                        <option value="taiyuan">太原</option>
+                        <option value="huhehaote">呼和浩特</option>
+                        <option value="changchun">长春</option>
+                        <option value="haerbin">哈尔滨</option>
+                        <option value="lanzhou">兰州</option>
+                        <option value="wulumuqi">乌鲁木齐</option>
+                        <option value="lasa">拉萨</option>
+                        <option value="xining">西宁</option>
+                        <option value="yinchuan">银川</option>
+                        <option value="haikou">海口</option>
+                    </select>
+                </div>
+                
+                <!-- 天气显示 -->
+                <div id="weather-display" class="mt-3 p-3 rounded-3" style="background: rgba(255,255,255,0.2);">
+                    <div class="small" style="color: rgba(255,255,255,0.8);">请选择城市</div>
+                </div>
             </div>
         </div>
 
@@ -228,4 +303,88 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// 更新日期和时间
+function updateDateTime() {
+    var now = new Date();
+    var year = now.getFullYear();
+    var month = now.getMonth() + 1;
+    var day = now.getDate();
+    var weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    var weekDay = weekDays[now.getDay()];
+    document.getElementById('current-date').textContent = year + '年' + month + '月' + day + '日 ' + weekDay;
+    
+    var hours = now.getHours();
+    hours = hours < 10 ? '0' + hours : hours;
+    var minutes = now.getMinutes();
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    var seconds = now.getSeconds();
+    seconds = seconds < 10 ? '0' + seconds : seconds;
+    document.getElementById('current-time').textContent = hours + ':' + minutes + ':' + seconds;
+}
+
+// 天气数据
+var weatherData = {
+    'beijing': { temp: '18°C', desc: '晴', icon: 'bi-sun', humidity: '45%', wind: '3级' },
+    'shanghai': { temp: '22°C', desc: '多云', icon: 'bi-cloudy', humidity: '62%', wind: '2级' },
+    'guangzhou': { temp: '26°C', desc: '晴', icon: 'bi-sun', humidity: '75%', wind: '2级' },
+    'shenzhen': { temp: '25°C', desc: '晴', icon: 'bi-sun', humidity: '78%', wind: '2级' },
+    'hangzhou': { temp: '21°C', desc: '阴', icon: 'bi-clouds', humidity: '68%', wind: '1级' },
+    'nanjing': { temp: '20°C', desc: '多云', icon: 'bi-cloudy', humidity: '65%', wind: '2级' },
+    'wuhan': { temp: '23°C', desc: '晴', icon: 'bi-sun', humidity: '55%', wind: '2级' },
+    'chengdu': { temp: '19°C', desc: '阴', icon: 'bi-clouds', humidity: '72%', wind: '1级' },
+    'chongqing': { temp: '22°C', desc: '多云', icon: 'bi-cloudy', humidity: '70%', wind: '1级' },
+    'xian': { temp: '17°C', desc: '晴', icon: 'bi-sun', humidity: '48%', wind: '2级' },
+    'tianjin': { temp: '18°C', desc: '晴', icon: 'bi-sun', humidity: '50%', wind: '3级' },
+    'suzhou': { temp: '21°C', desc: '多云', icon: 'bi-cloudy', humidity: '66%', wind: '2级' },
+    'zhengzhou': { temp: '19°C', desc: '晴', icon: 'bi-sun', humidity: '52%', wind: '2级' },
+    'changsha': { temp: '24°C', desc: '晴', icon: 'bi-sun', humidity: '58%', wind: '1级' },
+    'shenyang': { temp: '14°C', desc: '多云', icon: 'bi-cloudy', humidity: '55%', wind: '3级' },
+    'qingdao': { temp: '16°C', desc: '晴', icon: 'bi-sun', humidity: '60%', wind: '3级' },
+    'jinan': { temp: '19°C', desc: '晴', icon: 'bi-sun', humidity: '50%', wind: '2级' },
+    'shijiazhuang': { temp: '18°C', desc: '晴', icon: 'bi-sun', humidity: '48%', wind: '2级' },
+    'fuzhou': { temp: '24°C', desc: '多云', icon: 'bi-cloudy', humidity: '70%', wind: '2级' },
+    'xiamen': { temp: '25°C', desc: '晴', icon: 'bi-sun', humidity: '72%', wind: '2级' },
+    'nanchang': { temp: '23°C', desc: '晴', icon: 'bi-sun', humidity: '60%', wind: '2级' },
+    'kunming': { temp: '20°C', desc: '多云', icon: 'bi-cloudy', humidity: '65%', wind: '1级' },
+    'guiyang': { temp: '18°C', desc: '阴', icon: 'bi-clouds', humidity: '75%', wind: '1级' },
+    'nanning': { temp: '26°C', desc: '晴', icon: 'bi-sun', humidity: '78%', wind: '1级' },
+    'hefei': { temp: '21°C', desc: '多云', icon: 'bi-cloudy', humidity: '62%', wind: '2级' },
+    'taiyuan': { temp: '16°C', desc: '晴', icon: 'bi-sun', humidity: '45%', wind: '2级' },
+    'huhehaote': { temp: '12°C', desc: '晴', icon: 'bi-sun', humidity: '40%', wind: '3级' },
+    'changchun': { temp: '13°C', desc: '多云', icon: 'bi-cloudy', humidity: '52%', wind: '3级' },
+    'haerbin': { temp: '11°C', desc: '多云', icon: 'bi-cloudy', humidity: '55%', wind: '3级' },
+    'lanzhou': { temp: '15°C', desc: '晴', icon: 'bi-sun', humidity: '42%', wind: '2级' },
+    'wulumuqi': { temp: '10°C', desc: '晴', icon: 'bi-sun', humidity: '35%', wind: '2级' },
+    'lasa': { temp: '14°C', desc: '晴', icon: 'bi-sun', humidity: '30%', wind: '2级' },
+    'xining': { temp: '11°C', desc: '多云', icon: 'bi-cloudy', humidity: '40%', wind: '2级' },
+    'yinchuan': { temp: '14°C', desc: '晴', icon: 'bi-sun', humidity: '38%', wind: '2级' },
+    'haikou': { temp: '28°C', desc: '晴', icon: 'bi-sun', humidity: '80%', wind: '2级' }
+};
+
+function updateWeather() {
+    var city = document.getElementById('city-select').value;
+    var display = document.getElementById('weather-display');
+    
+    if (!city) {
+        display.innerHTML = '<div class="small text-white-50">请选择城市</div>';
+        return;
+    }
+    
+    var data = weatherData[city] || { temp: '--°C', desc: '未知', icon: 'bi-question', humidity: '--%', wind: '--' };
+    
+    display.innerHTML = '<div class="d-flex justify-content-between align-items-center">' +
+        '<div><i class="bi ' + data.icon + ' display-6"></i><span class="ms-2 fs-4 fw-bold">' + data.temp + '</span></div>' +
+        '<div class="text-end"><div class="text-white">' + data.desc + '</div><small class="text-white-50">湿度 ' + data.humidity + ' | ' + data.wind + '</small></div>' +
+        '</div>';
+}
+
+// 初始化
+updateDateTime();
+setInterval(updateDateTime, 1000);
+</script>
 {% endblock %}

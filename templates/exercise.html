@@ -49,6 +49,7 @@
                         <th>强度</th>
                         <th>热量</th>
                         <th>时间</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,6 +67,17 @@
                         </td>
                         <td class="text-danger fw-bold">{{ record.calories_burned|int }} 千卡</td>
                         <td>{{ record.time.strftime('%H:%M') if record.time else '--:--' }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_exercise', record_id=record.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </a>
+                            <form method="POST" action="{{ url_for('delete_exercise', record_id=record.id) }}" class="d-inline"
+                                  onsubmit="return confirm('确定要删除这条运动记录吗？');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

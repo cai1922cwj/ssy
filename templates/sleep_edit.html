@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-pencil-square text-primary"></i> 编辑睡眠记录</h2>
+
+<div class="card mt-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-moon-stars"></i> 修改睡眠数据</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('edit_sleep', record_id=record.id) }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">睡眠时长 (小时)</label>
+                    <input type="number" step="0.5" name="duration" class="form-control"
+                           value="{{ '%.1f'|format(record.duration) if record.duration else '7' }}" min="0" max="24">
+                    <small class="text-muted">或使用下方时间自动计算</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">睡眠质量</label>
+                    <select name="quality" class="form-select">
+                        <option value="10" {% if record.quality == 10 %}selected{% endif %}>10 - 非常好</option>
+                        <option value="8" {% if record.quality == 8 %}selected{% endif %}>8 - 良好</option>
+                        <option value="6" {% if record.quality == 6 %}selected{% endif %}>6 - 一般</option>
+                        <option value="4" {% if record.quality == 4 %}selected{% endif %}>4 - 较差</option>
+                        <option value="2" {% if record.quality == 2 %}selected{% endif %}>2 - 很差</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">影响因素</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="caffeine" id="caffeine"
+                               {% if record.caffeine_before_bed %}checked{% endif %}>
+                        <label class="form-check-label" for="caffeine">睡前喝咖啡/茶</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="heavy_meal" id="heavy_meal"
+                               {% if record.heavy_meal_before_bed %}checked{% endif %}>
+                        <label class="form-check-label" for="heavy_meal">睡前吃太多</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="form-label">备注</label>
+                <input type="text" name="notes" class="form-control" value="{{ record.notes or '' }}" placeholder="可选">
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check"></i> 保存修改
+                </button>
+                <a href="{{ url_for('sleep') }}" class="btn btn-secondary ms-2">
+                    <i class="bi bi-x"></i> 取消
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
