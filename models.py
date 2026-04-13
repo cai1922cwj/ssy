@@ -29,6 +29,9 @@ class User(UserMixin, db.Model):
     target_carbs = db.Column(db.Float, default=250)
     target_fat = db.Column(db.Float, default=65)
     
+    # 权限
+    is_admin = db.Column(db.Boolean, default=False)
+    
     # 关系
     food_records = db.relationship('FoodRecord', backref='user', lazy=True, cascade='all, delete-orphan')
     exercise_records = db.relationship('ExerciseRecord', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -182,6 +185,45 @@ class FoodRecord(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     food = db.relationship('Food', backref='records')
+
+class FoodImageFeature(db.Model):
+    """存储用户确认的食物图片特征，用于机器学习"""
+    __tablename__ = 'food_image_features'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    food_name = db.Column(db.String(100), nullable=False)
+    food_category = db.Column(db.String(50))
+    
+    # 图片特征数据
+    avg_color_r = db.Column(db.Float, nullable=False)
+    avg_color_g = db.Column(db.Float, nullable=False)
+    avg_color_b = db.Column(db.Float, nullable=False)
+    dominant_color_r = db.Column(db.Float, nullable=False)
+    dominant_color_g = db.Column(db.Float, nullable=False)
+    dominant_color_b = db.Column(db.Float, nullable=False)
+    brightness = db.Column(db.Float, nullable=False)
+    
+    # 可选：存储缩略图或图片哈希
+    image_hash = db.Column(db.String(64))
+    
+    # 统计信息
+    confirmed_count = db.Column(db.Integer, default=1)  # 被确认次数
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='image_features')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'food_name': self.food_name,
+            'food_category': self.food_category,
+            'avg_color': [self.avg_color_r, self.avg_color_g, self.avg_color_b],
+            'dominant_color': [self.dominant_color_r, self.dominant_color_g, self.dominant_color_b],
+            'brightness': self.brightness,
+            'confirmed_count': self.confirmed_count
+        }
 
 class Exercise(db.Model):
     __tablename__ = 'exercises'

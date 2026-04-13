@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2><i class="bi bi-camera" style="color: #43a047;"></i> 拍照识别食物</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-camera" style="color: #43a047;"></i> 拍照识别食物</h4>
+    <a href="{{ url_for('diet') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> 返回
+    </a>
+</div>
 
-<div class="card mb-4">
+<div class="card mb-3">
     <div class="card-body">
-        <p class="text-muted">上传食物照片，系统将自动识别食物名称并估算营养成分</p>
+        <p class="text-muted">上传食物照片，AI将自动识别并估算营养成分</p>
         
         <!-- 拍照/上传区域 -->
         <div class="text-center py-4" id="uploadArea">
@@ -52,6 +57,15 @@
     </div>
 </div>
 
+<!-- 加载状态 -->
+<div class="card" id="loadingCard" style="display: none;">
+    <div class="card-body text-center py-5">
+        <div class="spinner-border text-success mb-3" role="status"></div>
+        <p>AI正在识别食物...</p>
+        <small class="text-muted">请稍候，正在分析图片</small>
+    </div>
+</div>
+
 <!-- 识别结果 -->
 <div class="card" id="resultCard" style="display: none;">
     <div class="card-header" style="background: #43a047; color: white;">
@@ -59,67 +73,99 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-6 mb-3">
                 <img id="resultImage" src="" alt="食物图片" style="max-width: 100%; border-radius: 10px;">
             </div>
             <div class="col-md-6">
-                <h4 id="foodName" class="text-success"></h4>
-                <p id="foodDesc" class="text-muted"></p>
-                
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>营养成分</th>
-                                <th>每100g</th>
-                                <th>估算份量</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><i class="bi bi-fire text-danger"></i> 热量</td>
-                                <td id="cal100">-</td>
-                                <td id="calServing">-</td>
-                            </tr>
-                            <tr>
-                                <td><i class="bi bi-egg text-warning"></i> 蛋白质</td>
-                                <td id="protein100">-</td>
-                                <td id="proteinServing">-</td>
-                            </tr>
-                            <tr>
-                                <td><i class="bi bi-bread text-info"></i> 碳水</td>
-                                <td id="carbs100">-</td>
-                                <td id="carbsServing">-</td>
-                            </tr>
-                            <tr>
-                                <td><i class="bi bi-droplet text-success"></i> 脂肪</td>
-                                <td id="fat100">-</td>
-                                <td id="fatServing">-</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- 识别结果列表 -->
+                <div id="recognitionResults" class="mb-3">
+                    <h6 class="text-muted">识别到的可能食物（点击选择）：</h6>
+                    <div id="candidateFoods" class="list-group"></div>
                 </div>
                 
-                <!-- 份量调整 -->
+                <!-- 手动搜索 -->
                 <div class="mb-3">
-                    <label class="form-label">估算份量 (克)</label>
-                    <input type="range" class="form-range" min="50" max="500" value="150" id="servingSize" onchange="updateServing()">
-                    <div class="text-center"><span id="servingDisplay">150</span>g</div>
+                    <label class="form-label">或手动搜索食物：</label>
+                    <div class="input-group">
+                        <input type="text" id="manualSearch" class="form-control" placeholder="输入食物名称搜索">
+                        <button class="btn btn-outline-secondary" type="button" onclick="manualSearchFood()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <div id="manualSearchResults" class="list-group mt-2" style="display: none;"></div>
                 </div>
                 
-                <button class="btn w-100" style="background: #43a047; color: white;" onclick="saveFoodRecord()">
-                    <i class="bi bi-plus-lg"></i> 添加到今日饮食
-                </button>
+                <!-- 选中的食物信息 -->
+                <div id="selectedFoodInfo" style="display: none;">
+                    <h5 id="foodName" class="text-success"></h5>
+                    <p id="foodDesc" class="text-muted"></p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>营养成分</th>
+                                    <th>每100g</th>
+                                    <th>估算份量</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="bi bi-fire text-danger"></i> 热量</td>
+                                    <td id="cal100">-</td>
+                                    <td id="calServing">-</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-egg text-warning"></i> 蛋白质</td>
+                                    <td id="protein100">-</td>
+                                    <td id="proteinServing">-</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-bread text-info"></i> 碳水</td>
+                                    <td id="carbs100">-</td>
+                                    <td id="carbsServing">-</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="bi bi-droplet text-success"></i> 脂肪</td>
+                                    <td id="fat100">-</td>
+                                    <td id="fatServing">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 份量调整 -->
+                    <div class="mb-3">
+                        <label class="form-label">估算份量 (克)</label>
+                        <input type="range" class="form-range" min="50" max="500" value="150" id="servingSize" onchange="updateServing()">
+                        <div class="text-center"><span id="servingDisplay">150</span>g</div>
+                    </div>
+                    
+                    <!-- 餐次选择 -->
+                    <div class="mb-3">
+                        <label class="form-label">餐次</label>
+                        <select id="mealType" class="form-select">
+                            <option value="breakfast">早餐</option>
+                            <option value="lunch" selected>午餐</option>
+                            <option value="dinner">晚餐</option>
+                            <option value="snack">零食</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 学习功能按钮 -->
+                    <div id="learnButtonContainer" class="mb-2" style="display: none;">
+                        <button class="btn btn-outline-primary w-100" onclick="learnFoodFeature()">
+                            <i class="bi bi-lightbulb"></i> 确认正确，让AI学习这个食物
+                        </button>
+                        <small class="text-muted d-block mt-1">点击后，下次识别会更准确</small>
+                    </div>
+                    
+                    <button class="btn w-100" style="background: #43a047; color: white;" onclick="saveFoodRecord()">
+                        <i class="bi bi-plus-lg"></i> 添加到今日饮食
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- 加载状态 -->
-<div class="card" id="loadingCard" style="display: none;">
-    <div class="card-body text-center py-5">
-        <div class="spinner-border text-success mb-3" role="status"></div>
-        <p>正在识别食物...</p>
     </div>
 </div>
 {% endblock %}
@@ -129,6 +175,7 @@
 let stream = null;
 let capturedImage = null;
 let recognizedFood = null;
+let recognitionResults = [];
 
 async function startCamera() {
     try {
@@ -168,9 +215,13 @@ function takePhoto() {
 
 function resetCamera() {
     capturedImage = null;
+    recognizedFood = null;
+    recognitionResults = [];
     document.getElementById('previewArea').style.display = 'none';
     document.getElementById('uploadPrompt').style.display = 'block';
     document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('selectedFoodInfo').style.display = 'none';
+    document.getElementById('candidateFoods').innerHTML = '';
 }
 
 function handleFileUpload(event) {
@@ -193,28 +244,202 @@ async function uploadImage() {
     document.getElementById('previewArea').style.display = 'none';
     document.getElementById('loadingCard').style.display = 'block';
     
-    // 模拟AI识别（实际项目中需要调用图像识别API）
-    setTimeout(() => {
-        // 模拟识别结果
-        const mockFoods = [
-            { name: '红烧肉', desc: '典型中式菜肴，富含蛋白质和脂肪', calories: 295, protein: 13, carbs: 7, fat: 24 },
-            { name: '清炒西兰花', desc: '低热量蔬菜，富含维生素C和膳食纤维', calories: 34, protein: 3, carbs: 5, fat: 0.6 },
-            { name: '白米饭', desc: '主要碳水化合物来源，提供能量', calories: 130, protein: 2.5, carbs: 28, fat: 0.3 },
-            { name: '番茄炒蛋', desc: '家常菜，蛋白质与维生素结合', calories: 89, protein: 6, carbs: 4, fat: 5 }
-        ];
-        recognizedFood = mockFoods[Math.floor(Math.random() * mockFoods.length)];
+    try {
+        // 提取 base64 图片数据（去掉 data:image/jpeg;base64, 前缀）
+        const base64Image = capturedImage.split(',')[1];
+        
+        // 调用后端识别 API
+        const response = await fetch('/api/recognize-food', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: base64Image
+            })
+        });
+        
+        const result = await response.json();
         
         document.getElementById('loadingCard').style.display = 'none';
         document.getElementById('resultCard').style.display = 'block';
         document.getElementById('resultImage').src = capturedImage;
-        document.getElementById('foodName').textContent = recognizedFood.name;
-        document.getElementById('foodDesc').textContent = recognizedFood.desc;
-        document.getElementById('cal100').textContent = recognizedFood.calories + ' kcal';
-        document.getElementById('protein100').textContent = recognizedFood.protein + 'g';
-        document.getElementById('carbs100').textContent = recognizedFood.carbs + 'g';
-        document.getElementById('fat100').textContent = recognizedFood.fat + 'g';
-        updateServing();
-    }, 1500);
+        
+        console.log('后端返回结果:', result);
+        
+        if (result.success && result.results && result.results.length > 0) {
+            // 显示识别结果列表
+            recognitionResults = result.results;
+            console.log('准备显示结果:', recognitionResults);
+            
+            try {
+                displayRecognitionResults(result.results);
+                
+                // 自动选择第一个结果
+                if (result.results[0]) {
+                    selectFood(result.results[0]);
+                }
+            } catch (displayError) {
+                console.error('显示结果时出错:', displayError);
+                // 如果显示失败，直接显示备选
+                showFallbackFoods();
+            }
+        } else {
+            // 识别失败，显示手动搜索
+            showFallbackFoods();
+        }
+    } catch (error) {
+        console.error('识别失败:', error);
+        document.getElementById('loadingCard').style.display = 'none';
+        document.getElementById('resultCard').style.display = 'block';
+        
+        // 即使网络错误也显示备选食物
+        const fallbackFoods = [
+            {name: '西红柿', confidence: 30, calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, category: '蔬菜'},
+            {name: '胡萝卜', confidence: 30, calories: 41, protein: 0.9, carbs: 9.6, fat: 0.2, category: '蔬菜'},
+            {name: '黄瓜', confidence: 30, calories: 16, protein: 0.8, carbs: 2.9, fat: 0.2, category: '蔬菜'},
+            {name: '白菜', confidence: 30, calories: 13, protein: 1.5, carbs: 2.2, fat: 0.2, category: '蔬菜'},
+            {name: '土豆', confidence: 30, calories: 77, protein: 2.0, carbs: 17.5, fat: 0.1, category: '蔬菜'}
+        ];
+        
+        document.getElementById('candidateFoods').innerHTML = 
+            '<div class="alert alert-warning mb-2">识别服务连接失败，请从下方选择常见蔬菜或手动搜索</div>';
+        
+        recognitionResults = fallbackFoods;
+        displayRecognitionResults(fallbackFoods);
+    }
+}
+
+function displayRecognitionResults(results) {
+    console.log('displayRecognitionResults 被调用:', results);
+    const container = document.getElementById('candidateFoods');
+    if (!container) {
+        console.error('找不到 candidateFoods 元素');
+        return;
+    }
+    container.innerHTML = '';
+    
+    results.forEach((food, index) => {
+        const item = document.createElement('button');
+        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+            <div>
+                <strong>${food.name}</strong>
+                <small class="text-muted d-block">置信度: ${food.confidence}%</small>
+            </div>
+            <span class="badge bg-primary rounded-pill">${food.calories || '--'} kcal/100g</span>
+        `;
+        item.onclick = () => selectFood(food);
+        container.appendChild(item);
+    });
+    console.log('结果显示完成');
+}
+
+function showFallbackFoods() {
+    const fallbackFoods = [
+        {name: '米饭', confidence: 30, calories: 116, protein: 2.6, carbs: 25.9, fat: 0.3, category: '主食'},
+        {name: '面条', confidence: 30, calories: 137, protein: 4.5, carbs: 28.5, fat: 0.5, category: '主食'},
+        {name: '西红柿', confidence: 30, calories: 18, protein: 0.9, carbs: 3.9, fat: 0.2, category: '蔬菜'},
+        {name: '胡萝卜', confidence: 30, calories: 41, protein: 0.9, carbs: 9.6, fat: 0.2, category: '蔬菜'},
+        {name: '黄瓜', confidence: 30, calories: 16, protein: 0.8, carbs: 2.9, fat: 0.2, category: '蔬菜'},
+        {name: '猪肉', confidence: 30, calories: 143, protein: 20.3, carbs: 0, fat: 6.2, category: '肉类'},
+        {name: '鸡肉', confidence: 30, calories: 167, protein: 19.4, carbs: 0, fat: 9.4, category: '肉类'},
+        {name: '苹果', confidence: 30, calories: 52, protein: 0.3, carbs: 13.8, fat: 0.2, category: '水果'}
+    ];
+    
+    const container = document.getElementById('candidateFoods');
+    container.innerHTML = '<div class="alert alert-warning mb-2">未能准确识别，请从下方选择或手动搜索</div>';
+    
+    recognitionResults = fallbackFoods;
+    displayRecognitionResults(fallbackFoods);
+}
+
+function selectFood(food) {
+    recognizedFood = food;
+    
+    // 高亮选中的食物
+    const buttons = document.getElementById('candidateFoods').querySelectorAll('button');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    if (event && event.target) {
+        const btn = event.target.closest('button');
+        if (btn) btn.classList.add('active');
+    }
+    
+    // 显示食物详情
+    document.getElementById('selectedFoodInfo').style.display = 'block';
+    document.getElementById('foodName').textContent = food.name;
+    
+    // 显示来源信息
+    let sourceText = `${food.category || '食物'}，营养丰富`;
+    if (food.source === 'user_learned') {
+        sourceText += ` (已学习${food.confirmed_count || 1}次)`;
+    }
+    document.getElementById('foodDesc').textContent = sourceText;
+    
+    // 更新营养数据
+    document.getElementById('cal100').textContent = (food.calories || 0) + ' kcal';
+    document.getElementById('protein100').textContent = (food.protein || 0) + 'g';
+    document.getElementById('carbs100').textContent = (food.carbs || 0) + 'g';
+    document.getElementById('fat100').textContent = (food.fat || 0) + 'g';
+    
+    // 显示学习按钮（如果不是来自用户学习的数据）
+    const learnContainer = document.getElementById('learnButtonContainer');
+    if (food.source !== 'user_learned') {
+        learnContainer.style.display = 'block';
+    } else {
+        learnContainer.style.display = 'none';
+    }
+    
+    updateServing();
+}
+
+async function learnFoodFeature() {
+    if (!recognizedFood || !capturedImage) {
+        alert('请先选择食物');
+        return;
+    }
+    
+    const btn = document.querySelector('#learnButtonContainer button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 学习中...';
+    
+    try {
+        const base64Image = capturedImage.split(',')[1];
+        
+        const response = await fetch('/api/learn-food', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: base64Image,
+                food_name: recognizedFood.name,
+                food_category: recognizedFood.category
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> 已学习！下次识别更准确';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-success');
+            
+            // 3秒后隐藏按钮
+            setTimeout(() => {
+                document.getElementById('learnButtonContainer').style.display = 'none';
+            }, 3000);
+        } else {
+            alert('学习失败: ' + result.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lightbulb"></i> 确认正确，让AI学习这个食物';
+        }
+    } catch (error) {
+        console.error('学习失败:', error);
+        alert('学习失败，请重试');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-lightbulb"></i> 确认正确，让AI学习这个食物';
+    }
 }
 
 function updateServing() {
@@ -223,47 +448,104 @@ function updateServing() {
     
     if (recognizedFood) {
         const factor = size / 100;
-        document.getElementById('calServing').textContent = Math.round(recognizedFood.calories * factor) + ' kcal';
-        document.getElementById('proteinServing').textContent = (recognizedFood.protein * factor).toFixed(1) + 'g';
-        document.getElementById('carbsServing').textContent = (recognizedFood.carbs * factor).toFixed(1) + 'g';
-        document.getElementById('fatServing').textContent = (recognizedFood.fat * factor).toFixed(1) + 'g';
+        document.getElementById('calServing').textContent = Math.round((recognizedFood.calories || 0) * factor) + ' kcal';
+        document.getElementById('proteinServing').textContent = ((recognizedFood.protein || 0) * factor).toFixed(1) + 'g';
+        document.getElementById('carbsServing').textContent = ((recognizedFood.carbs || 0) * factor).toFixed(1) + 'g';
+        document.getElementById('fatServing').textContent = ((recognizedFood.fat || 0) * factor).toFixed(1) + 'g';
     }
 }
 
-function saveFoodRecord() {
-    if (!recognizedFood) return;
+async function manualSearchFood() {
+    const query = document.getElementById('manualSearch').value.trim();
+    if (!query) return;
+    
+    try {
+        const response = await fetch(`/api/foods?q=${encodeURIComponent(query)}`);
+        const foods = await response.json();
+        
+        const container = document.getElementById('manualSearchResults');
+        container.innerHTML = '';
+        
+        if (foods.length === 0) {
+            container.innerHTML = '<div class="list-group-item text-muted">未找到匹配的食物</div>';
+        } else {
+            foods.forEach(food => {
+                const item = document.createElement('button');
+                item.className = 'list-group-item list-group-item-action';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>${food.name}</strong>
+                        <span class="badge bg-secondary">${food.calories} kcal/100g</span>
+                    </div>
+                `;
+                item.onclick = () => {
+                    selectFood({
+                        name: food.name,
+                        calories: food.calories,
+                        protein: food.protein,
+                        carbs: food.carbs,
+                        fat: food.fat,
+                        category: food.category,
+                        confidence: 100
+                    });
+                    container.style.display = 'none';
+                };
+                container.appendChild(item);
+            });
+        }
+        container.style.display = 'block';
+    } catch (error) {
+        console.error('搜索失败:', error);
+    }
+}
+
+async function saveFoodRecord() {
+    if (!recognizedFood) {
+        alert('请先选择食物');
+        return;
+    }
     
     const size = document.getElementById('servingSize').value;
+    const mealType = document.getElementById('mealType').value;
     const factor = size / 100;
     
-    // 提交到后端
-    fetch('{{ url_for("add_diet_record") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            food_name: recognizedFood.name,
-            calories: Math.round(recognizedFood.calories * factor),
-            protein: Math.round(recognizedFood.protein * factor * 10) / 10,
-            carbs: Math.round(recognizedFood.carbs * factor * 10) / 10,
-            fat: Math.round(recognizedFood.fat * factor * 10) / 10,
-            serving_size: size
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch('{{ url_for("add_diet_record") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                food_name: recognizedFood.name,
+                calories: Math.round((recognizedFood.calories || 0) * factor),
+                protein: Math.round((recognizedFood.protein || 0) * factor * 10) / 10,
+                carbs: Math.round((recognizedFood.carbs || 0) * factor * 10) / 10,
+                fat: Math.round((recognizedFood.fat || 0) * factor * 10) / 10,
+                serving_size: parseInt(size),
+                meal_type: mealType,
+                input_method: 'photo'
+            })
+        });
+        
+        const data = await response.json();
+        
         if (data.success) {
             alert('已添加到今日饮食记录！');
             window.location.href = '{{ url_for("diet") }}';
         } else {
-            alert('添加失败，请重试');
+            alert('添加失败：' + (data.message || '请重试'));
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
+    } catch (error) {
+        console.error('保存失败:', error);
         alert('添加失败，请重试');
-    });
+    }
 }
+
+// 回车搜索
+document.getElementById('manualSearch')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        manualSearchFood();
+    }
+});
 </script>
 {% endblock %}

@@ -16,6 +16,7 @@ import base64
 import random
 import re
 from io import BytesIO
+import feedparser
 
 from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis
 
@@ -197,130 +198,125 @@ def init_exercises():
 
 
 def init_news():
-    """初始化健康新闻"""
-    news_items = [
-        # 营养学 (4条)
-        {
-            'title': '研究表明：地中海饮食可降低心血管疾病风险',
-            'summary': '最新研究显示，坚持地中海饮食模式可显著降低心血管疾病发生率。',
-            'source': '哈佛公共卫生学院',
-            'category': 'nutrition',
-            'published_at': datetime.now() - timedelta(days=2)
-        },
-        {
-            'title': '蛋白质摄入时机对肌肉合成的影响',
-            'summary': '运动前后蛋白质摄入的最佳时机和数量对肌肉增长至关重要。',
-            'source': '国际运动营养学会',
-            'category': 'nutrition',
-            'published_at': datetime.now() - timedelta(days=7)
-        },
-        {
-            'title': '膳食纤维摄入不足的健康风险',
-            'summary': '专家建议每日摄入25-30克膳食纤维，可降低肠癌和心血管疾病风险。',
-            'source': '中国营养学会',
-            'category': 'nutrition',
-            'published_at': datetime.now() - timedelta(days=15)
-        },
-        {
-            'title': 'Omega-3脂肪酸对大脑健康的益处',
-            'summary': '研究表明，适量摄入Omega-3可改善认知功能，预防老年痴呆。',
-            'source': '美国神经病学杂志',
-            'category': 'nutrition',
-            'published_at': datetime.now() - timedelta(days=20)
-        },
-        # 运动健康 (4条)
-        {
-            'title': '适度运动如何改善睡眠质量',
-            'summary': '研究发现，每天进行30分钟中等强度运动可显著改善睡眠质量。',
-            'source': 'NIH国立睡眠研究所',
-            'category': 'exercise',
-            'published_at': datetime.now() - timedelta(days=5)
-        },
-        {
-            'title': 'HIIT训练：高效燃脂的最佳选择',
-            'summary': '高强度间歇训练能在短时间内高效燃烧脂肪，提升心肺功能。',
-            'source': '运动医学杂志',
-            'category': 'exercise',
-            'published_at': datetime.now() - timedelta(days=10)
-        },
-        {
-            'title': '久坐不动带来的健康隐患',
-            'summary': '研究表明，每坐1小时应起身活动5分钟，可降低代谢综合征风险。',
-            'source': '英国运动医学杂志',
-            'category': 'exercise',
-            'published_at': datetime.now() - timedelta(days=18)
-        },
-        {
-            'title': '力量训练对骨密度的保护作用',
-            'summary': '定期力量训练可增强骨密度，预防骨质疏松，尤其对中老年人重要。',
-            'source': '国际骨质疏松杂志',
-            'category': 'exercise',
-            'published_at': datetime.now() - timedelta(days=25)
-        },
-        # 睡眠健康 (4条)
-        {
-            'title': '睡眠不足与肥胖的关联机制',
-            'summary': '研究表明睡眠不足会影响荷尔蒙平衡，导致食欲增加和代谢减慢。',
-            'source': '斯坦福大学睡眠研究中心',
-            'category': 'sleep',
-            'published_at': datetime.now() - timedelta(days=12)
-        },
-        {
-            'title': '睡眠质量比睡眠时间更重要',
-            'summary': '深度睡眠和REM睡眠阶段对身体修复和记忆整合最为关键。',
-            'source': '睡眠研究杂志',
-            'category': 'sleep',
-            'published_at': datetime.now() - timedelta(days=14)
-        },
-        {
-            'title': '蓝光如何影响你的睡眠',
-            'summary': '睡前使用电子设备会抑制褪黑素分泌，建议睡前一小时远离屏幕。',
-            'source': '美国国家睡眠基金会',
-            'category': 'sleep',
-            'published_at': datetime.now() - timedelta(days=22)
-        },
-        {
-            'title': '午睡的最佳时长：20-30分钟',
-            'summary': '研究表明，午睡超过30分钟可能影响夜间睡眠质量，建议小憩即可。',
-            'source': '欧洲睡眠研究会',
-            'category': 'sleep',
-            'published_at': datetime.now() - timedelta(days=28)
-        },
-        # 前沿研究 (4条)
-        {
-            'title': '间歇性禁食的健康益处研究进展',
-            'summary': '多项研究表明，间歇性禁食可能改善代谢健康和延长寿命。',
-            'source': '《新英格兰医学杂志》',
-            'category': 'research',
-            'published_at': datetime.now() - timedelta(days=10)
-        },
-        {
-            'title': '肠道菌群与大脑功能的最新发现',
-            'summary': '研究表明肠道菌群会影响情绪和认知，益生菌可能成为新的治疗方法。',
-            'source': '自然杂志',
-            'category': 'research',
-            'published_at': datetime.now() - timedelta(days=16)
-        },
-        {
-            'title': '个性化营养：基因检测指导饮食',
-            'summary': '基因检测可帮助制定个性化饮食方案，实现更精准的营养干预。',
-            'source': '细胞 metabolism',
-            'category': 'research',
-            'published_at': datetime.now() - timedelta(days=24)
-        },
-        {
-            'title': '抗衰老研究新突破：热量限制的分子机制',
-            'summary': '科学家发现热量限制通过特定分子通路延缓衰老，为抗衰老药物开发提供新思路。',
-            'source': '科学杂志',
-            'category': 'research',
-            'published_at': datetime.now() - timedelta(days=30)
-        },
-    ]
+    """从 RSS 源实时抓取健康新闻"""
+    news_items = []
+    news_count = 0
+    categories = ['nutrition', 'exercise', 'sleep', 'research']
     
+    # 从配置的 RSS 源抓取新闻
+    for source_url in app.config.get('NEWS_SOURCES', []):
+        try:
+            feed = feedparser.parse(source_url)
+            if feed.entries:
+                for entry in feed.entries[:5]:  # 每个源最多取5条
+                    title = entry.get('title', '无标题')
+                    summary = entry.get('summary', entry.get('description', '暂无摘要'))
+                    # 清理 HTML 标签
+                    summary = re.sub(r'<[^>]+>', '', summary)
+                    summary = summary[:200] + '...' if len(summary) > 200 else summary
+                    
+                    # 尝试从标题推断分类
+                    title_lower = title.lower()
+                    if any(k in title_lower for k in ['营养', '饮食', '食物', '维生素', '蛋白质']):
+                        category = 'nutrition'
+                    elif any(k in title_lower for k in ['运动', '锻炼', '跑步', '健身', '训练']):
+                        category = 'exercise'
+                    elif any(k in title_lower for k in ['睡眠', '失眠', '休息']):
+                        category = 'sleep'
+                    else:
+                        category = random.choice(categories)
+                    
+                    # 解析发布时间
+                    published_at = datetime.now()
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        try:
+                            from time import mktime
+                            published_at = datetime.fromtimestamp(mktime(entry.published_parsed))
+                        except:
+                            pass
+                    
+                    news_items.append({
+                        'title': title[:100],
+                        'summary': summary,
+                        'source': feed.feed.get('title', source_url)[:50],
+                        'source_url': entry.get('link', ''),
+                        'category': category,
+                        'published_at': published_at
+                    })
+                    news_count += 1
+        except Exception as e:
+            print(f"抓取 RSS 源失败 {source_url}: {e}")
+            continue
+    
+    # 如果没有抓取到新闻，使用备用静态数据
+    if not news_items:
+        print("RSS 源不可用，使用备用新闻数据")
+        fallback_news = app.config.get('FALLBACK_NEWS', [])
+        for i, news in enumerate(fallback_news):
+            news_items.append({
+                'title': news['title'],
+                'summary': f"最新健康资讯：{news['title']}。来源：{news['source']}",
+                'source': news['source'],
+                'source_url': '',
+                'category': news['category'],
+                'published_at': datetime.now() - timedelta(days=i * 2)
+            })
+    
+    # 写入数据库
     for news in news_items:
         hn = HealthNews(**news)
         db.session.add(hn)
     db.session.commit()
+    
+    print(f"新闻初始化完成，共抓取 {len(news_items)} 条新闻")
+
+
+def fetch_latest_news():
+    """实时抓取最新新闻（不清理旧数据）"""
+    news_items = []
+    categories = ['nutrition', 'exercise', 'sleep', 'research']
+    
+    for source_url in app.config.get('NEWS_SOURCES', []):
+        try:
+            feed = feedparser.parse(source_url)
+            if feed.entries:
+                for entry in feed.entries[:10]:
+                    title = entry.get('title', '无标题')
+                    summary = entry.get('summary', entry.get('description', '暂无摘要'))
+                    summary = re.sub(r'<[^>]+>', '', summary)
+                    summary = summary[:200] + '...' if len(summary) > 200 else summary
+                    
+                    title_lower = title.lower()
+                    if any(k in title_lower for k in ['营养', '饮食', '食物', '维生素', '蛋白质']):
+                        category = 'nutrition'
+                    elif any(k in title_lower for k in ['运动', '锻炼', '跑步', '健身', '训练']):
+                        category = 'exercise'
+                    elif any(k in title_lower for k in ['睡眠', '失眠', '休息']):
+                        category = 'sleep'
+                    else:
+                        category = random.choice(categories)
+                    
+                    published_at = datetime.now()
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        try:
+                            from time import mktime
+                            published_at = datetime.fromtimestamp(mktime(entry.published_parsed))
+                        except:
+                            pass
+                    
+                    news_items.append({
+                        'title': title[:100],
+                        'summary': summary,
+                        'source': feed.feed.get('title', source_url)[:50],
+                        'source_url': entry.get('link', ''),
+                        'category': category,
+                        'published_at': published_at
+                    })
+        except Exception as e:
+            print(f"抓取失败: {source_url} - {e}")
+            continue
+    
+    return news_items if news_items else None
 
 
 def calculate_life_expectancy():
@@ -484,12 +480,205 @@ def api_foods():
     return jsonify([f.to_dict() for f in foods])
 
 
+@app.route('/api/recognize-food', methods=['POST'])
+@login_required
+def api_recognize_food():
+    """
+    食物图像识别API
+    优先使用百度AI识别，失败时返回本地数据库匹配结果
+    """
+    try:
+        data = request.get_json()
+        image_base64 = data.get('image', '')
+        
+        app.logger.info(f'收到图片数据，长度: {len(image_base64) if image_base64 else 0}')
+        
+        if not image_base64:
+            return jsonify({'success': False, 'message': '没有图片数据'})
+        
+        results = []
+        
+        # 使用本地图片识别（基于颜色特征，支持机器学习）
+        app.logger.info('开始使用本地图片识别...')
+        try:
+            from local_image_recognition import recognize_food_local, extract_image_features
+            from baidu_ai import get_food_nutrition
+            
+            # 先提取特征看看
+            features = extract_image_features(image_base64)
+            app.logger.info(f'图片特征: {features}')
+            
+            # 传入用户ID和数据库会话，支持个性化识别
+            local_results = recognize_food_local(
+                image_base64, 
+                top_n=5, 
+                user_id=current_user.id if current_user.is_authenticated else None,
+                db_session=db.session
+            )
+            app.logger.info(f'本地识别结果: {local_results}')
+            
+            if local_results:
+                app.logger.info(f'开始处理 {len(local_results)} 个识别结果')
+                for item in local_results:
+                    try:
+                        food_name = item['name']
+                        confidence = item['confidence']
+                        source = item.get('source', 'builtin')
+                        app.logger.info(f'处理食物: {food_name}, 置信度: {confidence}, 来源: {source}')
+                        nutrition = get_food_nutrition(food_name)
+                        app.logger.info(f'营养数据: {nutrition}')
+                        
+                        result_item = {
+                            'name': food_name,
+                            'confidence': confidence,
+                            'calories': nutrition.get('calories', 0),
+                            'protein': nutrition.get('protein', 0),
+                            'carbs': nutrition.get('carbs', 0),
+                            'fat': nutrition.get('fat', 0),
+                            'category': nutrition.get('category', '其他'),
+                            'source': source
+                        }
+                        
+                        # 如果是用户学习的数据，添加标记
+                        if source == 'user_learned':
+                            result_item['learned'] = True
+                            result_item['confirmed_count'] = item.get('confirmed_count', 1)
+                        
+                        results.append(result_item)
+                        app.logger.info(f'已添加 {food_name} 到结果')
+                    except Exception as item_error:
+                        app.logger.error(f'处理 {item} 时出错: {item_error}')
+            else:
+                app.logger.warning('本地识别返回空结果')
+        except Exception as e:
+            app.logger.error(f'本地识别失败: {e}')
+            import traceback
+            app.logger.error(traceback.format_exc())
+        
+        # 如果本地识别失败或结果太少，返回备选食物
+        if not results:
+            from baidu_ai import FOOD_NUTRITION_DB
+            # 提供各分类的常见食物，方便用户选择
+            fallback_foods = [
+                # 主食类
+                ('米饭', '主食'), ('面条', '主食'), ('馒头', '主食'), ('面包', '主食'), ('包子', '主食'),
+                # 蔬菜类
+                ('西红柿', '蔬菜'), ('胡萝卜', '蔬菜'), ('黄瓜', '蔬菜'), ('白菜', '蔬菜'), ('土豆', '蔬菜'),
+                # 肉类
+                ('猪肉', '肉类'), ('鸡肉', '肉类'), ('牛肉', '肉类'), ('鸡蛋', '蛋类'), ('豆腐', '蔬菜'),
+                # 水果
+                ('苹果', '水果'), ('香蕉', '水果'), ('橙子', '水果'), ('西瓜', '水果'), ('葡萄', '水果'),
+                # 海鲜
+                ('虾', '海鲜'), ('鱼', '海鲜'), ('螃蟹', '海鲜'), ('鸡蛋', '蛋类'), ('牛奶', '饮品')
+            ]
+            for food_name, category in fallback_foods[:8]:
+                nutrition = FOOD_NUTRITION_DB.get(food_name, {})
+                results.append({
+                    'name': food_name,
+                    'confidence': 30,
+                    'calories': nutrition.get('calories', 100),
+                    'protein': nutrition.get('protein', 3),
+                    'carbs': nutrition.get('carbs', 15),
+                    'fat': nutrition.get('fat', 2),
+                    'category': nutrition.get('category', category),
+                    'source': 'fallback',
+                    'desc': '未能准确识别，请从下方选择或手动搜索'
+                })
+        
+        app.logger.info(f'返回结果数量: {len(results)}, 内容: {results}')
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        import traceback
+        app.logger.error(f'食物识别失败: {e}')
+        app.logger.error(traceback.format_exc())
+        
+        # 即使出错也返回备选结果，不让用户看到错误
+        try:
+            from baidu_ai import FOOD_NUTRITION_DB
+            fallback_results = []
+            common_vegetables = ['西红柿', '胡萝卜', '黄瓜', '白菜', '土豆', '茄子', '青椒', '洋葱', '西兰花', '菠菜']
+            for food_name in common_vegetables[:5]:
+                nutrition = FOOD_NUTRITION_DB.get(food_name, {})
+                fallback_results.append({
+                    'name': food_name,
+                    'confidence': 30,
+                    'calories': nutrition.get('calories', 100),
+                    'protein': nutrition.get('protein', 3),
+                    'carbs': nutrition.get('carbs', 15),
+                    'fat': nutrition.get('fat', 2),
+                    'category': nutrition.get('category', '蔬菜'),
+                    'source': 'fallback',
+                    'desc': '未能准确识别，请从下方选择或手动搜索'
+                })
+            return jsonify({
+                'success': True,
+                'results': fallback_results
+            })
+        except:
+            return jsonify({
+                'success': False,
+                'message': '识别服务暂时不可用，请手动搜索'
+            })
+
+
 @app.route('/api/foods/<int:food_id>')
 @login_required
 def api_food_detail(food_id):
     """食物详情API"""
     food = Food.query.get_or_404(food_id)
     return jsonify(food.to_dict())
+
+
+@app.route('/api/learn-food', methods=['POST'])
+@login_required
+def api_learn_food():
+    """
+    学习用户确认的食物图片特征
+    用户确认识别结果后，保存图片特征用于下次识别
+    """
+    try:
+        data = request.get_json()
+        image_base64 = data.get('image', '')
+        food_name = data.get('food_name', '')
+        food_category = data.get('food_category', '')
+        
+        if not image_base64 or not food_name:
+            return jsonify({'success': False, 'message': '缺少必要参数'})
+        
+        # 保存图片特征
+        from local_image_recognition import save_food_image_feature
+        success = save_food_image_feature(
+            image_base64,
+            food_name,
+            food_category,
+            current_user.id,
+            db.session
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'已学习食物特征: {food_name}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '保存特征失败'
+            })
+            
+    except Exception as e:
+        app.logger.error(f'学习食物特征失败: {e}')
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': '服务器错误'
+        })
 
 
 @app.route('/foods/add', methods=['GET', 'POST'])
@@ -514,6 +703,60 @@ def add_food():
         return redirect(url_for('foods'))
     
     return render_template('add_food.html')
+
+
+@app.route('/admin/sync-foods')
+@login_required
+def admin_sync_foods():
+    """同步食物数据到数据库（临时管理功能）"""
+    # 检查是否是管理员（这里简单判断，实际应该使用角色权限）
+    if current_user.username != 'admin' and not current_user.is_admin:
+        return jsonify({'success': False, 'message': '无权访问'}), 403
+    
+    try:
+        from baidu_ai import FOOD_NUTRITION_DB
+        
+        # 删除系统预设的食物
+        Food.query.filter(Food.is_custom == False).delete()
+        db.session.commit()
+        
+        # 添加新食物
+        added_count = 0
+        skipped_count = 0
+        
+        for name, nutrition in FOOD_NUTRITION_DB.items():
+            # 检查是否已存在
+            existing = Food.query.filter_by(name=name).first()
+            if existing:
+                skipped_count += 1
+                continue
+            
+            food = Food(
+                name=name,
+                calories=nutrition.get('calories', 0),
+                protein=nutrition.get('protein', 0),
+                carbs=nutrition.get('carbs', 0),
+                fat=nutrition.get('fat', 0),
+                category=nutrition.get('category', '其他'),
+                is_custom=False
+            )
+            db.session.add(food)
+            added_count += 1
+            
+            # 每100条提交一次
+            if added_count % 100 == 0:
+                db.session.commit()
+        
+        db.session.commit()
+        
+        total = Food.query.count()
+        return jsonify({
+            'success': True,
+            'message': f'同步完成！新增 {added_count} 种，跳过 {skipped_count} 种，数据库总计 {total} 种'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'同步失败: {str(e)}'}), 500
 
 
 # ==================== 饮食记录 ====================

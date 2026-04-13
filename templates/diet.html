@@ -2,66 +2,67 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-egg-fried" style="color: #43a047;"></i> 饮食记录</h2>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+    <h4 class="mb-2 mb-sm-0"><i class="bi bi-egg-fried" style="color: #43a047;"></i> 饮食记录</h4>
     <a href="{{ url_for('add_diet_record') }}" class="btn" style="background: #43a047; color: white;">
-        <i class="bi bi-plus-lg"></i> 添加记录
+        <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">添加记录</span><span class="d-sm-none">添加</span>
     </a>
 </div>
 
 <!-- 日期选择器 -->
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3">
+    <div class="card-body p-2 p-sm-3">
         <div class="d-flex justify-content-between align-items-center">
             <a href="{{ url_for('diet', date=(target_date - timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
-                <i class="bi bi-chevron-left"></i> 前一天
+                <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">前一天</span>
             </a>
-            <h4 class="mb-0">
-                <input type="date" class="form-control d-inline-block" style="width: auto;" 
+            <div class="mx-2">
+                <input type="date" class="form-control form-control-sm" 
                        value="{{ target_date.isoformat() }}" 
-                       onchange="window.location.href='{{ url_for('diet') }}?date=' + this.value">
-            </h4>
+                       onchange="window.location.href='{{ url_for('diet') }}?date=' + this.value"
+                       style="min-width: 140px;">
+            </div>
             <a href="{{ url_for('diet', date=(target_date + timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
-                后一天 <i class="bi bi-chevron-right"></i>
+                <span class="d-none d-sm-inline">后一天</span> <i class="bi bi-chevron-right"></i>
             </a>
         </div>
     </div>
 </div>
 
 <!-- 营养统计 -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body text-center">
-                <h3>{{ total_calories|int }}</h3>
-                <small>摄入热量 (kcal)</small>
-                <div class="progress mt-2" style="height: 8px; background: rgba(255,255,255,0.3);">
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body text-center p-3">
+                <h4 class="mb-1">{{ total_calories|int }}</h4>
+                <small class="d-block mb-2">摄入热量</small>
+                <div class="progress" style="height: 6px; background: rgba(255,255,255,0.3);">
                     <div class="progress-bar bg-white" style="width: {{ (total_calories / target_calories * 100)|round|int if target_calories > 0 else 0 }}%"></div>
                 </div>
-                <small>目标: {{ target_calories|int }}</small>
+                <small class="d-none d-sm-block mt-1">目标: {{ target_calories|int }}</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body text-center">
-                <h3>{{ total_protein|int }}g</h3>
+    <div class="col-6 col-md-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center p-3">
+                <h4 class="mb-1">{{ total_protein|int }}g</h4>
                 <small>蛋白质</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-dark">
-            <div class="card-body text-center">
-                <h3>{{ total_carbs|int }}g</h3>
-                <small>碳水化合物</small>
+    <div class="col-6 col-md-3">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body text-center p-3">
+                <h4 class="mb-1">{{ total_carbs|int }}g</h4>
+                <small>碳水</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body text-center">
-                <h3>{{ total_fat|int }}g</h3>
+    <div class="col-6 col-md-3">
+        <div class="card bg-danger text-white h-100">
+            <div class="card-body text-center p-3">
+                <h4 class="mb-1">{{ total_fat|int }}g</h4>
                 <small>脂肪</small>
             </div>
         </div>
@@ -70,12 +71,45 @@
 
 <!-- 饮食记录列表 -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header py-3">
         <h5 class="mb-0">今日饮食</h5>
     </div>
     <div class="card-body p-0">
         {% if records %}
-        <div class="table-responsive">
+        <!-- 移动端卡片视图 -->
+        <div class="d-md-none">
+            {% for record in records %}
+            <div class="p-3 border-bottom" id="record-mobile-{{ record.id }}">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge bg-{{ 'warning' if record.meal_type == 'breakfast' else 'success' if record.meal_type == 'lunch' else 'danger' if record.meal_type == 'dinner' else 'secondary' }} mb-1">
+                            {{ {'breakfast': '早餐', 'lunch': '午餐', 'dinner': '晚餐', 'snack': '零食'}.get(record.meal_type, '其他') }}
+                        </span>
+                        <div class="fw-bold">{{ record.food_name }}</div>
+                        <small class="text-muted">{{ record.time.strftime('%H:%M') if record.time else '--:--' }} · {{ record.quantity|int }}g</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-danger fw-bold">{{ record.calories|int }} kcal</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        蛋{{ record.protein|int }}g · 碳{{ record.carbs|int }}g · 脂{{ record.fat|int }}g
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="editRecord({{ record.id }}, '{{ record.food_name }}', {{ record.quantity }}, {{ record.calories }}, {{ record.protein }}, {{ record.carbs }}, {{ record.fat }}, '{{ record.meal_type }}')" title="编辑">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteRecord({{ record.id }}, '{{ record.food_name }}')" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- 桌面端表格视图 -->
+        <div class="table-responsive d-none d-md-block">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>

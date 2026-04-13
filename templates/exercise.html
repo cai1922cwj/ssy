@@ -1,33 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-person-walking" style="color: #43a047;"></i> 运动记录</h2>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+    <h4 class="mb-2 mb-sm-0"><i class="bi bi-person-walking" style="color: #43a047;"></i> 运动记录</h4>
     <a href="{{ url_for('add_exercise') }}" class="btn" style="background: #43a047; color: white;">
-        <i class="bi bi-plus-lg"></i> 添加运动
+        <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">添加运动</span><span class="d-sm-none">添加</span>
     </a>
 </div>
 
 <!-- Calorie Stats -->
-<div class="card mb-4" style="background: linear-gradient(135deg, #fdcb6e, #e17055); color: white;">
-    <div class="card-body text-center">
-        <h3 class="mb-0"><i class="bi bi-fire"></i> {{ total_burned|int }} 千卡</h3>
+<div class="card mb-3" style="background: linear-gradient(135deg, #fdcb6e, #e17055); color: white;">
+    <div class="card-body text-center py-3">
+        <h4 class="mb-0"><i class="bi bi-fire"></i> {{ total_burned|int }} 千卡</h4>
         <small>今日消耗</small>
     </div>
 </div>
 
 <!-- Date Selector -->
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3">
+    <div class="card-body p-2 p-sm-3">
         <div class="d-flex justify-content-between align-items-center">
             <a href="{{ url_for('exercise', date=(target_date - timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
-                <i class="bi bi-chevron-left"></i> 前一天
+                <i class="bi bi-chevron-left"></i> <span class="d-none d-sm-inline">前一天</span>
             </a>
-            <h4 class="mb-0">
-                {{ target_date.strftime('%Y-%m-%d') }}
-            </h4>
+            <h5 class="mb-0">{{ target_date.strftime('%Y-%m-%d') }}</h5>
             <a href="{{ url_for('exercise', date=(target_date + timedelta(days=1)).isoformat()) }}" class="btn btn-sm" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #43a047;">
-                后一天 <i class="bi bi-chevron-right"></i>
+                <span class="d-none d-sm-inline">后一天</span> <i class="bi bi-chevron-right"></i>
             </a>
         </div>
     </div>
@@ -35,12 +33,48 @@
 
 <!-- Exercise List -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header py-3">
         <h5 class="mb-0">运动日志</h5>
     </div>
     <div class="card-body p-0">
         {% if records %}
-        <div class="table-responsive">
+        <!-- 移动端卡片视图 -->
+        <div class="d-md-none">
+            {% for record in records %}
+            <div class="p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <i class="bi bi-activity text-success me-1"></i>
+                        <span class="fw-bold">{{ record.exercise_name }}</span>
+                    </div>
+                    <span class="badge bg-{{ 'success' if record.intensity == 'low' else 'warning' if record.intensity == 'moderate' else 'danger' }}">
+                        {{ {'low': '低', 'moderate': '中', 'high': '高'}.get(record.intensity, '中') }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {{ record.duration }}分钟 · {{ record.time.strftime('%H:%M') if record.time else '--:--' }}
+                    </small>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-danger fw-bold">{{ record.calories_burned|int }}千卡</span>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('edit_exercise', record_id=record.id) }}" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('delete_exercise', record_id=record.id) }}" class="d-inline"
+                                  onsubmit="return confirm('确定删除吗？');">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- 桌面端表格视图 -->
+        <div class="table-responsive d-none d-md-block">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
@@ -69,12 +103,12 @@
                         <td>{{ record.time.strftime('%H:%M') if record.time else '--:--' }}</td>
                         <td>
                             <a href="{{ url_for('edit_exercise', record_id=record.id) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> 编辑
+                                <i class="bi bi-pencil"></i>
                             </a>
                             <form method="POST" action="{{ url_for('delete_exercise', record_id=record.id) }}" class="d-inline"
                                   onsubmit="return confirm('确定要删除这条运动记录吗？');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i> 删除
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </form>
                         </td>
@@ -94,31 +128,31 @@
 </div>
 
 <!-- Exercise Suggestions -->
-<div class="card mt-4">
-    <div class="card-header" style="background: #00b894; color: white;">
+<div class="card mt-3">
+    <div class="card-header py-3" style="background: #00b894; color: white;">
         <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 运动建议</h5>
     </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 bg-light rounded">
-                    <i class="bi bi-heart-pulse display-6 text-danger"></i>
-                    <h6 class="mt-2">有氧运动</h6>
-                    <small>每周3-5次，每次30分钟</small>
+    <div class="card-body p-3">
+        <div class="row g-2">
+            <div class="col-4">
+                <div class="text-center p-2 p-sm-3 bg-light rounded">
+                    <i class="bi bi-heart-pulse fs-3 text-danger"></i>
+                    <h6 class="mt-2 mb-1 small">有氧</h6>
+                    <small class="text-muted" style="font-size: 0.7rem;">每周3-5次</small>
                 </div>
             </div>
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 bg-light rounded">
-                    <i class="bi bi-barbell display-6 text-primary"></i>
-                    <h6 class="mt-2">力量训练</h6>
-                    <small>每周2-3次，每次20分钟</small>
+            <div class="col-4">
+                <div class="text-center p-2 p-sm-3 bg-light rounded">
+                    <i class="bi bi-barbell fs-3 text-primary"></i>
+                    <h6 class="mt-2 mb-1 small">力量</h6>
+                    <small class="text-muted" style="font-size: 0.7rem;">每周2-3次</small>
                 </div>
             </div>
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 bg-light rounded">
-                    <i class="bi bi-yoga display-6 text-success"></i>
-                    <h6 class="mt-2">柔韧性训练</h6>
-                    <small>每日拉伸</small>
+            <div class="col-4">
+                <div class="text-center p-2 p-sm-3 bg-light rounded">
+                    <i class="bi bi-yoga fs-3 text-success"></i>
+                    <h6 class="mt-2 mb-1 small">柔韧</h6>
+                    <small class="text-muted" style="font-size: 0.7rem;">每日拉伸</small>
                 </div>
             </div>
         </div>
