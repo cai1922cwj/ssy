@@ -502,8 +502,8 @@ def recognize_food_local(image_data, top_n=5, user_id=None, db_session=None):
             seen.add(m['name'])
             unique_matches.append(m)
     
-    # 如果没有足够的结果，添加一些默认选项
-    if len(unique_matches) < 3:
+    # 如果没有识别结果，添加默认选项作为兜底
+    if len(unique_matches) == 0:
         defaults = [
             {'name': '米饭', 'confidence': 25, 'category': '主食', 'source': 'default'},
             {'name': '青菜', 'confidence': 25, 'category': '蔬菜', 'source': 'default'},
