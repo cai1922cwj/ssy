@@ -1,154 +1,238 @@
 # -*- coding: utf-8 -*-
 """
-本地图片识别模块 - 智能分类版本
-结合颜色+纹理特征，先分类别再匹配具体食物
+智能食物图片识别系统 - 类别库对比版
+核心逻辑：
+1. 识别时优先对比用户已学习的类别库
+2. 支持手动纠正并学习
+3. 学习2-3次后自动归档到类别库
+4. 同类别食物特征对比提高准确率
 """
 
 import base64
 import io
+import json
+import hashlib
 from datetime import datetime
-from PIL import Image, ImageFilter
+from PIL import Image
 import numpy as np
-from collections import Counter
 
 # ============================================
-# 食物数据库 - 按类别组织
+# 预定义食物数据库 - 基础参考数据
 # ============================================
 
 FOOD_DATABASE = {
     '蔬菜': {
-        '西红柿': {'color': [220, 60, 40], 'brightness': [80, 150], 'texture': 'smooth'},
-        '胡萝卜': {'color': [240, 140, 30], 'brightness': [150, 220], 'texture': 'smooth'},
-        '黄瓜': {'color': [100, 160, 60], 'brightness': [100, 160], 'texture': 'bumpy'},
-        '白菜': {'color': [240, 250, 230], 'brightness': [200, 255], 'texture': 'leafy'},
-        '土豆': {'color': [230, 210, 150], 'brightness': [160, 220], 'texture': 'smooth'},
-        '青菜': {'color': [60, 140, 50], 'brightness': [60, 120], 'texture': 'leafy'},
-        '菠菜': {'color': [40, 120, 40], 'brightness': [50, 100], 'texture': 'leafy'},
-        '西兰花': {'color': [80, 150, 60], 'brightness': [80, 140], 'texture': 'bumpy'},
-        '茄子': {'color': [100, 60, 120], 'brightness': [60, 100], 'texture': 'smooth'},
-        '南瓜': {'color': [240, 160, 40], 'brightness': [160, 220], 'texture': 'smooth'},
-        '玉米': {'color': [255, 220, 80], 'brightness': [180, 240], 'texture': 'bumpy'},
-        '洋葱': {'color': [240, 220, 200], 'brightness': [180, 230], 'texture': 'layered'},
-        '青椒': {'color': [80, 160, 60], 'brightness': [80, 140], 'texture': 'smooth'},
-        '红椒': {'color': [220, 50, 40], 'brightness': [80, 150], 'texture': 'smooth'},
-        '芹菜': {'color': [150, 200, 100], 'brightness': [140, 190], 'texture': 'fibrous'},
-        '生菜': {'color': [140, 200, 100], 'brightness': [140, 190], 'texture': 'leafy'},
-        '蘑菇': {'color': [200, 190, 180], 'brightness': [160, 200], 'texture': 'bumpy'},
-        '豆腐': {'color': [250, 250, 240], 'brightness': [230, 255], 'texture': 'smooth'},
+        '西红柿': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
+        '胡萝卜': {'hsv_hint': 'orange', 'shape': 'long', 'typical_h': [15, 45]},
+        '黄瓜': {'hsv_hint': 'green', 'shape': 'long', 'typical_h': [75, 165]},
+        '白菜': {'hsv_hint': 'white', 'shape': 'leaf', 'typical_h': None},
+        '土豆': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '青菜': {'hsv_hint': 'green', 'shape': 'leaf', 'typical_h': [75, 165]},
+        '菠菜': {'hsv_hint': 'green', 'shape': 'leaf', 'typical_h': [75, 165]},
+        '西兰花': {'hsv_hint': 'green', 'shape': 'bumpy', 'typical_h': [75, 165]},
+        '茄子': {'hsv_hint': 'purple', 'shape': 'long', 'typical_h': [255, 285]},
+        '南瓜': {'hsv_hint': 'orange', 'shape': 'round', 'typical_h': [15, 45]},
+        '玉米': {'hsv_hint': 'yellow', 'shape': 'bumpy', 'typical_h': [45, 75]},
+        '洋葱': {'hsv_hint': 'white', 'shape': 'round', 'typical_h': None},
+        '青椒': {'hsv_hint': 'green', 'shape': 'round', 'typical_h': [75, 165]},
+        '红椒': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
+        '芹菜': {'hsv_hint': 'green', 'shape': 'long', 'typical_h': [75, 165]},
+        '生菜': {'hsv_hint': 'green', 'shape': 'leaf', 'typical_h': [75, 165]},
+        '蘑菇': {'hsv_hint': 'white', 'shape': 'round', 'typical_h': None},
+        '豆腐': {'hsv_hint': 'white', 'shape': 'square', 'typical_h': None},
+        '蚕豆': {'hsv_hint': 'green', 'shape': 'oval', 'typical_h': [75, 165]},
     },
     
     '肉类': {
-        '猪肉': {'color': [200, 120, 120], 'brightness': [120, 180], 'texture': 'smooth'},
-        '鸡肉': {'color': [230, 200, 160], 'brightness': [170, 220], 'texture': 'smooth'},
-        '牛肉': {'color': [160, 80, 60], 'brightness': [80, 140], 'texture': 'fibrous'},
-        '红烧肉': {'color': [140, 60, 40], 'brightness': [60, 120], 'texture': 'smooth'},
-        '排骨': {'color': [180, 140, 100], 'brightness': [120, 170], 'texture': 'bony'},
-        '火腿肠': {'color': [220, 160, 140], 'brightness': [150, 200], 'texture': 'smooth'},
-        '香肠': {'color': [200, 100, 80], 'brightness': [100, 160], 'texture': 'smooth'},
-        '培根': {'color': [180, 120, 100], 'brightness': [120, 170], 'texture': 'layered'},
-        '牛排': {'color': [150, 90, 70], 'brightness': [80, 140], 'texture': 'fibrous'},
-        '鸡腿': {'color': [200, 160, 120], 'brightness': [140, 190], 'texture': 'smooth'},
+        '猪肉': {'hsv_hint': 'pink', 'shape': 'slice', 'typical_h': [345, 15]},
+        '鸡肉': {'hsv_hint': 'beige', 'shape': 'slice', 'typical_h': [15, 45]},
+        '牛肉': {'hsv_hint': 'red', 'shape': 'slice', 'typical_h': [0, 15, 345, 360]},
+        '红烧肉': {'hsv_hint': 'brown', 'shape': 'chunk', 'typical_h': [15, 45]},
+        '排骨': {'hsv_hint': 'beige', 'shape': 'bone', 'typical_h': [15, 45]},
+        '火腿肠': {'hsv_hint': 'pink', 'shape': 'cylinder', 'typical_h': [345, 15]},
+        '香肠': {'hsv_hint': 'red', 'shape': 'cylinder', 'typical_h': [0, 15, 345, 360]},
+        '培根': {'hsv_hint': 'pink', 'shape': 'strip', 'typical_h': [345, 15]},
+        '牛排': {'hsv_hint': 'red', 'shape': 'slice', 'typical_h': [0, 15, 345, 360]},
+        '鸡腿': {'hsv_hint': 'beige', 'shape': 'drumstick', 'typical_h': [15, 45]},
+        '鸡胸肉': {'hsv_hint': 'beige', 'shape': 'slice', 'typical_h': [15, 45]},
     },
     
     '海鲜': {
-        '鱼': {'color': [200, 180, 140], 'brightness': [150, 200], 'texture': 'scaly'},
-        '虾': {'color': [255, 140, 100], 'brightness': [160, 220], 'texture': 'segmented'},
-        '螃蟹': {'color': [220, 100, 60], 'brightness': [120, 180], 'texture': 'hard'},
-        '三文鱼': {'color': [255, 140, 120], 'brightness': [160, 220], 'texture': 'layered'},
-        '鱿鱼': {'color': [240, 220, 200], 'brightness': [200, 250], 'texture': 'smooth'},
-        '贝类': {'color': [220, 200, 180], 'brightness': [180, 220], 'texture': 'smooth'},
+        '鱼': {'hsv_hint': 'gray', 'shape': 'fish', 'typical_h': None},
+        '三文鱼': {'hsv_hint': 'orange', 'shape': 'slice', 'typical_h': [15, 45]},
+        '虾': {'hsv_hint': 'pink', 'shape': 'curve', 'typical_h': [345, 15]},
+        '螃蟹': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
+        '鱿鱼': {'hsv_hint': 'white', 'shape': 'strip', 'typical_h': None},
+        '贝类': {'hsv_hint': 'beige', 'shape': 'round', 'typical_h': [15, 45]},
+        '金枪鱼': {'hsv_hint': 'red', 'shape': 'slice', 'typical_h': [0, 15, 345, 360]},
+        '带鱼': {'hsv_hint': 'gray', 'shape': 'long', 'typical_h': None},
+        '黄花鱼': {'hsv_hint': 'yellow', 'shape': 'fish', 'typical_h': [45, 75]},
     },
     
     '水果': {
-        '苹果': {'color': [220, 60, 50], 'brightness': [100, 180], 'texture': 'smooth'},
-        '香蕉': {'color': [250, 230, 100], 'brightness': [200, 255], 'texture': 'smooth'},
-        '橙子': {'color': [255, 140, 30], 'brightness': [160, 220], 'texture': 'bumpy'},
-        '西瓜': {'color': [240, 80, 70], 'brightness': [120, 200], 'texture': 'smooth'},
-        '葡萄': {'color': [120, 50, 120], 'brightness': [60, 120], 'texture': 'bumpy'},
-        '草莓': {'color': [230, 60, 70], 'brightness': [100, 180], 'texture': 'bumpy'},
-        '梨': {'color': [240, 230, 150], 'brightness': [200, 250], 'texture': 'smooth'},
-        '桃子': {'color': [255, 180, 150], 'brightness': [180, 230], 'texture': 'fuzzy'},
-        '芒果': {'color': [255, 200, 60], 'brightness': [200, 255], 'texture': 'smooth'},
-        '猕猴桃': {'color': [140, 180, 60], 'brightness': [120, 170], 'texture': 'fuzzy'},
-        '蓝莓': {'color': [80, 80, 160], 'brightness': [60, 100], 'texture': 'smooth'},
-        '樱桃': {'color': [200, 40, 50], 'brightness': [80, 140], 'texture': 'smooth'},
+        '苹果': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
+        '香蕉': {'hsv_hint': 'yellow', 'shape': 'curve', 'typical_h': [45, 75]},
+        '橙子': {'hsv_hint': 'orange', 'shape': 'round', 'typical_h': [15, 45]},
+        '西瓜': {'hsv_hint': 'red', 'shape': 'slice', 'typical_h': [0, 15, 345, 360]},
+        '葡萄': {'hsv_hint': 'purple', 'shape': 'round', 'typical_h': [255, 285]},
+        '草莓': {'hsv_hint': 'red', 'shape': 'cone', 'typical_h': [0, 15, 345, 360]},
+        '梨': {'hsv_hint': 'yellow', 'shape': 'pear', 'typical_h': [45, 75]},
+        '桃子': {'hsv_hint': 'pink', 'shape': 'round', 'typical_h': [285, 345]},
+        '芒果': {'hsv_hint': 'yellow', 'shape': 'oval', 'typical_h': [45, 75]},
+        '猕猴桃': {'hsv_hint': 'green', 'shape': 'oval', 'typical_h': [75, 165]},
+        '蓝莓': {'hsv_hint': 'blue', 'shape': 'round', 'typical_h': [195, 255]},
+        '樱桃': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
     },
     
     '主食': {
-        '米饭': {'color': [240, 240, 230], 'brightness': [200, 255], 'texture': 'grainy'},
-        '面条': {'color': [245, 230, 180], 'brightness': [200, 255], 'texture': 'long'},
-        '馒头': {'color': [250, 245, 235], 'brightness': [230, 255], 'texture': 'smooth'},
-        '面包': {'color': [200, 160, 100], 'brightness': [140, 200], 'texture': 'porous'},
-        '全麦面包': {'color': [160, 130, 90], 'brightness': [100, 170], 'texture': 'porous'},
-        '吐司': {'color': [220, 190, 140], 'brightness': [160, 220], 'texture': 'porous'},
-        '包子': {'color': [245, 240, 230], 'brightness': [220, 255], 'texture': 'smooth'},
-        '饺子': {'color': [250, 250, 245], 'brightness': [230, 255], 'texture': 'smooth'},
-        '粥': {'color': [240, 235, 220], 'brightness': [210, 250], 'texture': 'liquid'},
-        '饼干': {'color': [210, 170, 120], 'brightness': [150, 200], 'texture': 'porous'},
-        '蛋糕': {'color': [250, 220, 180], 'brightness': [180, 240], 'texture': 'porous'},
-        '三明治': {'color': [230, 210, 180], 'brightness': [170, 220], 'texture': 'layered'},
-        '炒饭': {'color': [230, 200, 120], 'brightness': [170, 220], 'texture': 'grainy'},
-        '炒面': {'color': [220, 180, 100], 'brightness': [160, 210], 'texture': 'long'},
-        '汉堡': {'color': [200, 160, 100], 'brightness': [140, 190], 'texture': 'layered'},
-        '披萨': {'color': [220, 180, 120], 'brightness': [160, 210], 'texture': 'layered'},
-        '寿司': {'color': [240, 240, 230], 'brightness': [220, 255], 'texture': 'grainy'},
-        '意面': {'color': [240, 200, 120], 'brightness': [180, 230], 'texture': 'long'},
-        '咖喱饭': {'color': [220, 180, 100], 'brightness': [160, 210], 'texture': 'grainy'},
-        '蛋炒饭': {'color': [240, 210, 130], 'brightness': [200, 250], 'texture': 'grainy'},
-        '面条汤': {'color': [230, 210, 170], 'brightness': [200, 240], 'texture': 'long'},
-        '煎饺': {'color': [240, 220, 180], 'brightness': [210, 250], 'texture': 'smooth'},
-        '春卷': {'color': [255, 200, 100], 'brightness': [200, 255], 'texture': 'crispy'},
-        '薯条': {'color': [255, 200, 80], 'brightness': [200, 255], 'texture': 'long'},
+        '米饭': {'hsv_hint': 'white', 'shape': 'grain', 'typical_h': None},
+        '面条': {'hsv_hint': 'yellow', 'shape': 'long', 'typical_h': [45, 75]},
+        '馒头': {'hsv_hint': 'white', 'shape': 'round', 'typical_h': None},
+        '面包': {'hsv_hint': 'brown', 'shape': 'square', 'typical_h': [15, 45]},
+        '全麦面包': {'hsv_hint': 'brown', 'shape': 'square', 'typical_h': [15, 45]},
+        '吐司': {'hsv_hint': 'yellow', 'shape': 'square', 'typical_h': [45, 75]},
+        '包子': {'hsv_hint': 'white', 'shape': 'round', 'typical_h': None},
+        '饺子': {'hsv_hint': 'white', 'shape': 'crescent', 'typical_h': None},
+        '粥': {'hsv_hint': 'white', 'shape': 'liquid', 'typical_h': None},
+        '饼干': {'hsv_hint': 'brown', 'shape': 'round', 'typical_h': [15, 45]},
+        '蛋糕': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '三明治': {'hsv_hint': 'yellow', 'shape': 'square', 'typical_h': [45, 75]},
+        '炒饭': {'hsv_hint': 'yellow', 'shape': 'grain', 'typical_h': [45, 75]},
+        '炒面': {'hsv_hint': 'brown', 'shape': 'long', 'typical_h': [15, 45]},
+        '汉堡': {'hsv_hint': 'brown', 'shape': 'round', 'typical_h': [15, 45]},
+        '披萨': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '寿司': {'hsv_hint': 'white', 'shape': 'roll', 'typical_h': None},
+        '意面': {'hsv_hint': 'yellow', 'shape': 'long', 'typical_h': [45, 75]},
+        '咖喱饭': {'hsv_hint': 'yellow', 'shape': 'grain', 'typical_h': [45, 75]},
+        '蛋炒饭': {'hsv_hint': 'yellow', 'shape': 'grain', 'typical_h': [45, 75]},
+        '面条汤': {'hsv_hint': 'yellow', 'shape': 'long', 'typical_h': [45, 75]},
+        '煎饺': {'hsv_hint': 'yellow', 'shape': 'crescent', 'typical_h': [45, 75]},
+        '春卷': {'hsv_hint': 'yellow', 'shape': 'cylinder', 'typical_h': [45, 75]},
+        '薯条': {'hsv_hint': 'yellow', 'shape': 'long', 'typical_h': [45, 75]},
     },
     
     '蛋类': {
-        '鸡蛋': {'color': [250, 220, 150], 'brightness': [200, 255], 'texture': 'smooth'},
-        '煎蛋': {'color': [255, 200, 80], 'brightness': [180, 240], 'texture': 'smooth'},
-        '茶叶蛋': {'color': [160, 120, 80], 'brightness': [100, 150], 'texture': 'smooth'},
-        '水煮蛋': {'color': [240, 230, 200], 'brightness': [210, 250], 'texture': 'smooth'},
-        '炒蛋': {'color': [255, 220, 100], 'brightness': [200, 255], 'texture': 'fluffy'},
+        '鸡蛋': {'hsv_hint': 'beige', 'shape': 'oval', 'typical_h': [15, 45]},
+        '煎蛋': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '茶叶蛋': {'hsv_hint': 'brown', 'shape': 'oval', 'typical_h': [15, 45]},
+        '水煮蛋': {'hsv_hint': 'white', 'shape': 'oval', 'typical_h': None},
+        '炒蛋': {'hsv_hint': 'yellow', 'shape': 'fluffy', 'typical_h': [45, 75]},
+        '皮蛋': {'hsv_hint': 'black', 'shape': 'oval', 'typical_h': None},
+        '咸鸭蛋': {'hsv_hint': 'beige', 'shape': 'oval', 'typical_h': [15, 45]},
+    },
+    
+    '豆类': {
+        '黄豆': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '绿豆': {'hsv_hint': 'green', 'shape': 'round', 'typical_h': [75, 165]},
+        '红豆': {'hsv_hint': 'red', 'shape': 'round', 'typical_h': [0, 15, 345, 360]},
+        '黑豆': {'hsv_hint': 'black', 'shape': 'round', 'typical_h': None},
+        '豆腐': {'hsv_hint': 'white', 'shape': 'square', 'typical_h': None},
+        '豆浆': {'hsv_hint': 'white', 'shape': 'liquid', 'typical_h': None},
+        '腐竹': {'hsv_hint': 'yellow', 'shape': 'strip', 'typical_h': [45, 75]},
+        '豆腐干': {'hsv_hint': 'beige', 'shape': 'square', 'typical_h': [15, 45]},
     },
     
     '饮品': {
-        '牛奶': {'color': [250, 250, 245], 'brightness': [240, 255], 'texture': 'liquid'},
-        '咖啡': {'color': [100, 70, 50], 'brightness': [50, 100], 'texture': 'liquid'},
-        '茶': {'color': [180, 160, 100], 'brightness': [130, 180], 'texture': 'liquid'},
-        '果汁': {'color': [240, 160, 40], 'brightness': [160, 220], 'texture': 'liquid'},
-        '可乐': {'color': [60, 40, 30], 'brightness': [30, 70], 'texture': 'liquid'},
-        '奶茶': {'color': [200, 170, 130], 'brightness': [150, 200], 'texture': 'liquid'},
-        '啤酒': {'color': [240, 200, 80], 'brightness': [180, 240], 'texture': 'liquid'},
-        '红酒': {'color': [140, 40, 60], 'brightness': [50, 100], 'texture': 'liquid'},
-        '豆浆': {'color': [245, 240, 220], 'brightness': [220, 255], 'texture': 'liquid'},
-        '酸奶': {'color': [250, 245, 235], 'brightness': [230, 255], 'texture': 'creamy'},
+        '牛奶': {'hsv_hint': 'white', 'shape': 'liquid', 'typical_h': None},
+        '咖啡': {'hsv_hint': 'brown', 'shape': 'liquid', 'typical_h': [15, 45]},
+        '茶': {'hsv_hint': 'brown', 'shape': 'liquid', 'typical_h': [15, 75]},
+        '果汁': {'hsv_hint': 'orange', 'shape': 'liquid', 'typical_h': [15, 75]},
+        '可乐': {'hsv_hint': 'black', 'shape': 'liquid', 'typical_h': None},
+        '奶茶': {'hsv_hint': 'brown', 'shape': 'liquid', 'typical_h': [15, 45]},
+        '啤酒': {'hsv_hint': 'yellow', 'shape': 'liquid', 'typical_h': [45, 75]},
+        '红酒': {'hsv_hint': 'red', 'shape': 'liquid', 'typical_h': [0, 15, 345, 360]},
+        '豆浆': {'hsv_hint': 'white', 'shape': 'liquid', 'typical_h': None},
+        '酸奶': {'hsv_hint': 'white', 'shape': 'creamy', 'typical_h': None},
     },
     
     '坚果': {
-        '坚果': {'color': [180, 140, 100], 'brightness': [130, 180], 'texture': 'rough'},
-        '花生': {'color': [200, 160, 120], 'brightness': [150, 200], 'texture': 'rough'},
-        '瓜子': {'color': [160, 140, 100], 'brightness': [120, 170], 'texture': 'smooth'},
-        '杏仁': {'color': [200, 180, 140], 'brightness': [160, 200], 'texture': 'smooth'},
-        '核桃': {'color': [160, 120, 80], 'brightness': [100, 150], 'texture': 'rough'},
-        '腰果': {'color': [220, 200, 160], 'brightness': [180, 220], 'texture': 'smooth'},
-        '薯片': {'color': [255, 200, 80], 'brightness': [200, 255], 'texture': 'crispy'},
-        '巧克力': {'color': [120, 80, 60], 'brightness': [60, 120], 'texture': 'smooth'},
+        '坚果': {'hsv_hint': 'brown', 'shape': 'round', 'typical_h': [15, 45]},
+        '花生': {'hsv_hint': 'brown', 'shape': 'oval', 'typical_h': [15, 45]},
+        '瓜子': {'hsv_hint': 'brown', 'shape': 'strip', 'typical_h': [15, 45]},
+        '杏仁': {'hsv_hint': 'beige', 'shape': 'oval', 'typical_h': [15, 45]},
+        '核桃': {'hsv_hint': 'brown', 'shape': 'brain', 'typical_h': [15, 45]},
+        '腰果': {'hsv_hint': 'beige', 'shape': 'curve', 'typical_h': [15, 45]},
+        '薯片': {'hsv_hint': 'yellow', 'shape': 'round', 'typical_h': [45, 75]},
+        '巧克力': {'hsv_hint': 'brown', 'shape': 'square', 'typical_h': [15, 45]},
     },
 }
 
-# 类别关键词映射
-CATEGORY_KEYWORDS = {
-    '蔬菜': ['菜', '瓜', '茄', '菇', '椒', '笋', '豆', '卜', '葱', '蒜', '姜', '芹', '菠', '苋'],
-    '肉类': ['肉', '鸡', '猪', '牛', '羊', '排', '肠', '腿', '翅', '胸'],
-    '海鲜': ['鱼', '虾', '蟹', '贝', '鱿', '鲍', '龙', '带', '鲈', '鲤'],
-    '水果': ['果', '瓜', '莓', '桃', '梨', '苹', '橙', '蕉', '柿', '柚', '柠', '芒', '荔'],
-    '主食': ['饭', '面', '包', '馒', '饺', '粥', '饼', '条', '粉', '糕', '团', '包', '卷'],
-    '蛋类': ['蛋'],
-    '饮品': ['奶', '茶', '咖', '酒', '汁', '浆', '饮', '汤', '水'],
-    '坚果': ['果', '仁', '桃', '杏', '瓜'],
+# 类别库名称映射
+CATEGORY_NAMES = {
+    '蔬菜': 'vegetables',
+    '肉类': 'meat',
+    '海鲜': 'seafood',
+    '水果': 'fruit',
+    '主食': 'staple',
+    '蛋类': 'egg',
+    '豆类': 'beans',
+    '饮品': 'beverage',
+    '坚果': 'nuts',
+    '其他': 'other',
 }
 
 
+def rgb_to_hsv(r, g, b):
+    """RGB转HSV颜色空间"""
+    r, g, b = r/255.0, g/255.0, b/255.0
+    mx = max(r, g, b)
+    mn = min(r, g, b)
+    df = mx-mn
+    if mx == mn:
+        h = 0
+    elif mx == r:
+        h = (60 * ((g-b)/df) + 360) % 360
+    elif mx == g:
+        h = (60 * ((b-r)/df) + 120) % 360
+    else:
+        h = (60 * ((r-g)/df) + 240) % 360
+    if mx == 0:
+        s = 0
+    else:
+        s = df/mx
+    v = mx
+    return (h, s, v)
+
+
+def get_hsv_hint(hsv):
+    """根据HSV值获取颜色提示"""
+    h, s, v = hsv
+    
+    # 低饱和度认为是白色/灰色/黑色
+    if s < 0.15:
+        if v > 0.8:
+            return 'white'
+        elif v < 0.3:
+            return 'black'
+        else:
+            return 'gray'
+    
+    # 根据色相判断
+    if 0 <= h < 15 or 345 <= h < 360:
+        return 'red'
+    elif 15 <= h < 45:
+        if s > 0.6:
+            return 'orange'
+        else:
+            return 'beige'
+    elif 45 <= h < 75:
+        return 'yellow'
+    elif 75 <= h < 165:
+        return 'green'
+    elif 165 <= h < 195:
+        return 'cyan'
+    elif 195 <= h < 255:
+        return 'blue'
+    elif 255 <= h < 285:
+        return 'purple'
+    elif 285 <= h < 345:
+        return 'pink'
+    
+    return 'unknown'
+
+
 def extract_image_features(image_data):
-    """提取图片特征（颜色+纹理）"""
+    """提取图片特征"""
     try:
         if ',' in image_data:
             image_data = image_data.split(',')[1]
@@ -163,403 +247,252 @@ def extract_image_features(image_data):
         image = image.resize((150, 150))
         img_array = np.array(image)
         
-        # 1. 颜色特征
+        # 1. 基础颜色特征
         avg_color = np.mean(img_array, axis=(0, 1))
         
-        pixels = img_array.reshape(-1, 3)
-        pixels_list = [tuple(p) for p in pixels]
-        color_counts = Counter(pixels_list)
-        dominant_color = list(color_counts.most_common(1)[0][0])
+        # 2. HSV颜色特征
+        hsv_color = rgb_to_hsv(avg_color[0], avg_color[1], avg_color[2])
         
-        # 颜色标准差（反映颜色丰富度）
-        std_color = np.std(img_array, axis=(0, 1))
+        # 3. 颜色直方图（分区域统计）
+        h, w = img_array.shape[:2]
+        region_colors = []
+        for i in range(3):
+            for j in range(3):
+                region = img_array[i*h//3:(i+1)*h//3, j*w//3:(j+1)*w//3]
+                region_avg = np.mean(region, axis=(0, 1))
+                region_hsv = rgb_to_hsv(region_avg[0], region_avg[1], region_avg[2])
+                region_colors.append({
+                    'rgb': region_avg.tolist(),
+                    'hsv': region_hsv
+                })
         
-        # 2. 纹理特征 - 使用边缘检测
+        # 4. 边缘特征
         gray = np.mean(img_array, axis=2)
-        
-        # 计算梯度（边缘强度）
         grad_x = np.abs(np.diff(gray, axis=1, append=gray[:, -1:]))
         grad_y = np.abs(np.diff(gray, axis=0, append=gray[-1:, :]))
         edge_strength = np.mean(grad_x + grad_y)
+        edge_density = np.sum((grad_x + grad_y) > 20) / (h * w)
         
-        # 纹理复杂度（局部方差）- 使用纯numpy实现
-        # 计算5x5局部窗口的方差
-        padded = np.pad(gray, 2, mode='edge')
-        local_vars = []
-        for i in range(2, padded.shape[0] - 2):
-            for j in range(2, padded.shape[1] - 2):
-                window = padded[i-2:i+3, j-2:j+3]
-                local_vars.append(np.var(window))
-        texture_complexity = np.mean(local_vars)
+        # 5. 颜色分布集中度
+        pixels = img_array.reshape(-1, 3)
+        color_variance = np.std(pixels, axis=0).mean()
+        
+        # 6. 计算图片哈希
+        img_hash = compute_image_hash(image)
         
         return {
             'avg_color': avg_color.tolist(),
-            'dominant_color': dominant_color,
-            'std_color': std_color.tolist(),
+            'hsv': hsv_color,
+            'hsv_hint': get_hsv_hint(hsv_color),
+            'region_colors': region_colors,
             'brightness': np.mean(avg_color),
             'edge_strength': edge_strength,
-            'texture_complexity': texture_complexity,
-            'color_variance': np.mean(std_color)
+            'edge_density': edge_density,
+            'color_variance': color_variance,
+            'image_hash': img_hash
         }
     except Exception as e:
         print(f"提取图片特征失败: {e}")
+        import traceback
+        print(traceback.format_exc())
         return None
 
 
-def detect_texture_type(features):
-    """
-    根据特征判断纹理类型
-    """
-    edge = features['edge_strength']
-    complexity = features['texture_complexity']
-    variance = features['color_variance']
-    brightness = features['brightness']
-    
-    # 鱼鳞特征：中等边缘强度 + 中等复杂度
-    # 鱼鳞有规律的纹理，复杂度不会太高也不会太低
-    if 8 < edge < 50 and 30 < complexity < 300:
-        # 检查是否有规律的重复纹理
-        if 50 < complexity < 200:
-            return 'scaly'
-        return 'textured'
-    
-    # 条状纹理（面条、薯条）- 高边缘+特定复杂度
-    if edge > 20 and 60 < complexity < 150:
-        return 'long'
-    
-    # 粗糙纹理（坚果）
-    if complexity > 120 and edge > 15 and variance > 30:
-        return 'rough'
-    
-    # 颗粒状（米饭等）- 高复杂度+中高边缘
-    if complexity > 100 and edge > 10:
-        return 'grainy'
-    
-    # 多孔状（面包等）
-    if 60 < complexity < 150 and variance > 25:
-        return 'porous'
-    
-    # 叶状（蔬菜）- 高颜色变化+中等边缘
-    if variance > 35 and 5 < edge < 25:
-        return 'leafy'
-    
-    # 蓬松状（炒蛋）
-    if complexity > 80 and edge < 15 and brightness > 200:
-        return 'fluffy'
-    
-    # 分层状（三明治、培根）
-    if 40 < complexity < 100 and 10 < edge < 30:
-        return 'layered'
-    
-    # 酥脆状（薯片、春卷）
-    if complexity > 100 and edge > 20 and brightness > 180:
-        return 'crispy'
-    
-    # 液体状（粥、汤、饮品）
-    if edge < 10 and complexity < 50 and brightness > 150:
-        return 'liquid'
-    
-    # 奶油状（酸奶）
-    if edge < 12 and complexity < 60 and brightness > 220:
-        return 'creamy'
-    
-    # 光滑表面（默认）
-    if edge < 15 and complexity < 80:
-        return 'smooth'
-    
-    return 'textured'  # 默认为有纹理
+def compute_image_hash(image, hash_size=8):
+    """计算图片的平均哈希"""
+    try:
+        # 转换为灰度并缩小
+        small = image.convert('L').resize((hash_size, hash_size), Image.Resampling.LANCZOS)
+        pixels = list(small.getdata())
+        avg = sum(pixels) / len(pixels)
+        # 生成哈希
+        bits = ''.join('1' if p > avg else '0' for p in pixels)
+        return hex(int(bits, 2))[2:].zfill(16)
+    except:
+        return None
 
 
-def color_distance(color1, color2):
-    """计算颜色欧氏距离"""
-    return np.sqrt(sum((a - b) ** 2 for a, b in zip(color1, color2)))
+def hsv_distance(hsv1, hsv2):
+    """计算HSV颜色距离"""
+    h1, s1, v1 = hsv1
+    h2, s2, v2 = hsv2
+    
+    # 色相距离（考虑环形）
+    h_diff = min(abs(h1 - h2), 360 - abs(h1 - h2))
+    # 饱和度和明度距离（归一化到0-100）
+    s_diff = abs(s1 - s2) * 100
+    v_diff = abs(v1 - v2) * 100
+    
+    # 加权距离（降低色相权重，提高明度权重）
+    return (h_diff * 0.4 + s_diff * 0.2 + v_diff * 0.4)
 
 
-def smart_category_detection(features, texture_type):
-    """
-    智能类别检测 - 结合颜色和纹理
-    为每个类别定义精准的颜色特征
-    """
-    avg_color = features['avg_color']
-    brightness = features['brightness']
-    variance = features['color_variance']
+def calculate_similarity(features1, features2):
+    """计算两个特征之间的相似度（0-100）"""
+    # HSV距离
+    hsv_dist = hsv_distance(features1['hsv'], features2['hsv'])
+    hsv_score = max(0, 100 - hsv_dist)
     
-    scores = {}
+    # 亮度距离
+    bright_diff = abs(features1['brightness'] - features2['brightness'])
+    bright_score = max(0, 100 - bright_diff)
     
-    r, g, b = avg_color
+    # 边缘强度距离
+    edge_diff = abs(features1['edge_strength'] - features2['edge_strength'])
+    edge_score = max(0, 100 - edge_diff / 2)
     
-    # ========== 1. 海鲜检测（最优先）==========
-    # 鱼的颜色特征：灰白/灰褐色，R和G接近，R略大于G，B较低
-    is_fish_color = (120 <= r <= 220 and 100 <= g <= 200 and 80 <= b <= 160 and 
-                     abs(r - g) < 40 and r > g > b)
-    # 虾蟹的颜色：偏红/橙色
-    is_shrimp_color = (r > 180 and g > 80 and g < 160 and b < 100 and r > g)
+    # 综合得分
+    similarity = hsv_score * 0.5 + bright_score * 0.3 + edge_score * 0.2
     
-    if is_fish_color or is_shrimp_color:
-        scores['海鲜'] = scores.get('海鲜', 0) + 85
-        scores['肉类'] = scores.get('肉类', 0) + 25
-    
-    # 鱼鳞纹理是海鲜的强特征
-    if texture_type == 'scaly' or texture_type == 'textured':
-        scores['海鲜'] = scores.get('海鲜', 0) + 75
-    
-    # ========== 2. 蔬菜检测 ==========
-    # 深绿色蔬菜：G很高，R和B较低
-    is_dark_green = (g > 80 and g > r + 30 and g > b + 30 and r < 150)
-    # 浅绿色蔬菜：G高，整体亮度高
-    is_light_green = (g > 150 and g > r + 20 and g > b + 10 and brightness > 180)
-    # 白色蔬菜（白菜、萝卜）：高亮度，RGB接近
-    is_white_veg = (r > 200 and g > 200 and b > 180 and abs(int(r) - int(g)) < 30)
-    
-    if is_dark_green or is_light_green:
-        scores['蔬菜'] = scores.get('蔬菜', 0) + 85
-        scores['水果'] = scores.get('水果', 0) + 15
-    elif is_white_veg and brightness > 200:
-        scores['蔬菜'] = scores.get('蔬菜', 0) + 70
-        scores['主食'] = scores.get('主食', 0) + 30
-    
-    # 叶状纹理是蔬菜的强特征
-    if texture_type == 'leafy':
-        scores['蔬菜'] = scores.get('蔬菜', 0) + 70
-    
-    # ========== 3. 肉类检测 ==========
-    # 生肉：偏粉红色/红色，R高，G和B中等
-    is_raw_meat = (r > 150 and 80 < g < 160 and 60 < b < 120 and r > g > b)
-    # 熟肉/红烧肉：深红色/棕色，整体偏暗
-    is_cooked_meat = (100 < r < 180 and 50 < g < 120 and 30 < b < 100 and r > g > b)
-    # 鸡肉：浅粉色/米色
-    is_chicken = (200 < r < 240 and 160 < g < 210 and 100 < b < 170)
-    
-    if is_raw_meat or is_cooked_meat:
-        scores['肉类'] = scores.get('肉类', 0) + 85
-        scores['海鲜'] = scores.get('海鲜', 0) + 20
-    elif is_chicken:
-        scores['肉类'] = scores.get('肉类', 0) + 80
-    
-    # ========== 4. 水果检测 ==========
-    # 红色水果：苹果、草莓、西瓜
-    is_red_fruit = (r > 180 and g < 120 and b < 100 and r - g > 60)
-    # 橙色/黄色水果：橙子、香蕉、芒果
-    is_orange_fruit = (r > 200 and 100 < g < 220 and b < 80 and r > g > b)
-    # 黄色水果：香蕉、梨
-    is_yellow_fruit = (r > 220 and g > 200 and b < 150 and abs(int(r) - int(g)) < 50)
-    # 紫色水果：葡萄
-    is_purple_fruit = (r > 60 and r < 150 and g > 40 and g < 120 and b > 80 and b > g)
-    
-    if is_red_fruit:
-        scores['水果'] = scores.get('水果', 0) + 85
-    elif is_orange_fruit:
-        scores['水果'] = scores.get('水果', 0) + 80
-    elif is_yellow_fruit:
-        scores['水果'] = scores.get('水果', 0) + 75
-        scores['主食'] = scores.get('主食', 0) + 20
-    elif is_purple_fruit:
-        scores['水果'] = scores.get('水果', 0) + 80
-    
-    # ========== 5. 主食检测 ==========
-    # 米饭/馒头：白色/米白色，颗粒状或光滑
-    is_rice = (r > 220 and g > 215 and b > 190 and abs(int(r) - int(g)) < 20 and 
-               texture_type in ['grainy', 'smooth'])
-    # 面条/面包：黄色/米色，多孔状或条状
-    is_noodle = (200 < r < 250 and 160 < g < 230 and 80 < b < 180 and 
-                 texture_type in ['porous', 'long'])
-    # 煎饼/饼干：金黄色，较暗
-    is_pancake = (180 < r < 240 and 140 < g < 200 and 60 < b < 140)
-    
-    if is_rice:
-        scores['主食'] = scores.get('主食', 0) + 85
-        scores['蛋类'] = scores.get('蛋类', 0) + 20
-    elif is_noodle:
-        scores['主食'] = scores.get('主食', 0) + 80
-    elif is_pancake:
-        scores['主食'] = scores.get('主食', 0) + 75
-    
-    # 颗粒状纹理是主食的强特征（米饭）
-    if texture_type == 'grainy':
-        scores['主食'] = scores.get('主食', 0) + 30
-    elif texture_type == 'porous':
-        scores['主食'] = scores.get('主食', 0) + 25
-    elif texture_type == 'long':
-        scores['主食'] = scores.get('主食', 0) + 20
-    
-    # ========== 6. 蛋类检测 ==========
-    # 鸡蛋：黄色/金黄色，光滑
-    is_egg = (230 < r < 255 and 180 < g < 240 and 60 < b < 180 and 
-              texture_type == 'smooth' and brightness > 180)
-    
-    if is_egg:
-        scores['蛋类'] = scores.get('蛋类', 0) + 85
-        scores['主食'] = scores.get('主食', 0) + 20
-    
-    # ========== 7. 饮品检测 ==========
-    # 深色饮品：咖啡、可乐、茶
-    is_dark_drink = (brightness < 120 and r < 150 and g < 130 and b < 110)
-    # 浅色饮品：牛奶、豆浆
-    is_light_drink = (r > 230 and g > 225 and b > 210 and brightness > 220)
-    # 黄色饮品：果汁、啤酒
-    is_yellow_drink = (r > 200 and g > 160 and b < 100 and brightness > 150)
-    
-    if is_dark_drink:
-        scores['饮品'] = scores.get('饮品', 0) + 80
-    elif is_light_drink:
-        scores['饮品'] = scores.get('饮品', 0) + 75
-        scores['主食'] = scores.get('主食', 0) + 15
-    elif is_yellow_drink:
-        scores['饮品'] = scores.get('饮品', 0) + 70
-        scores['水果'] = scores.get('水果', 0) + 20
-    
-    # 液体纹理
-    if texture_type == 'liquid':
-        scores['饮品'] = scores.get('饮品', 0) + 25
-        scores['主食'] = scores.get('主食', 0) + 10
-    
-    # ========== 8. 坚果检测 ==========
-    # 棕色系：各种坚果
-    is_nut = (120 < r < 200 and 80 < g < 160 and 40 < b < 120 and 
-              r > g > b and texture_type in ['rough', 'smooth'])
-    
-    if is_nut:
-        scores['坚果'] = scores.get('坚果', 0) + 80
-        scores['肉类'] = scores.get('肉类', 0) + 20
-    
-    # 确保所有类别都有基础分数（至少10分）
-    for cat in FOOD_DATABASE.keys():
-        if cat not in scores:
-            scores[cat] = 10
-    
-    # 排序返回
-    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
-
-
-def match_food_in_category(features, category, top_n=3):
-    """
-    在指定类别内匹配具体食物
-    """
-    if category not in FOOD_DATABASE:
-        return []
-    
-    avg_color = features['avg_color']
-    brightness = features['brightness']
-    texture_type = detect_texture_type(features)
-    
-    matches = []
-    foods = FOOD_DATABASE[category]
-    
-    for food_name, food_info in foods.items():
-        food_color = food_info['color']
-        food_brightness = food_info.get('brightness', [100, 200])
-        food_texture = food_info.get('texture', 'unknown')
-        
-        # 颜色距离
-        color_dist = color_distance(avg_color, food_color)
-        color_score = max(0, 100 - color_dist / 2)
-        
-        # 亮度匹配
-        bright_min, bright_max = food_brightness
-        if bright_min <= brightness <= bright_max:
-            bright_score = 100
-        else:
-            bright_score = max(0, 100 - min(abs(brightness - bright_min), 
-                                           abs(brightness - bright_max)))
-        
-        # 纹理匹配加分
-        texture_bonus = 0
-        if texture_type != 'unknown' and food_texture == texture_type:
-            texture_bonus = 15
-        
-        # 综合分数
-        total_score = color_score * 0.5 + bright_score * 0.3 + texture_bonus
-        
-        matches.append({
-            'name': food_name,
-            'confidence': round(min(90, total_score), 1),
-            'category': category,
-            'color_score': round(color_score, 1),
-            'texture_match': food_texture == texture_type
-        })
-    
-    matches.sort(key=lambda x: x['confidence'], reverse=True)
-    return matches[:top_n]
+    return similarity
 
 
 def recognize_food_local(image_data, top_n=5, user_id=None, db_session=None):
     """
-    本地图片识别 - 智能版本
+    本地图片识别 - 智能类别库对比版
+    
+    识别流程：
+    1. 提取图片特征
+    2. 优先匹配用户已学习的类别库
+    3. 同类别内精细对比
+    4. 返回最可能的食物列表
     """
     features = extract_image_features(image_data)
     if not features:
         return None
     
-    # 检测纹理类型
-    texture_type = detect_texture_type(features)
-    
-    # 智能类别检测
-    category_scores = smart_category_detection(features, texture_type)
-    
     all_matches = []
     
-    # 在前3个类别中匹配食物
-    for category, cat_score in category_scores[:3]:
-        foods = match_food_in_category(features, category, top_n=3)
-        
-        for food in foods:
-            # 结合类别置信度
-            combined = food['confidence'] * 0.7 + cat_score * 0.3
-            food['confidence'] = round(min(85, combined), 1)
-            food['source'] = 'smart_match'
-            all_matches.append(food)
-    
-    # 匹配用户学习过的食物
-    # 获取当前图片最可能的类别（第一个类别的分数）
-    top_category = category_scores[0][0] if category_scores else None
-    top_cat_score = category_scores[0][1] if category_scores else 0
-    
+    # ========== 第一步：匹配用户已学习的类别库 ==========
     if user_id and db_session:
         try:
-            from models import FoodImageFeature
-            user_features = db_session.query(FoodImageFeature).filter_by(user_id=user_id).all()
+            from models import LearnedFood, FoodImageSample
             
-            for uf in user_features:
-                uf_avg_color = [uf.avg_color_r, uf.avg_color_g, uf.avg_color_b]
+            # 获取用户所有已学习的食物
+            learned_foods = db_session.query(LearnedFood).filter_by(
+                user_id=user_id, 
+                is_active=True
+            ).all()
+            
+            print(f"[识别调试] 找到 {len(learned_foods)} 个已学习食物")
+            
+            for learned in learned_foods:
+                # 计算与已学习食物的平均特征相似度
+                learned_features = {
+                    'hsv': [learned.avg_hsv_h, learned.avg_hsv_s, learned.avg_hsv_v],
+                    'brightness': learned.avg_brightness,
+                    'edge_strength': learned.avg_edge_strength,
+                    'color_variance': learned.avg_color_variance
+                }
                 
-                avg_dist = color_distance(features['avg_color'], uf_avg_color)
-                bright_dist = abs(features['brightness'] - uf.brightness)
+                similarity = calculate_similarity(features, learned_features)
                 
-                similarity = max(0, 100 - (avg_dist * 0.6 + bright_dist * 0.4) / 2)
+                # 检查是否已归档（样本数>=2即为已归档）
+                is_archived = learned.sample_count >= 2
                 
-                # 如果当前图片明显属于某个类别（分数>60），且用户学习的食物不属于该类别
-                # 则大幅降低该学习记录的权重
-                category_penalty = 0
-                if top_cat_score > 60 and uf.food_category != top_category:
-                    # 不同类别的学习记录，置信度打5折
-                    category_penalty = similarity * 0.5
+                # 根据学习次数给予加成（学习次数越多，加成越高）
+                # 已归档的食物获得额外加成
+                learn_boost = min(learned.confirmed_count * 5, 25)
+                if is_archived:
+                    learn_boost += 15  # 已归档食物额外+15分
                 
-                # 用户学习的给予小幅加成（最多10分）
-                count_boost = min(10, uf.confirmed_count * 2)
-                final_confidence = min(80, similarity - category_penalty + count_boost)
+                final_confidence = min(95, similarity + learn_boost)
                 
-                # 只有当置信度足够高时才加入结果（至少40分）
-                if final_confidence >= 40:
-                    existing = next((m for m in all_matches if m['name'] == uf.food_name), None)
-                    if existing:
-                        if final_confidence > existing['confidence']:
-                            existing['confidence'] = round(final_confidence, 1)
-                            existing['source'] = 'user_learned'
-                            existing['confirmed_count'] = uf.confirmed_count
-                    else:
-                        all_matches.append({
-                            'name': uf.food_name,
-                            'confidence': round(final_confidence, 1),
-                            'category': uf.food_category or '其他',
-                            'source': 'user_learned',
-                            'confirmed_count': uf.confirmed_count
-                        })
+                # 降低阈值，让更多学习过的食物参与匹配
+                # 已归档的食物使用更低的阈值
+                if is_archived:
+                    threshold = 10  # 已归档食物阈值更低
+                else:
+                    threshold = max(15, 30 - learned.confirmed_count * 3)
+                
+                print(f"[识别调试] {learned.food_name}: 相似度={similarity:.1f}, 加成={learn_boost}, 最终={final_confidence:.1f}, 阈值={threshold}, 归档={is_archived}")
+                
+                # 强制将已归档的学习食物加入结果（确保学习过的食物能被看到）
+                if final_confidence >= threshold or is_archived:
+                    # 获取类别名称
+                    category_name = '其他'
+                    if learned.category:
+                        category_name = learned.category.name
+                    
+                    all_matches.append({
+                        'name': learned.food_name,
+                        'confidence': round(final_confidence, 1),
+                        'category': category_name,
+                        'source': 'learned_library',
+                        'learned_count': learned.confirmed_count,
+                        'sample_count': learned.sample_count,
+                        'is_archived': is_archived
+                    })
+            
         except Exception as e:
-            print(f"查询用户特征失败: {e}")
+            print(f"查询学习库失败: {e}")
     
-    # 排序：只按置信度排序，不再强制用户学习的排前面
-    # 用户学习的优势已经通过置信度加成体现了
-    all_matches.sort(key=lambda x: x['confidence'], reverse=True)
+    # ========== 第二步：匹配预定义数据库 ==========
+    for category, foods in FOOD_DATABASE.items():
+        for food_name, food_info in foods.items():
+            # 检查是否已经在学习库结果中
+            if any(m['name'] == food_name for m in all_matches):
+                continue
+            
+            # 计算基于HSV的匹配度
+            hsv_hint = features['hsv_hint']
+            food_hint = food_info.get('hsv_hint', '')
+            
+            score = 0
+            
+            # 颜色提示匹配
+            if hsv_hint == food_hint:
+                score += 50
+            elif hsv_hint in ['beige', 'white'] and food_hint in ['beige', 'white']:
+                score += 30
+            elif hsv_hint in ['red', 'pink', 'orange'] and food_hint in ['red', 'pink', 'orange']:
+                score += 25
+            elif hsv_hint in ['yellow', 'orange'] and food_hint in ['yellow', 'orange']:
+                score += 25
+            elif hsv_hint in ['green', 'yellow'] and food_hint in ['green', 'yellow']:
+                score += 20
+            
+            # HSV色相范围匹配
+            typical_h = food_info.get('typical_h')
+            if typical_h and len(typical_h) >= 2:
+                h = features['hsv'][0]
+                for i in range(0, len(typical_h), 2):
+                    if typical_h[i] <= h <= typical_h[i+1]:
+                        score += 25
+                        break
+            
+            # 亮度匹配
+            if food_hint == 'white' and features['brightness'] > 180:
+                score += 15
+            elif food_hint == 'black' and features['brightness'] < 80:
+                score += 15
+            elif food_hint in ['brown', 'beige'] and 80 <= features['brightness'] <= 180:
+                score += 10
+            
+            if score >= 30:
+                all_matches.append({
+                    'name': food_name,
+                    'confidence': round(min(85, score), 1),
+                    'category': category,
+                    'source': 'database'
+                })
+    
+    # ========== 第三步：排序和筛选 ==========
+    # 优先排序：已归档学习库 > 普通学习库 > 数据库，然后按置信度
+    def sort_key(x):
+        # 已归档的学习库结果最优先（给予50分加成）
+        if x.get('source') == 'learned_library' and x.get('is_archived'):
+            source_bonus = 50
+        # 普通学习库结果优先（给予30分加成）
+        elif x.get('source') == 'learned_library':
+            source_bonus = 30
+        else:
+            source_bonus = 0
+        return x['confidence'] + source_bonus
+    
+    all_matches.sort(key=sort_key, reverse=True)
+    
+    print(f"[识别调试] 排序后结果: {[(m['name'], m['confidence'], m.get('source'), m.get('is_archived')) for m in all_matches[:5]]}")
     
     # 去重
     seen = set()
@@ -569,65 +502,185 @@ def recognize_food_local(image_data, top_n=5, user_id=None, db_session=None):
             seen.add(m['name'])
             unique_matches.append(m)
     
+    # 如果没有足够的结果，添加一些默认选项
+    if len(unique_matches) < 3:
+        defaults = [
+            {'name': '米饭', 'confidence': 25, 'category': '主食', 'source': 'default'},
+            {'name': '青菜', 'confidence': 25, 'category': '蔬菜', 'source': 'default'},
+            {'name': '鸡肉', 'confidence': 25, 'category': '肉类', 'source': 'default'},
+        ]
+        for d in defaults:
+            if d['name'] not in seen:
+                unique_matches.append(d)
+                seen.add(d['name'])
+    
     return unique_matches[:top_n]
 
 
-def save_food_image_feature(image_data, food_name, food_category, user_id, db_session):
-    """保存用户确认的食物图片特征"""
+def save_food_sample(image_data, food_name, category_name, user_id, db_session):
+    """
+    保存食物学习样本
+    
+    流程：
+    1. 提取图片特征
+    2. 查找或创建类别库
+    3. 查找或创建已学习食物
+    4. 保存样本
+    5. 更新食物平均特征
+    6. 如果样本数>=2，自动归档到类别库
+    """
     try:
-        from models import FoodImageFeature
+        from models import CategoryLibrary, LearnedFood, FoodImageSample
         
+        # 提取特征
         features = extract_image_features(image_data)
         if not features:
-            return False
+            return {'success': False, 'message': '无法提取图片特征'}
         
-        existing = db_session.query(FoodImageFeature).filter_by(
+        # 查找或创建类别库
+        category = db_session.query(CategoryLibrary).filter_by(name=category_name).first()
+        if not category:
+            category = CategoryLibrary(
+                name=category_name,
+                name_en=CATEGORY_NAMES.get(category_name, ''),
+                description=f'{category_name}类食物的归档库'
+            )
+            db_session.add(category)
+            db_session.flush()
+        
+        # 标准化食物名称
+        food_name_normalized = food_name.strip().lower()
+        
+        # 查找或创建已学习食物
+        learned = db_session.query(LearnedFood).filter_by(
             user_id=user_id,
-            food_name=food_name
+            food_name_normalized=food_name_normalized
         ).first()
         
-        if existing:
-            existing.confirmed_count += 1
-            existing.last_used = datetime.utcnow()
-            
-            alpha = 0.3
-            existing.avg_color_r = existing.avg_color_r * (1 - alpha) + features['avg_color'][0] * alpha
-            existing.avg_color_g = existing.avg_color_g * (1 - alpha) + features['avg_color'][1] * alpha
-            existing.avg_color_b = existing.avg_color_b * (1 - alpha) + features['avg_color'][2] * alpha
-            existing.dominant_color_r = existing.dominant_color_r * (1 - alpha) + features['dominant_color'][0] * alpha
-            existing.dominant_color_g = existing.dominant_color_g * (1 - alpha) + features['dominant_color'][1] * alpha
-            existing.dominant_color_b = existing.dominant_color_b * (1 - alpha) + features['dominant_color'][2] * alpha
-            existing.brightness = existing.brightness * (1 - alpha) + features['brightness'] * alpha
-        else:
-            new_feature = FoodImageFeature(
+        if not learned:
+            learned = LearnedFood(
                 user_id=user_id,
-                food_name=food_name,
-                food_category=food_category,
-                avg_color_r=features['avg_color'][0],
-                avg_color_g=features['avg_color'][1],
-                avg_color_b=features['avg_color'][2],
-                dominant_color_r=features['dominant_color'][0],
-                dominant_color_g=features['dominant_color'][1],
-                dominant_color_b=features['dominant_color'][2],
-                brightness=features['brightness'],
-                confirmed_count=1
+                category_id=category.id,
+                food_name=food_name.strip(),
+                food_name_normalized=food_name_normalized,
+                avg_hsv_h=features['hsv'][0],
+                avg_hsv_s=features['hsv'][1],
+                avg_hsv_v=features['hsv'][2],
+                avg_brightness=features['brightness'],
+                avg_edge_strength=features['edge_strength'],
+                avg_color_variance=features['color_variance'],
+                min_hsv_h=features['hsv'][0],
+                max_hsv_h=features['hsv'][0],
+                min_brightness=features['brightness'],
+                max_brightness=features['brightness'],
+                sample_count=0,
+                confirmed_count=0
             )
-            db_session.add(new_feature)
+            db_session.add(learned)
+            db_session.flush()
+        
+        # 保存样本
+        sample = FoodImageSample(
+            learned_food_id=learned.id,
+            user_id=user_id,
+            hsv_h=features['hsv'][0],
+            hsv_s=features['hsv'][1],
+            hsv_v=features['hsv'][2],
+            brightness=features['brightness'],
+            edge_strength=features['edge_strength'],
+            edge_density=features['edge_density'],
+            color_variance=features['color_variance'],
+            image_hash=features['image_hash'],
+            is_confirmed=True
+        )
+        sample.set_region_colors([r['hsv'] for r in features['region_colors']])
+        db_session.add(sample)
+        
+        # 更新学习食物的统计
+        learned.sample_count += 1
+        learned.confirmed_count += 1
+        learned.updated_at = datetime.utcnow()
+        
+        # 更新平均特征（移动平均）
+        alpha = 0.3  # 学习率
+        learned.avg_hsv_h = learned.avg_hsv_h * (1 - alpha) + features['hsv'][0] * alpha
+        learned.avg_hsv_s = learned.avg_hsv_s * (1 - alpha) + features['hsv'][1] * alpha
+        learned.avg_hsv_v = learned.avg_hsv_v * (1 - alpha) + features['hsv'][2] * alpha
+        learned.avg_brightness = learned.avg_brightness * (1 - alpha) + features['brightness'] * alpha
+        learned.avg_edge_strength = learned.avg_edge_strength * (1 - alpha) + features['edge_strength'] * alpha
+        learned.avg_color_variance = learned.avg_color_variance * (1 - alpha) + features['color_variance'] * alpha
+        
+        # 更新范围
+        learned.min_hsv_h = min(learned.min_hsv_h, features['hsv'][0])
+        learned.max_hsv_h = max(learned.max_hsv_h, features['hsv'][0])
+        learned.min_brightness = min(learned.min_brightness, features['brightness'])
+        learned.max_brightness = max(learned.max_brightness, features['brightness'])
+        
+        # 更新类别库统计
+        category.food_count = db_session.query(LearnedFood).filter_by(
+            category_id=category.id,
+            is_active=True
+        ).count()
+        category.updated_at = datetime.utcnow()
         
         db_session.commit()
-        return True
+        
+        return {
+            'success': True,
+            'message': f'已学习: {food_name}',
+            'food_id': learned.id,
+            'sample_count': learned.sample_count,
+            'confirmed_count': learned.confirmed_count,
+            'is_archived': learned.sample_count >= 2
+        }
         
     except Exception as e:
-        print(f"保存食物特征失败: {e}")
+        db_session.rollback()
+        print(f"保存学习样本失败: {e}")
         import traceback
         print(traceback.format_exc())
-        return False
+        return {'success': False, 'message': f'保存失败: {str(e)}'}
+
+
+def get_user_learned_foods(user_id, db_session, category_id=None):
+    """获取用户已学习的食物列表"""
+    try:
+        from models import LearnedFood
+        
+        query = db_session.query(LearnedFood).filter_by(
+            user_id=user_id,
+            is_active=True
+        )
+        
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+        
+        foods = query.order_by(LearnedFood.updated_at.desc()).all()
+        
+        return [food.to_dict() for food in foods]
+        
+    except Exception as e:
+        print(f"获取学习库失败: {e}")
+        return []
+
+
+def get_category_libraries(db_session):
+    """获取所有类别库"""
+    try:
+        from models import CategoryLibrary
+        
+        categories = db_session.query(CategoryLibrary).all()
+        return [cat.to_dict() for cat in categories]
+        
+    except Exception as e:
+        print(f"获取类别库失败: {e}")
+        return []
 
 
 # 测试代码
 if __name__ == '__main__':
-    # 创建一个模拟鱼的图片（灰褐色）
-    test_img = Image.new('RGB', (150, 150), color=(180, 170, 140))
+    # 创建一个模拟三文鱼的图片（橙粉色）
+    test_img = Image.new('RGB', (150, 150), color=(255, 140, 120))
     buffered = io.BytesIO()
     test_img.save(buffered, format="JPEG")
     img_str = base64.b64encode(buffered.getvalue()).decode()

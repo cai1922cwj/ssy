@@ -186,8 +186,179 @@ class FoodRecord(db.Model):
     
     food = db.relationship('Food', backref='records')
 
+
+# ==================== 新的智能学习系统模型 ====================
+
+class CategoryLibrary(db.Model):
+    """类别库 - 存储各类食物的归档信息"""
+    __tablename__ = 'category_libraries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)  # 类别名称：蔬菜、肉类、海鲜等
+    name_en = db.Column(db.String(50))
+    description = db.Column(db.Text)
+    
+    # 类别特征统计（自动计算）
+    avg_hsv_h = db.Column(db.Float, default=0)  # 平均色相
+    avg_hsv_s = db.Column(db.Float, default=0)  # 平均饱和度
+    avg_hsv_v = db.Column(db.Float, default=0)  # 平均明度
+    
+    # 该类别下的食物数量
+    food_count = db.Column(db.Integer, default=0)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系
+    foods = db.relationship('LearnedFood', backref='category', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'name_en': self.name_en,
+            'description': self.description,
+            'food_count': self.food_count,
+            'avg_hsv': [self.avg_hsv_h, self.avg_hsv_s, self.avg_hsv_v]
+        }
+
+
+class LearnedFood(db.Model):
+    """已学习的食物 - 用户确认后归档的食物"""
+    __tablename__ = 'learned_foods'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('category_libraries.id'), nullable=False)
+    
+    food_name = db.Column(db.String(100), nullable=False)
+    food_name_normalized = db.Column(db.String(100))  # 标准化名称（去空格、小写）
+    
+    # 营养信息（可选）
+    calories = db.Column(db.Float)
+    protein = db.Column(db.Float)
+    carbs = db.Column(db.Float)
+    fat = db.Column(db.Float)
+    
+    # 学习统计
+    sample_count = db.Column(db.Integer, default=1)  # 学习样本数量
+    confirmed_count = db.Column(db.Integer, default=1)  # 确认次数
+    
+    # 该食物的平均特征（所有样本的平均值）
+    avg_hsv_h = db.Column(db.Float, default=0)
+    avg_hsv_s = db.Column(db.Float, default=0)
+    avg_hsv_v = db.Column(db.Float, default=0)
+    avg_brightness = db.Column(db.Float, default=0)
+    avg_edge_strength = db.Column(db.Float, default=0)
+    avg_color_variance = db.Column(db.Float, default=0)
+    
+    # 特征范围（用于快速筛选）
+    min_hsv_h = db.Column(db.Float, default=0)
+    max_hsv_h = db.Column(db.Float, default=360)
+    min_brightness = db.Column(db.Float, default=0)
+    max_brightness = db.Column(db.Float, default=255)
+    
+    is_active = db.Column(db.Boolean, default=True)  # 是否激活
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关系
+    samples = db.relationship('FoodImageSample', backref='learned_food', lazy=True, cascade='all, delete-orphan')
+    user = db.relationship('User', backref='learned_foods')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'food_name': self.food_name,
+            'category': self.category.name if self.category else None,
+            'category_id': self.category_id,
+            'sample_count': self.sample_count,
+            'confirmed_count': self.confirmed_count,
+            'avg_hsv': [self.avg_hsv_h, self.avg_hsv_s, self.avg_hsv_v],
+            'avg_brightness': self.avg_brightness,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class FoodImageSample(db.Model):
+    """食物图片样本 - 每次学习保存的单个样本"""
+    __tablename__ = 'food_image_samples'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    learned_food_id = db.Column(db.Integer, db.ForeignKey('learned_foods.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # 图片特征（详细记录每个样本的特征）
+    hsv_h = db.Column(db.Float, nullable=False)  # 色相 0-360
+    hsv_s = db.Column(db.Float, nullable=False)  # 饱和度 0-1
+    hsv_v = db.Column(db.Float, nullable=False)  # 明度 0-1
+    
+    brightness = db.Column(db.Float, nullable=False)
+    edge_strength = db.Column(db.Float, default=0)
+    edge_density = db.Column(db.Float, default=0)
+    color_variance = db.Column(db.Float, default=0)
+    
+    # 区域颜色特征（JSON存储9个区域的颜色）
+    region_colors = db.Column(db.Text)  # JSON格式
+    
+    # 图片哈希（用于去重）
+    image_hash = db.Column(db.String(64))
+    
+    # 元数据
+    is_confirmed = db.Column(db.Boolean, default=True)  # 是否已确认
+    confidence_at_save = db.Column(db.Float)  # 保存时的置信度
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def get_region_colors(self):
+        """获取区域颜色列表"""
+        if self.region_colors:
+            return json.loads(self.region_colors)
+        return []
+    
+    def set_region_colors(self, colors):
+        """设置区域颜色列表"""
+        self.region_colors = json.dumps(colors)
+
+
+class FoodRecognitionLog(db.Model):
+    """识别日志 - 记录每次识别过程，用于分析改进"""
+    __tablename__ = 'food_recognition_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # 识别结果
+    image_hash = db.Column(db.String(64))
+    recognized_foods = db.Column(db.Text)  # JSON格式，存储识别出的食物列表
+    
+    # 用户反馈
+    user_selected_food = db.Column(db.String(100))  # 用户最终选择的食物
+    is_correct = db.Column(db.Boolean)  # 识别是否正确
+    
+    # 图片特征（用于后续分析）
+    hsv_h = db.Column(db.Float)
+    hsv_s = db.Column(db.Float)
+    hsv_v = db.Column(db.Float)
+    brightness = db.Column(db.Float)
+    
+    # 是否已用于学习
+    is_learned = db.Column(db.Boolean, default=False)
+    learned_food_id = db.Column(db.Integer, db.ForeignKey('learned_foods.id'))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def get_recognized_foods(self):
+        if self.recognized_foods:
+            return json.loads(self.recognized_foods)
+        return []
+    
+    def set_recognized_foods(self, foods):
+        self.recognized_foods = json.dumps(foods)
+
+
+# 保留旧表用于兼容，但不再使用
 class FoodImageFeature(db.Model):
-    """存储用户确认的食物图片特征，用于机器学习"""
+    """存储用户确认的食物图片特征，用于机器学习（旧版，保留兼容）"""
     __tablename__ = 'food_image_features'
     
     id = db.Column(db.Integer, primary_key=True)

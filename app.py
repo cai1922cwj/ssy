@@ -18,7 +18,7 @@ import re
 from io import BytesIO
 import feedparser
 
-from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis
+from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -31,6 +31,33 @@ login_manager.login_message = '请先登录'
 
 # 确保上传目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+
+# ==================== 数据库初始化 ====================
+
+def init_category_libraries():
+    """初始化类别库数据"""
+    categories = [
+        {'name': '蔬菜', 'description': '各类新鲜蔬菜，富含维生素和膳食纤维', 'keywords': '青菜,白菜,菠菜,芹菜,黄瓜,西红柿,茄子,豆角,青椒,萝卜,土豆,南瓜,冬瓜,丝瓜,苦瓜,生菜,油麦菜,空心菜,苋菜,韭菜,葱,姜,蒜,洋葱,西兰花,花菜,莴笋,竹笋,香菇,蘑菇,木耳'},
+        {'name': '肉类', 'description': '猪牛羊鸡等畜禽肉类，主要蛋白质来源', 'keywords': '猪肉,牛肉,羊肉,鸡肉,鸭肉,鹅肉,火腿,培根,香肠,排骨,五花肉,里脊,牛腩,牛排,羊排,鸡腿,鸡翅,鸡胸肉'},
+        {'name': '海鲜', 'description': '鱼、虾、蟹、贝类等水产品，富含优质蛋白', 'keywords': '鱼,虾,蟹,贝,鱿鱼,章鱼,海参,鲍鱼,龙虾,对虾,基围虾,带鱼,黄花鱼,鲫鱼,鲤鱼,三文鱼,金枪鱼,鳕鱼,扇贝,蛤蜊,牡蛎,生蚝'},
+        {'name': '水果', 'description': '各类新鲜水果，富含维生素和矿物质', 'keywords': '苹果,香蕉,橙子,橘子,柚子,葡萄,西瓜,哈密瓜,草莓,蓝莓,樱桃,桃子,梨子,李子,杏子,柿子,石榴,芒果,菠萝,榴莲,火龙果,猕猴桃,柠檬'},
+        {'name': '主食', 'description': '米饭、面条、面包等碳水化合物主食', 'keywords': '米饭,面条,馒头,包子,饺子,馄饨,粥,米粉,河粉,拉面,刀削面,意大利面,面包,吐司,三明治,汉堡,披萨,煎饼,油条,烧饼,玉米,红薯,紫薯,土豆泥'},
+        {'name': '蛋类', 'description': '鸡蛋、鸭蛋等各种蛋类食品', 'keywords': '鸡蛋,鸭蛋,鹅蛋,鹌鹑蛋,皮蛋,咸蛋,荷包蛋,煎蛋,炒蛋,蒸蛋,茶叶蛋,卤蛋'},
+        {'name': '豆类', 'description': '黄豆、豆腐、豆浆等豆制品', 'keywords': '黄豆,黑豆,红豆,绿豆,豌豆,蚕豆,豆腐,豆腐干,豆腐皮,腐竹,豆浆,豆奶,豆芽,毛豆,四季豆,荷兰豆'},
+        {'name': '饮品', 'description': '牛奶、咖啡、茶等各种饮料', 'keywords': '牛奶,酸奶,豆浆,咖啡,茶,绿茶,红茶,乌龙茶,奶茶,果汁,可乐,雪碧,汽水,啤酒,红酒,白酒,蜂蜜水,柠檬水'},
+        {'name': '坚果', 'description': '花生、核桃、杏仁等坚果零食', 'keywords': '花生,核桃,杏仁,腰果,开心果,瓜子,松子,榛子,夏威夷果,碧根果,巴旦木,葡萄干,红枣,枸杞,桂圆,莲子'},
+        {'name': '其他', 'description': '其他未分类食物', 'keywords': '零食,糖果,巧克力,饼干,蛋糕,面包,薯片,辣条,果冻,布丁,冰淇淋,雪糕,甜点,酱料,调料,油,盐,酱,醋'}
+    ]
+    
+    for cat_data in categories:
+        existing = CategoryLibrary.query.filter_by(name=cat_data['name']).first()
+        if not existing:
+            cat = CategoryLibrary(**cat_data)
+            db.session.add(cat)
+    
+    db.session.commit()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -540,9 +567,12 @@ def api_recognize_food():
                         }
                         
                         # 如果是用户学习的数据，添加标记
-                        if source == 'user_learned':
+                        if source == 'learned_library':
                             result_item['learned'] = True
                             result_item['confirmed_count'] = item.get('confirmed_count', 1)
+                            result_item['learned_count'] = item.get('confirmed_count', 1)  # 前端使用learned_count
+                            result_item['is_archived'] = item.get('is_archived', False)
+                            result_item['sample_count'] = item.get('sample_count', 0)
                         
                         results.append(result_item)
                         app.logger.info(f'已添加 {food_name} 到结果')
@@ -638,8 +668,7 @@ def api_food_detail(food_id):
 @login_required
 def api_learn_food():
     """
-    学习用户确认的食物图片特征
-    用户确认识别结果后，保存图片特征用于下次识别
+    学习用户确认的食物图片特征（旧版API，保留兼容）
     """
     try:
         data = request.get_json()
@@ -650,26 +679,17 @@ def api_learn_food():
         if not image_base64 or not food_name:
             return jsonify({'success': False, 'message': '缺少必要参数'})
         
-        # 保存图片特征
-        from local_image_recognition import save_food_image_feature
-        success = save_food_image_feature(
+        # 使用新版学习系统
+        from local_image_recognition import save_food_sample
+        result = save_food_sample(
             image_base64,
             food_name,
-            food_category,
+            food_category or '其他',
             current_user.id,
             db.session
         )
         
-        if success:
-            return jsonify({
-                'success': True,
-                'message': f'已学习食物特征: {food_name}'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': '保存特征失败'
-            })
+        return jsonify(result)
             
     except Exception as e:
         app.logger.error(f'学习食物特征失败: {e}')
@@ -678,6 +698,107 @@ def api_learn_food():
         return jsonify({
             'success': False,
             'message': '服务器错误'
+        })
+
+
+@app.route('/api/learn-food-v2', methods=['POST'])
+@login_required
+def api_learn_food_v2():
+    """
+    新版食物学习API
+    用户手动纠正识别结果，AI学习并归档到类别库
+    """
+    try:
+        data = request.get_json()
+        image_base64 = data.get('image', '')
+        food_name = data.get('food_name', '')
+        food_category = data.get('food_category', '')
+        
+        if not image_base64 or not food_name:
+            return jsonify({'success': False, 'message': '缺少必要参数'})
+        
+        if not food_category:
+            return jsonify({'success': False, 'message': '请选择食物类别'})
+        
+        # 使用新版学习系统保存样本
+        from local_image_recognition import save_food_sample
+        result = save_food_sample(
+            image_base64,
+            food_name,
+            food_category,
+            current_user.id,
+            db.session
+        )
+        
+        if result['success']:
+            # 获取营养信息
+            try:
+                from baidu_ai import get_food_nutrition
+                nutrition = get_food_nutrition(food_name)
+                
+                result['calories'] = nutrition.get('calories', 100)
+                result['protein'] = nutrition.get('protein', 5)
+                result['carbs'] = nutrition.get('carbs', 15)
+                result['fat'] = nutrition.get('fat', 3)
+            except Exception as nutrition_error:
+                # 营养信息获取失败不影响学习结果
+                app.logger.warning(f'获取营养信息失败: {nutrition_error}')
+                result['calories'] = 100
+                result['protein'] = 5
+                result['carbs'] = 15
+                result['fat'] = 3
+        
+        return jsonify(result)
+            
+    except Exception as e:
+        app.logger.error(f'学习食物特征失败: {e}')
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'服务器错误: {str(e)}'
+        })
+
+
+@app.route('/api/my-learned-foods')
+@login_required
+def api_my_learned_foods():
+    """获取用户已学习的食物列表"""
+    try:
+        category_id = request.args.get('category_id', type=int)
+        
+        from local_image_recognition import get_user_learned_foods
+        foods = get_user_learned_foods(current_user.id, db.session, category_id)
+        
+        return jsonify({
+            'success': True,
+            'foods': foods
+        })
+    except Exception as e:
+        app.logger.error(f'获取学习库失败: {e}')
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+
+@app.route('/api/category-libraries')
+@login_required
+def api_category_libraries():
+    """获取所有类别库"""
+    try:
+        from local_image_recognition import get_category_libraries
+        categories = get_category_libraries(db.session)
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+    except Exception as e:
+        app.logger.error(f'获取类别库失败: {e}')
+        return jsonify({
+            'success': False,
+            'message': str(e)
         })
 
 
@@ -919,6 +1040,41 @@ def add_diet_record():
 def food_camera():
     """拍照识别食物页面"""
     return render_template('food_camera.html')
+
+
+@app.route('/my-learned-foods')
+@login_required
+def learned_foods():
+    """我的学习库页面"""
+    category_id = request.args.get('category_id', type=int)
+    
+    # 获取所有类别
+    categories = CategoryLibrary.query.all()
+    
+    # 获取用户学习的食物
+    query = LearnedFood.query.filter_by(user_id=current_user.id, is_active=True)
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    foods = query.order_by(LearnedFood.updated_at.desc()).all()
+    
+    # 统计
+    total_foods = LearnedFood.query.filter_by(user_id=current_user.id, is_active=True).count()
+    total_samples = db.session.query(db.func.sum(LearnedFood.sample_count)).filter_by(
+        user_id=current_user.id
+    ).scalar() or 0
+    archived_foods = LearnedFood.query.filter(
+        LearnedFood.user_id == current_user.id,
+        LearnedFood.is_active == True,
+        LearnedFood.sample_count >= 2
+    ).count()
+    
+    return render_template('learned_foods.html',
+                         categories=categories,
+                         foods=foods,
+                         current_category=category_id,
+                         total_foods=total_foods,
+                         total_samples=total_samples,
+                         archived_foods=archived_foods)
 
 
 # ==================== 语音输入食物 ====================
