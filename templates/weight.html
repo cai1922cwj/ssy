@@ -3,90 +3,919 @@
 {% block content %}
 <h2><i class="bi bi-scale text-info"></i> 体重管理</h2>
 
-<!-- 当前体重 -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card bg-gradient text-white" style="background: linear-gradient(135deg, #74b9ff, #0984e3);">
-            <div class="card-body text-center">
-                <h4>当前体重</h4>
-                <h1 class="display-4">{{ current_weight }} kg</h1>
-                {% if weight_change != 0 %}
-                <p class="mb-0">
-                    {% if weight_change > 0 %}
-                    <span class="badge bg-warning text-dark">↑ {{ weight_change|abs }} kg</span>
-                    {% else %}
-                    <span class="badge bg-success">↓ {{ weight_change|abs }} kg</span>
-                    {% endif %}
-                </p>
+<!-- 标签页导航 -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#bmi-calculator" type="button">
+            <i class="bi bi-calculator"></i> BMI计算器
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#weight-record" type="button">
+            <i class="bi bi-clipboard-data"></i> 体重记录
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#bmi-history" type="button">
+            <i class="bi bi-graph-up"></i> BMI历史
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- BMI计算器 -->
+    <div class="tab-pane fade show active" id="bmi-calculator">
+        <div class="row">
+            <!-- 左侧：输入表单 -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-calculator"></i> 输入您的身体数据</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- 单位切换 -->
+                        <div class="btn-group w-100 mb-4" role="group">
+                            <input type="radio" class="btn-check" name="unit" id="metric" value="metric" checked>
+                            <label class="btn btn-outline-primary" for="metric">
+                                <i class="bi bi-rulers"></i> 公制单位 (kg/cm)
+                            </label>
+                            <input type="radio" class="btn-check" name="unit" id="imperial" value="imperial">
+                            <label class="btn btn-outline-primary" for="imperial">
+                                <i class="bi bi-rulers"></i> 英制单位 (lb/ft-in)
+                            </label>
+                        </div>
+
+                        <form id="bmi-form">
+                            <!-- 年龄 -->
+                            <div class="mb-3">
+                                <label class="form-label"><i class="bi bi-calendar3"></i> 年龄</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="age" value="{{ current_user.age or 25 }}" min="1" max="120" required>
+                                    <span class="input-group-text">岁</span>
+                                </div>
+                            </div>
+
+                            <!-- 性别 -->
+                            <div class="mb-3">
+                                <label class="form-label"><i class="bi bi-gender-ambiguous"></i> 性别</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="gender" id="male" value="male" {% if current_user.gender == 'male' %}checked{% endif %}>
+                                    <label class="btn btn-outline-primary" for="male">
+                                        <i class="bi bi-gender-male"></i> 男
+                                    </label>
+                                    <input type="radio" class="btn-check" name="gender" id="female" value="female" {% if current_user.gender == 'female' %}checked{% endif %}>
+                                    <label class="btn btn-outline-primary" for="female">
+                                        <i class="bi bi-gender-female"></i> 女
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 身高 - 公制 -->
+                            <div class="mb-3" id="height-metric-group">
+                                <label class="form-label"><i class="bi bi-arrows-vertical"></i> 身高</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="height-cm" placeholder="170" min="50" max="250" step="0.1" value="{{ current_user.height or '' }}">
+                                    <span class="input-group-text">cm</span>
+                                </div>
+                            </div>
+
+                            <!-- 身高 - 英制 -->
+                            <div class="mb-3 d-none" id="height-imperial-group">
+                                <label class="form-label"><i class="bi bi-arrows-vertical"></i> 身高</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="height-ft" placeholder="5" min="1" max="8">
+                                            <span class="input-group-text">ft</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="height-in" placeholder="7" min="0" max="11" step="0.1">
+                                            <span class="input-group-text">in</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 体重 - 公制 -->
+                            <div class="mb-3" id="weight-metric-group">
+                                <label class="form-label"><i class="bi bi-speedometer2"></i> 体重</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="weight-kg" placeholder="65" min="10" max="300" step="0.1" value="{{ current_user.weight or '' }}">
+                                    <span class="input-group-text">kg</span>
+                                </div>
+                            </div>
+
+                            <!-- 体重 - 英制 -->
+                            <div class="mb-3 d-none" id="weight-imperial-group">
+                                <label class="form-label"><i class="bi bi-speedometer2"></i> 体重</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="weight-lb" placeholder="143" min="20" max="660" step="0.1">
+                                    <span class="input-group-text">lb</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 btn-lg">
+                                <i class="bi bi-calculator"></i> 计算BMI
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：结果显示 -->
+            <div class="col-lg-6">
+                <!-- 提示：使用说明 -->
+                <div class="alert alert-info mb-4" id="bmi-hint">
+                    <i class="bi bi-info-circle"></i> <strong>使用方法：</strong>填写左侧表单，点击下方"计算BMI"按钮，结果将显示在这里
+                </div>
+                
+                <!-- BMI结果卡片 -->
+                <div class="card mb-4 border-primary" id="bmi-result-card" style="display: none;">
+                    <div class="card-header bg-gradient text-white" id="result-header">
+                        <h4 class="mb-0"><i class="bi bi-check-circle"></i> 您的BMI结果</h4>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="bmi-display mb-3">
+                            <span class="bmi-value display-1 fw-bold" id="bmi-value">--</span>
+                            <span class="bmi-unit fs-4 text-muted">kg/m²</span>
+                        </div>
+                        <div class="bmi-category-badge mb-3">
+                            <span class="badge fs-5 py-2 px-4" id="bmi-category-badge">--</span>
+                        </div>
+                        <p class="lead" id="bmi-description">--</p>
+                        
+                        <!-- 进度条显示 -->
+                        <div class="bmi-scale mt-4">
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>偏瘦</span>
+                                <span>正常</span>
+                                <span>超重</span>
+                                <span>肥胖</span>
+                            </div>
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar bg-info" style="width: 18.5%;" data-bs-toggle="tooltip" title="偏瘦: <18.5"></div>
+                                <div class="progress-bar bg-success" style="width: 6.5%;" data-bs-toggle="tooltip" title="正常: 18.5-24.9"></div>
+                                <div class="progress-bar bg-warning" style="width: 5%;" data-bs-toggle="tooltip" title="超重: 25-29.9"></div>
+                                <div class="progress-bar bg-danger" style="width: 60%;" data-bs-toggle="tooltip" title="肥胖: ≥30"></div>
+                            </div>
+                            <div class="bmi-indicator" id="bmi-indicator" style="display: none;">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 理想体重 -->
+                <div class="card mb-4" id="ideal-weight-card" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-bullseye"></i> 理想体重范围</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <p class="text-muted small mb-1">最低</p>
+                                <p class="fs-4 fw-bold text-info" id="ideal-weight-min">--</p>
+                                <p class="small text-muted">kg</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="text-muted small mb-1">理想</p>
+                                <p class="fs-4 fw-bold text-success" id="ideal-weight-best">--</p>
+                                <p class="small text-muted">kg</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="text-muted small mb-1">最高</p>
+                                <p class="fs-4 fw-bold text-warning" id="ideal-weight-max">--</p>
+                                <p class="small text-muted">kg</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 健康风险提示 -->
+                <div class="card mb-4" id="health-risks-card" style="display: none;">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> 相关疾病风险提示</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="risk-alerts">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 专业建议 -->
+                <div class="card mb-4" id="recommendations-card" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 专业健康建议</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendations">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 保存记录按钮 -->
+                <div class="card mb-4" id="save-record-card" style="display: none;">
+                    <div class="card-body">
+                        <button class="btn btn-success w-100" id="save-bmi-record">
+                            <i class="bi bi-save"></i> 保存BMI记录
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BMI分类标准说明 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> WHO BMI分类标准</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>BMI范围</th>
+                                <th>分类</th>
+                                <th>健康风险</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>< 18.5</td>
+                                <td><span class="badge bg-info">偏瘦</span></td>
+                                <td>营养不良、骨质疏松风险增加</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>18.5 - 24.9</td>
+                                <td><span class="badge bg-success">正常</span></td>
+                                <td>平均健康风险</td>
+                            </tr>
+                            <tr class="table-warning">
+                                <td>25.0 - 29.9</td>
+                                <td><span class="badge bg-warning text-dark">超重</span></td>
+                                <td>心血管疾病、糖尿病风险增加</td>
+                            </tr>
+                            <tr>
+                                <td>30.0 - 34.9</td>
+                                <td><span class="badge bg-warning text-dark">I度肥胖</span></td>
+                                <td>高血压、心脏病风险显著增加</td>
+                            </tr>
+                            <tr>
+                                <td>35.0 - 39.9</td>
+                                <td><span class="badge bg-danger">II度肥胖</span></td>
+                                <td>多种疾病风险高度增加</td>
+                            </tr>
+                            <tr>
+                                <td>≥ 40.0</td>
+                                <td><span class="badge bg-danger">III度肥胖</span></td>
+                                <td>极高风险，需要专业治疗</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 体重记录 -->
+    <div class="tab-pane fade" id="weight-record">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-gradient text-white mb-4" style="background: linear-gradient(135deg, #74b9ff, #0984e3);">
+                    <div class="card-body text-center">
+                        <h4>当前体重</h4>
+                        <h1 class="display-4">{{ current_weight }} kg</h1>
+                        {% if weight_change != 0 %}
+                        <p class="mb-0">
+                            {% if weight_change > 0 %}
+                            <span class="badge bg-warning text-dark">↑ {{ weight_change|abs }} kg</span>
+                            {% else %}
+                            <span class="badge bg-success">↓ {{ weight_change|abs }} kg</span>
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5><i class="bi bi-calendar-plus"></i> 记录今日体重</h5>
+                        <form method="POST" action="{{ url_for('add_weight') }}" class="row g-2">
+                            <div class="col-6">
+                                <input type="number" step="0.1" name="weight" class="form-control" placeholder="体重(kg)" required>
+                            </div>
+                            <div class="col-6">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-plus"></i> 记录
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">体重记录</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if records %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>日期</th>
+                                <th>体重</th>
+                                <th>变化</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                            <tr>
+                                <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+                                <td class="fw-bold">{{ record.weight }} kg</td>
+                                <td>
+                                    {% if not loop.last %}
+                                        {% set change = record.weight - records[loop.index].weight %}
+                                        {% if change > 0 %}
+                                        <span class="text-danger">+{{ change|abs }}</span>
+                                        {% elif change < 0 %}
+                                        <span class="text-success">{{ change|abs }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.notes or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-clipboard-data display-3"></i>
+                    <p class="mt-3">暂无体重记录</p>
+                </div>
                 {% endif %}
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+
+    <!-- BMI历史 -->
+    <div class="tab-pane fade" id="bmi-history">
         <div class="card">
-            <div class="card-body">
-                <h5><i class="bi bi-calendar-plus"></i> 记录今日体重</h5>
-                <form method="POST" action="{{ url_for('add_weight') }}" class="row g-2">
-                    <div class="col-6">
-                        <input type="number" step="0.1" name="weight" class="form-control" placeholder="体重(kg)" required>
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> BMI历史记录</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="bmi-history-content">
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-hourglass-split display-3"></i>
+                        <p class="mt-3">正在加载BMI历史记录...</p>
                     </div>
-                    <div class="col-6">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-plus"></i> 记录
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- 历史记录 -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">体重记录</h5>
-    </div>
-    <div class="card-body p-0">
-        {% if records %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>日期</th>
-                        <th>体重</th>
-                        <th>变化</th>
-                        <th>备注</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in records %}
-                    <tr>
-                        <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
-                        <td class="fw-bold">{{ record.weight }} kg</td>
-                        <td>
-                            {% if not loop.last %}
-                                {% set change = record.weight - records[loop.index].weight %}
-                                {% if change > 0 %}
-                                <span class="text-danger">+{{ change|abs(1) }}</span>
-                                {% elif change < 0 %}
-                                <span class="text-success">{{ change|abs(1) }}</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                        <td>{{ record.notes or '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{% block scripts %}
+<script>
+// 单位切换
+document.querySelectorAll('input[name="unit"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const isMetric = this.value === 'metric';
+        
+        // 切换身高输入
+        document.getElementById('height-metric-group').classList.toggle('d-none', !isMetric);
+        document.getElementById('height-imperial-group').classList.toggle('d-none', isMetric);
+        
+        // 切换体重输入
+        document.getElementById('weight-metric-group').classList.toggle('d-none', !isMetric);
+        document.getElementById('weight-imperial-group').classList.toggle('d-none', isMetric);
+        
+        // 转换现有值
+        if (isMetric) {
+            const lb = parseFloat(document.getElementById('weight-lb').value);
+            if (lb) {
+                document.getElementById('weight-kg').value = (lb * 0.453592).toFixed(1);
+            }
+            const ft = parseFloat(document.getElementById('height-ft').value);
+            const inches = parseFloat(document.getElementById('height-in').value) || 0;
+            if (ft) {
+                const totalInches = ft * 12 + inches;
+                document.getElementById('height-cm').value = (totalInches * 2.54).toFixed(1);
+            }
+        } else {
+            const kg = parseFloat(document.getElementById('weight-kg').value);
+            if (kg) {
+                document.getElementById('weight-lb').value = (kg * 2.20462).toFixed(1);
+            }
+            const cm = parseFloat(document.getElementById('height-cm').value);
+            if (cm) {
+                const totalInches = cm / 2.54;
+                document.getElementById('height-ft').value = Math.floor(totalInches / 12);
+                document.getElementById('height-in').value = (totalInches % 12).toFixed(1);
+            }
+        }
+    });
+});
+
+// BMI计算表单提交
+document.getElementById('bmi-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const isMetric = document.getElementById('metric').checked;
+    const age = parseInt(document.getElementById('age').value);
+    const gender = document.querySelector('input[name="gender"]:checked').value;
+    
+    let heightCm, weightKg;
+    
+    if (isMetric) {
+        heightCm = parseFloat(document.getElementById('height-cm').value);
+        weightKg = parseFloat(document.getElementById('weight-kg').value);
+        
+        if (!heightCm) {
+            alert('请输入身高（厘米）');
+            return;
+        }
+        if (!weightKg) {
+            alert('请输入体重（公斤）');
+            return;
+        }
+    } else {
+        const ft = parseFloat(document.getElementById('height-ft').value);
+        const inches = parseFloat(document.getElementById('height-in').value) || 0;
+        const lb = parseFloat(document.getElementById('weight-lb').value);
+        
+        if (!ft) {
+            alert('请输入身高（英尺）');
+            return;
+        }
+        if (!lb) {
+            alert('请输入体重（磅）');
+            return;
+        }
+        
+        heightCm = (ft * 12 + inches) * 2.54;
+        weightKg = lb * 0.453592;
+    }
+    
+    // 计算BMI
+    const heightM = heightCm / 100;
+    const bmi = weightKg / (heightM * heightM);
+    
+    // 显示结果
+    displayBmiResult(bmi, age, gender, heightCm);
+    
+    // 显示保存按钮
+    const saveCard = document.getElementById('save-record-card');
+    if (saveCard) saveCard.style.display = 'block';
+    
+    // 滚动到右侧结果区域
+    document.getElementById('bmi-result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// 显示BMI结果
+function displayBmiResult(bmi, age, gender, heightCm) {
+    console.log('displayBmiResult 被调用，BMI:', bmi);
+    
+    // 隐藏提示（如果存在）
+    const hintEl = document.getElementById('bmi-hint');
+    if (hintEl) hintEl.style.display = 'none';
+    
+    // 显示结果卡片
+    const resultCard = document.getElementById('bmi-result-card');
+    const idealCard = document.getElementById('ideal-weight-card');
+    const risksCard = document.getElementById('health-risks-card');
+    const recCard = document.getElementById('recommendations-card');
+    
+    if (resultCard) resultCard.style.display = 'block';
+    if (idealCard) idealCard.style.display = 'block';
+    
+    // 显示BMI值
+    document.getElementById('bmi-value').textContent = bmi.toFixed(1);
+    
+    // 确定分类
+    let category, categoryBadge, headerClass, description;
+    
+    if (bmi < 18.5) {
+        category = '偏瘦';
+        categoryBadge = 'bg-info';
+        headerClass = 'bg-info';
+        description = '您的BMI偏低，可能存在营养不良风险。建议适当增加营养摄入，保持均衡饮食。';
+    } else if (bmi < 24.9) {
+        category = '正常';
+        categoryBadge = 'bg-success';
+        headerClass = 'bg-success';
+        description = '恭喜！您的BMI在健康范围内。请继续保持健康的生活方式。';
+    } else if (bmi < 29.9) {
+        category = '超重';
+        categoryBadge = 'bg-warning text-dark';
+        headerClass = 'bg-warning text-dark';
+        description = '您的BMI偏高，存在超重风险。建议调整饮食结构，增加运动量。';
+    } else if (bmi < 34.9) {
+        category = 'I度肥胖';
+        categoryBadge = 'bg-danger';
+        headerClass = 'bg-danger';
+        description = '您的BMI属于I度肥胖，相关疾病风险增加。建议制定减重计划并咨询医生。';
+    } else if (bmi < 39.9) {
+        category = 'II度肥胖';
+        categoryBadge = 'bg-danger';
+        headerClass = 'bg-danger';
+        description = '您的BMI属于II度肥胖，多种疾病风险高度增加。建议寻求专业医疗帮助。';
+    } else {
+        category = 'III度肥胖';
+        categoryBadge = 'bg-danger';
+        headerClass = 'bg-danger';
+        description = '您的BMI属于III度肥胖，极高健康风险。需要专业医生的指导和治疗。';
+    }
+    
+    // 更新分类标签
+    const badge = document.getElementById('bmi-category-badge');
+    badge.className = `badge fs-5 py-2 px-4 ${categoryBadge}`;
+    badge.textContent = category;
+    
+    // 更新头部颜色
+    document.getElementById('result-header').className = `card-header bg-gradient text-white ${headerClass}`;
+    
+    // 更新描述
+    document.getElementById('bmi-description').textContent = description;
+    
+    // 计算理想体重范围
+    const heightM = heightCm / 100;
+    const minWeight = 18.5 * heightM * heightM;
+    const maxWeight = 24.9 * heightM * heightM;
+    const idealWeight = 22 * heightM * heightM; // 最理想BMI取22
+    
+    document.getElementById('ideal-weight-min').textContent = minWeight.toFixed(1);
+    document.getElementById('ideal-weight-best').textContent = idealWeight.toFixed(1);
+    document.getElementById('ideal-weight-max').textContent = maxWeight.toFixed(1);
+    
+    // 显示BMI指示器位置
+    positionBmiIndicator(bmi);
+    
+    // 健康风险提示
+    displayHealthRisks(bmi, category, risksCard);
+    
+    // 专业建议
+    displayRecommendations(bmi, age, gender, category, recCard);
+}
+
+// 定位BMI指示器
+function positionBmiIndicator(bmi) {
+    const indicator = document.getElementById('bmi-indicator');
+    const progressBar = document.querySelector('.progress');
+    
+    let position;
+    if (bmi < 15) position = 2;
+    else if (bmi > 45) position = 98;
+    else {
+        // BMI范围映射到百分比
+        // 15-18.5: 0-18.5%
+        // 18.5-25: 18.5-25%
+        // 25-30: 25-30%
+        // 30-45: 30-98%
+        if (bmi < 18.5) {
+            position = ((bmi - 15) / 3.5) * 18.5;
+        } else if (bmi < 25) {
+            position = 18.5 + ((bmi - 18.5) / 6.5) * 6.5;
+        } else if (bmi < 30) {
+            position = 25 + ((bmi - 25) / 5) * 5;
+        } else {
+            position = 30 + ((bmi - 30) / 15) * 68;
+        }
+    }
+    
+    indicator.style.display = 'block';
+    indicator.style.position = 'absolute';
+    indicator.style.left = `${position}%`;
+    indicator.style.top = '-20px';
+    indicator.style.transform = 'translateX(-50%)';
+    indicator.style.color = '#333';
+}
+
+// 健康风险提示
+function displayHealthRisks(bmi, category, card) {
+    if (!card) return;
+    card.style.display = 'block';
+    const alertsDiv = document.getElementById('risk-alerts');
+    if (!alertsDiv) return;
+    
+    const risks = {
+        '偏瘦': [
+            { icon: 'bi-exclamation-circle', text: '营养不良风险', detail: '可能导致免疫力下降、骨质疏松等问题' },
+            { icon: 'bi-heart', text: '消化系统问题', detail: '消化功能可能受到影响' }
+        ],
+        '正常': [
+            { icon: 'bi-check-circle text-success', text: '健康状态良好', detail: '继续保持当前的生活方式' }
+        ],
+        '超重': [
+            { icon: 'bi-exclamation-triangle text-warning', text: '高血压风险增加', detail: '心脏病和中风风险上升' },
+            { icon: 'bi-exclamation-triangle text-warning', text: '糖尿病风险', detail: '2型糖尿病发病概率增加' },
+            { icon: 'bi-heart-pulse text-warning', text: '心血管疾病', detail: '冠心病和动脉硬化风险增加' }
+        ],
+        'I度肥胖': [
+            { icon: 'bi-exclamation-triangle text-danger', text: '高血压', detail: '患病风险显著增加' },
+            { icon: 'bi-droplet text-danger', text: '高血脂', detail: '血脂异常风险增加' },
+            { icon: 'bi-heart-pulse text-danger', text: '心脏病', detail: '心脏病发病风险高度增加' },
+            { icon: 'bi-activity text-danger', text: '2型糖尿病', detail: '患病风险大幅增加' }
+        ],
+        'II度肥胖': [
+            { icon: 'bi-exclamation-octagon text-danger', text: '严重高血压', detail: '可能需要药物治疗' },
+            { icon: 'bi-heart-pulse text-danger', text: '心脏病', detail: '心衰风险显著增加' },
+            { icon: 'bi-droplet text-danger', text: '代谢综合征', detail: '多种代谢问题并发' },
+            { icon: 'bi-activity text-danger', text: '睡眠呼吸暂停', detail: '严重影响睡眠质量' }
+        ],
+        'III度肥胖': [
+            { icon: 'bi-exclamation-octagon text-danger', text: '极高心脑血管风险', detail: '需要立即医学干预' },
+            { icon: 'bi-heart-pulse text-danger', text: '心衰风险', detail: '心脏负荷过重' },
+            { icon: 'bi-activity text-danger', text: '严重糖尿病', detail: '可能需要胰岛素治疗' },
+            { icon: 'bi-exclamation-triangle text-danger', text: '行动困难', detail: '生活质量严重受影响' }
+        ]
+    };
+    
+    const categoryRisks = risks[category] || risks['正常'];
+    
+    alertsDiv.innerHTML = categoryRisks.map(risk => `
+        <div class="d-flex align-items-start mb-3">
+            <i class="bi ${risk.icon} me-3 fs-4"></i>
+            <div>
+                <h6 class="mb-1">${risk.text}</h6>
+                <small class="text-muted">${risk.detail}</small>
+            </div>
         </div>
-        {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-clipboard-data display-3"></i>
-            <p class="mt-3">暂无体重记录</p>
+    `).join('');
+}
+
+// 专业建议
+function displayRecommendations(bmi, age, gender, category, card) {
+    if (!card) return;
+    card.style.display = 'block';
+    const recDiv = document.getElementById('recommendations');
+    if (!recDiv) return;
+    
+    const recommendations = [];
+    
+    // 根据BMI分类建议
+    if (bmi < 18.5) {
+        recommendations.push({
+            icon: 'bi-egg-fried',
+            title: '增加营养摄入',
+            content: '建议增加高蛋白、高热量食物，如坚果、奶制品、全谷物等。少食多餐有助于增加摄入。'
+        });
+        recommendations.push({
+            icon: 'bi-calendar-check',
+            title: '适度运动',
+            content: '进行力量训练可以帮助增加肌肉质量，提高体重。注意不要过度有氧运动。'
+        });
+        recommendations.push({
+            icon: 'bi-journal-medical',
+            title: '检查健康状况',
+            content: '如果体重持续偏低，建议咨询医生排除甲状腺问题或消化系统疾病。'
+        });
+    } else if (bmi < 24.9) {
+        recommendations.push({
+            icon: 'bi-check-circle',
+            title: '保持当前状态',
+            content: '您的体重在健康范围内。建议继续保持均衡饮食和适度运动的习惯。'
+        });
+        recommendations.push({
+            icon: 'bi-egg-fried',
+            title: '均衡饮食',
+            content: '保持食物多样性，多吃蔬菜水果，适量摄入蛋白质和全谷物。'
+        });
+        recommendations.push({
+            icon: 'bi-person-walking',
+            title: '坚持运动',
+            content: '每周至少150分钟中等强度有氧运动，如快走、游泳或骑自行车。'
+        });
+    } else if (bmi < 29.9) {
+        recommendations.push({
+            icon: 'bi-arrow-down-circle',
+            title: '温和减重',
+            content: '建议每周减重0.5-1公斤，通过饮食控制和增加运动实现。不要追求快速减肥。'
+        });
+        recommendations.push({
+            icon: 'bi-egg-fried',
+            title: '调整饮食',
+            content: '减少高热量、高脂肪食物，增加蔬菜水果和蛋白质摄入。控制每日热量摄入。'
+        });
+        recommendations.push({
+            icon: 'bi-person-walking',
+            title: '增加运动',
+            content: '每周至少300分钟中等强度运动，或150分钟高强度运动。'
+        });
+    } else {
+        recommendations.push({
+            icon: 'bi-hospital',
+            title: '寻求专业帮助',
+            content: '建议咨询医生或营养师，制定个性化的减重计划。'
+        });
+        recommendations.push({
+            icon: 'bi-clipboard-pulse',
+            title: '定期监测',
+            content: '定期检查血压、血糖、血脂等指标，及时发现并处理健康问题。'
+        });
+        recommendations.push({
+            icon: 'bi-people',
+            title: '寻求支持',
+            content: '加入减重小组或寻求家人朋友的支持，有助于坚持减重计划。'
+        });
+    }
+    
+    // 根据年龄添加建议
+    if (age > 50) {
+        recommendations.push({
+            icon: 'bi-bone',
+            title: '关注骨密度',
+            content: '中老年人应注意补充钙质和维生素D，预防骨质疏松。'
+        });
+    }
+    
+    // 根据性别添加建议
+    if (gender === 'female' && bmi > 25) {
+        recommendations.push({
+            icon: 'bi-droplet',
+            title: '关注代谢健康',
+            content: '女性超重可能影响激素平衡，建议关注月经规律性和代谢指标。'
+        });
+    }
+    
+    recDiv.innerHTML = recommendations.map(rec => `
+        <div class="mb-3 p-3 bg-light rounded">
+            <h6><i class="bi ${rec.icon} me-2 text-success"></i>${rec.title}</h6>
+            <p class="mb-0 small">${rec.content}</p>
         </div>
-        {% endif %}
-    </div>
-</div>
+    `).join('');
+}
+
+// 保存BMI记录
+document.getElementById('save-bmi-record').addEventListener('click', function() {
+    const bmiValue = document.getElementById('bmi-value').textContent;
+    const category = document.getElementById('bmi-category-badge').textContent;
+    
+    const isMetric = document.getElementById('metric').checked;
+    let heightCm, weightKg;
+    
+    if (isMetric) {
+        heightCm = parseFloat(document.getElementById('height-cm').value);
+        weightKg = parseFloat(document.getElementById('weight-kg').value);
+    } else {
+        const ft = parseFloat(document.getElementById('height-ft').value);
+        const inches = parseFloat(document.getElementById('height-in').value) || 0;
+        heightCm = (ft * 12 + inches) * 2.54;
+        weightKg = parseFloat(document.getElementById('weight-lb').value) * 0.453592;
+    }
+    
+    fetch('{{ url_for("save_bmi_record") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            bmi: parseFloat(bmiValue),
+            category: category,
+            height: heightCm,
+            weight: weightKg
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('BMI记录已保存！');
+            loadBmiHistory();
+        } else {
+            alert('保存失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败，请重试');
+    });
+});
+
+// 加载BMI历史
+function loadBmiHistory() {
+    fetch('{{ url_for("get_bmi_history") }}')
+    .then(response => response.json())
+    .then(data => {
+        const content = document.getElementById('bmi-history-content');
+        
+        if (data.records && data.records.length > 0) {
+            let tableHtml = `
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>日期</th>
+                                <th>BMI</th>
+                                <th>分类</th>
+                                <th>体重</th>
+                                <th>趋势</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.records.forEach((record, index) => {
+                let trend = '-';
+                let trendClass = 'text-muted';
+                
+                if (index < data.records.length - 1) {
+                    const prevBmi = data.records[index + 1].bmi;
+                    const change = record.bmi - prevBmi;
+                    if (change > 0.1) {
+                        trend = `<i class="bi bi-arrow-up text-danger"></i> +${change.toFixed(1)}`;
+                        trendClass = 'text-danger';
+                    } else if (change < -0.1) {
+                        trend = `<i class="bi bi-arrow-down text-success"></i> ${change.toFixed(1)}`;
+                        trendClass = 'text-success';
+                    } else {
+                        trend = '<i class="bi bi-dash text-muted"></i>';
+                    }
+                }
+                
+                const badgeClass = getCategoryBadgeClass(record.category);
+                
+                tableHtml += `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td class="fw-bold">${record.bmi.toFixed(1)}</td>
+                        <td><span class="badge ${badgeClass}">${record.category}</span></td>
+                        <td>${record.weight.toFixed(1)} kg</td>
+                        <td class="${trendClass}">${trend}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += '</tbody></table></div>';
+            content.innerHTML = tableHtml;
+        } else {
+            content.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-clipboard-data display-3"></i>
+                    <p class="mt-3">暂无BMI历史记录</p>
+                    <p class="small">使用BMI计算器并保存记录后，将在此显示</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading BMI history:', error);
+    });
+}
+
+// 获取分类标签样式
+function getCategoryBadgeClass(category) {
+    const classes = {
+        '偏瘦': 'bg-info',
+        '正常': 'bg-success',
+        '超重': 'bg-warning text-dark',
+        'I度肥胖': 'bg-danger',
+        'II度肥胖': 'bg-danger',
+        'III度肥胖': 'bg-danger'
+    };
+    return classes[category] || 'bg-secondary';
+}
+
+// 页面加载时获取BMI历史
+document.addEventListener('DOMContentLoaded', function() {
+    loadBmiHistory();
+    
+    // 如果URL有hash，切换到对应标签
+    const hash = window.location.hash;
+    if (hash) {
+        const tabTrigger = new bootstrap.Tab(document.querySelector(hash));
+        if (tabTrigger) {
+            tabTrigger.show();
+        }
+    }
+});
+
+// 标签页切换时刷新历史
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', function(event) {
+        if (event.target.dataset.bsTarget === '#bmi-history') {
+            loadBmiHistory();
+        }
+    });
+});
+
+// 初始化tooltip
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl, {html: true});
+});
+</script>
 {% endblock %}

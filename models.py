@@ -450,6 +450,37 @@ class WeightRecord(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+class BmiRecord(db.Model):
+    """BMI记录模型 - 存储用户的BMI计算历史"""
+    __tablename__ = 'bmi_records'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    bmi = db.Column(db.Float, nullable=False)
+    category = db.Column(db.String(20))  # 偏瘦、正常、超重、I度肥胖、II度肥胖、III度肥胖
+    height = db.Column(db.Float)  # 身高(cm)
+    weight = db.Column(db.Float)  # 体重(kg)
+    age = db.Column(db.Integer)  # 年龄
+    gender = db.Column(db.String(10))  # male, female
+    date = db.Column(db.Date, default=date.today)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='bmi_records')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'bmi': self.bmi,
+            'category': self.category,
+            'height': self.height,
+            'weight': self.weight,
+            'age': self.age,
+            'gender': self.gender,
+            'date': self.date.strftime('%Y-%m-%d') if self.date else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
 class SleepRecord(db.Model):
     __tablename__ = 'sleep_records'
     

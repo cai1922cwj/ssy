@@ -1,0 +1,37 @@
+╔══════════════════════════════════════════════════════════╗
+║           页脚文字修改 - 快速参考                        ║
+╚══════════════════════════════════════════════════════════╝
+
+📁 文件位置
+   PythonAnywhere: /home/caisa/ssy/templates/base.html
+   本地: e:/ssy/templates/base.html
+   行号: 第125行
+
+📝 当前代码
+   <i class="bi bi-heart-pulse-fill" style="color: #43a047;"></i> 熵食源 - 让健康饮食更简单
+
+✏️ 修改步骤
+   1. 登录 https://www.pythonanywhere.com (账号: caisa)
+   2. 点击 Files → /home/caisa/ssy/templates/ → base.html
+   3. 找到第125行，修改文字内容
+   4. 点击 Save 保存
+   5. 点击 Web → Reload caisa.pythonanywhere.com
+   6. 刷新网页查看效果
+
+💡 样式增强选项
+   
+   【加大字体】
+   style="color: #2e7d32; font-size: 1.2rem; font-weight: 600;"
+   
+   【添加阴影】
+   style="color: #2e7d32; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);"
+   
+   【完整增强】
+   style="color: #1b5e20; font-size: 1.3rem; font-weight: 700; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);"
+
+⚠️ 注意事项
+   • 修改后必须重启应用
+   • 清除浏览器缓存 (Ctrl+F5)
+   • 免费版每小时只能重启几次
+
+═══════════════════════════════════════════════════════════

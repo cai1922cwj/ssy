@@ -18,7 +18,7 @@ import re
 from io import BytesIO
 import feedparser
 
-from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog
+from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, BmiRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -1347,6 +1347,110 @@ def add_weight():
     
     flash('体重记录已添加！', 'success')
     return redirect(url_for('weight'))
+
+
+@app.route('/api/bmi/save', methods=['POST'])
+@login_required
+def save_bmi_record():
+    """保存BMI记录"""
+    try:
+        data = request.get_json()
+        
+        bmi_record = BmiRecord(
+            user_id=current_user.id,
+            bmi=data.get('bmi'),
+            category=data.get('category'),
+            height=data.get('height'),
+            weight=data.get('weight'),
+            age=data.get('age', current_user.age),
+            gender=data.get('gender', current_user.gender)
+        )
+        
+        db.session.add(bmi_record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI记录已保存',
+            'record': bmi_record.to_dict()
+        })
+    except Exception as e:
+        app.logger.error(f'保存BMI记录失败: {e}')
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/bmi/history')
+@login_required
+def get_bmi_history():
+    """获取BMI历史记录"""
+    try:
+        records = BmiRecord.query.filter_by(
+            user_id=current_user.id
+        ).order_by(BmiRecord.date.desc(), BmiRecord.created_at.desc()).limit(30).all()
+        
+        return jsonify({
+            'success': True,
+            'records': [r.to_dict() for r in records]
+        })
+    except Exception as e:
+        app.logger.error(f'获取BMI历史失败: {e}')
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/bmi/calculate', methods=['POST'])
+@login_required
+def calculate_bmi():
+    """BMI计算API"""
+    try:
+        data = request.get_json()
+        
+        height_cm = float(data.get('height'))
+        weight_kg = float(data.get('weight'))
+        
+        # 计算BMI
+        height_m = height_cm / 100
+        bmi = weight_kg / (height_m * height_m)
+        
+        # 确定分类
+        if bmi < 18.5:
+            category = '偏瘦'
+        elif bmi < 24.9:
+            category = '正常'
+        elif bmi < 29.9:
+            category = '超重'
+        elif bmi < 34.9:
+            category = 'I度肥胖'
+        elif bmi < 39.9:
+            category = 'II度肥胖'
+        else:
+            category = 'III度肥胖'
+        
+        # 计算理想体重范围
+        min_weight = 18.5 * height_m * height_m
+        max_weight = 24.9 * height_m * height_m
+        ideal_weight = 22 * height_m * height_m
+        
+        return jsonify({
+            'success': True,
+            'bmi': round(bmi, 1),
+            'category': category,
+            'ideal_weight_range': {
+                'min': round(min_weight, 1),
+                'max': round(max_weight, 1),
+                'ideal': round(ideal_weight, 1)
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 # ==================== 睡眠管理 ====================
