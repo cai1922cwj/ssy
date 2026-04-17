@@ -220,9 +220,16 @@
                 <!-- 保存记录按钮 -->
                 <div class="card mb-4" id="save-record-card" style="display: none;">
                     <div class="card-body">
-                        <button class="btn btn-success w-100" id="save-bmi-record">
-                            <i class="bi bi-save"></i> 保存BMI记录
-                        </button>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="date" class="form-control" id="bmi-record-date">
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-success w-100" id="save-bmi-record">
+                                    <i class="bi bi-save"></i> 保存记录
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -335,6 +342,7 @@
                                 <th>体重</th>
                                 <th>变化</th>
                                 <th>备注</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -355,6 +363,17 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ record.notes or '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('edit_weight', record_id=record.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('delete_weight', record_id=record.id) }}" class="d-inline"
+                                          onsubmit="return confirm('确定要删除这条体重记录吗？');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -764,6 +783,7 @@ function displayRecommendations(bmi, age, gender, category, card) {
 document.getElementById('save-bmi-record').addEventListener('click', function() {
     const bmiValue = document.getElementById('bmi-value').textContent;
     const category = document.getElementById('bmi-category-badge').textContent;
+    const recordDate = document.getElementById('bmi-record-date').value;
     
     const isMetric = document.getElementById('metric').checked;
     let heightCm, weightKg;
@@ -787,7 +807,8 @@ document.getElementById('save-bmi-record').addEventListener('click', function() 
             bmi: parseFloat(bmiValue),
             category: category,
             height: heightCm,
-            weight: weightKg
+            weight: weightKg,
+            date: recordDate || undefined
         })
     })
     .then(response => response.json())
@@ -804,6 +825,28 @@ document.getElementById('save-bmi-record').addEventListener('click', function() 
         alert('保存失败，请重试');
     });
 });
+
+// 删除BMI记录
+function deleteBmiRecord(recordId) {
+    if (!confirm('确定要删除这条BMI记录吗？')) return;
+    
+    fetch('{{ url_for("delete_bmi_record", record_id=0) }}'.replace('0', recordId), {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('记录已删除！');
+            loadBmiHistory();
+        } else {
+            alert('删除失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除失败，请重试');
+    });
+}
 
 // 加载BMI历史
 function loadBmiHistory() {
@@ -823,6 +866,7 @@ function loadBmiHistory() {
                                 <th>分类</th>
                                 <th>体重</th>
                                 <th>趋势</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -849,12 +893,20 @@ function loadBmiHistory() {
                 const badgeClass = getCategoryBadgeClass(record.category);
                 
                 tableHtml += `
-                    <tr>
+                    <tr data-id="${record.id}">
                         <td>${record.date}</td>
                         <td class="fw-bold">${record.bmi.toFixed(1)}</td>
                         <td><span class="badge ${badgeClass}">${record.category}</span></td>
                         <td>${record.weight.toFixed(1)} kg</td>
                         <td class="${trendClass}">${trend}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editBmiRecord(${record.id}, ${record.bmi}, '${record.date}', ${record.weight})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteBmiRecord(${record.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
@@ -876,6 +928,39 @@ function loadBmiHistory() {
     });
 }
 
+// 编辑BMI记录
+function editBmiRecord(id, bmi, date, weight) {
+    const newBmi = prompt('修改BMI值:', bmi.toFixed(1));
+    if (newBmi === null) return;
+    
+    const newDate = prompt('修改日期 (YYYY-MM-DD):', date);
+    if (newDate === null) return;
+    
+    fetch('{{ url_for("update_bmi_record", record_id=0) }}'.replace('0', id), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            bmi: parseFloat(newBmi),
+            date: newDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('记录已更新！');
+            loadBmiHistory();
+        } else {
+            alert('更新失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新失败，请重试');
+    });
+}
+
 // 获取分类标签样式
 function getCategoryBadgeClass(category) {
     const classes = {
@@ -891,6 +976,13 @@ function getCategoryBadgeClass(category) {
 
 // 页面加载时获取BMI历史
 document.addEventListener('DOMContentLoaded', function() {
+    // 设置默认日期为今天
+    const today = new Date().toISOString().split('T')[0];
+    const bmiDateInput = document.getElementById('bmi-record-date');
+    if (bmiDateInput) {
+        bmiDateInput.value = today;
+    }
+    
     loadBmiHistory();
     
     // 如果URL有hash，切换到对应标签

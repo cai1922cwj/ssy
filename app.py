@@ -1356,6 +1356,14 @@ def save_bmi_record():
     try:
         data = request.get_json()
         
+        # 解析日期，默认今天
+        record_date = date.today()
+        if data.get('date'):
+            try:
+                record_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            except:
+                record_date = date.today()
+        
         bmi_record = BmiRecord(
             user_id=current_user.id,
             bmi=data.get('bmi'),
@@ -1363,7 +1371,8 @@ def save_bmi_record():
             height=data.get('height'),
             weight=data.get('weight'),
             age=data.get('age', current_user.age),
-            gender=data.get('gender', current_user.gender)
+            gender=data.get('gender', current_user.gender),
+            date=record_date
         )
         
         db.session.add(bmi_record)
@@ -1453,6 +1462,108 @@ def calculate_bmi():
         }), 500
 
 
+@app.route('/api/bmi/update/<int:record_id>', methods=['POST'])
+@login_required
+def update_bmi_record(record_id):
+    """更新BMI记录"""
+    try:
+        record = BmiRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
+        if not record:
+            return jsonify({'success': False, 'message': '记录不存在'}), 404
+        
+        data = request.get_json()
+        
+        if 'bmi' in data:
+            record.bmi = data['bmi']
+        if 'date' in data:
+            record.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        
+        # 重新计算分类
+        bmi = record.bmi
+        if bmi < 18.5:
+            record.category = '偏瘦'
+        elif bmi < 24.9:
+            record.category = '正常'
+        elif bmi < 29.9:
+            record.category = '超重'
+        elif bmi < 34.9:
+            record.category = 'I度肥胖'
+        elif bmi < 39.9:
+            record.category = 'II度肥胖'
+        else:
+            record.category = 'III度肥胖'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI记录已更新',
+            'record': record.to_dict()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@app.route('/api/bmi/delete/<int:record_id>', methods=['POST'])
+@login_required
+def delete_bmi_record(record_id):
+    """删除BMI记录"""
+    try:
+        record = BmiRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
+        if not record:
+            return jsonify({'success': False, 'message': '记录不存在'}), 404
+        
+        db.session.delete(record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI记录已删除'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+
+@app.route('/weight/edit/<int:record_id>', methods=['GET', 'POST'])
+@login_required
+def edit_weight(record_id):
+    """编辑体重记录"""
+    record = WeightRecord.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        record.weight = float(request.form.get('weight'))
+        record.body_fat = request.form.get('body_fat')
+        record.notes = request.form.get('notes')
+        
+        # 更新用户当前体重
+        current_user.weight = record.weight
+        
+        db.session.commit()
+        flash('体重记录已更新！', 'success')
+        return redirect(url_for('weight'))
+    
+    return render_template('weight_edit.html', record=record)
+
+
+@app.route('/weight/delete/<int:record_id>', methods=['POST'])
+@login_required
+def delete_weight(record_id):
+    """删除体重记录"""
+    record = WeightRecord.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
+    
+    db.session.delete(record)
+    db.session.commit()
+    
+    flash('体重记录已删除！', 'success')
+    return redirect(url_for('weight'))
+
+
 # ==================== 睡眠管理 ====================
 
 @app.route('/sleep')
@@ -1506,6 +1617,85 @@ def add_sleep():
     db.session.commit()
     
     flash('睡眠记录已添加！', 'success')
+    return redirect(url_for('sleep'))
+
+
+@app.route('/sleep/import', methods=['POST'])
+@login_required
+def import_sleep():
+    """导入智能手表睡眠数据"""
+    if 'sleep_file' not in request.files:
+        flash('请选择文件', 'error')
+        return redirect(url_for('sleep'))
+    
+    file = request.files['sleep_file']
+    if file.filename == '':
+        flash('请选择文件', 'error')
+        return redirect(url_for('sleep'))
+    
+    try:
+        import json
+        data = json.load(file)
+        
+        # 支持单条记录或多条记录
+        records = data if isinstance(data, list) else [data]
+        imported_count = 0
+        
+        for item in records:
+            date_str = item.get('date')
+            duration = float(item.get('duration', 7))
+            quality = int(item.get('quality', 7))
+            
+            # 解析时间
+            bed_time = None
+            wake_time = None
+            if item.get('bed_time'):
+                try:
+                    bed_time = datetime.strptime(item['bed_time'], '%Y-%m-%dT%H:%M')
+                except:
+                    pass
+            if item.get('wake_time'):
+                try:
+                    wake_time = datetime.strptime(item['wake_time'], '%Y-%m-%dT%H:%M')
+                except:
+                    pass
+            
+            # 解析日期
+            record_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+            
+            # 检查是否已存在该日期记录
+            existing = SleepRecord.query.filter_by(
+                user_id=current_user.id,
+                date=record_date
+            ).first()
+            
+            if existing:
+                # 更新现有记录
+                existing.duration = duration
+                existing.quality = quality
+                existing.bed_time = bed_time
+                existing.wake_time = wake_time
+                existing.notes = item.get('notes', existing.notes)
+            else:
+                # 创建新记录
+                record = SleepRecord(
+                    user_id=current_user.id,
+                    date=record_date,
+                    duration=duration,
+                    quality=quality,
+                    bed_time=bed_time,
+                    wake_time=wake_time,
+                    notes=item.get('notes')
+                )
+                db.session.add(record)
+            
+            imported_count += 1
+        
+        db.session.commit()
+        flash(f'成功导入 {imported_count} 条睡眠记录！', 'success')
+    except Exception as e:
+        flash(f'导入失败：{str(e)}', 'error')
+    
     return redirect(url_for('sleep'))
 
 

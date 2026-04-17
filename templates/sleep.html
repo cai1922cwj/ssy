@@ -23,50 +23,108 @@
     </div>
 </div>
 
-<!-- 添加记录 -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-plus-circle"></i> 记录睡眠</h5>
+<!-- 手动添加记录 & 导入智能手表数据 -->
+<div class="row mb-4">
+    <!-- 手动添加记录 -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> 手动添加记录</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_sleep') }}" id="sleep-form">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">就寝时间</label>
+                            <input type="datetime-local" name="bed_time" class="form-control" id="bed-time">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">起床时间</label>
+                            <input type="datetime-local" name="wake_time" class="form-control" id="wake-time">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">睡眠时长 (小时)</label>
+                            <input type="number" step="0.5" name="duration" class="form-control" id="duration" placeholder="7.5" min="0" max="24">
+                            <small class="text-muted">根据时长自动计算睡眠质量</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">睡眠质量 <span class="badge bg-info" id="quality-status">待计算</span></label>
+                            <select name="quality" class="form-select" id="quality-select">
+                                <option value="10">10 - 非常好</option>
+                                <option value="8" selected>8 - 良好</option>
+                                <option value="6">6 - 一般</option>
+                                <option value="4">4 - 较差</option>
+                                <option value="2">2 - 很差</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">影响因素</label>
+                            <div class="row">
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="caffeine" id="caffeine">
+                                        <label class="form-check-label" for="caffeine">睡前喝咖啡/茶</label>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="heavy_meal" id="heavy_meal">
+                                        <label class="form-check-label" for="heavy_meal">睡前吃太多</label>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="screen_time" id="screen_time">
+                                        <label class="form-check-label" for="screen_time">睡前玩手机</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <input type="text" name="notes" class="form-control" placeholder="可选备注">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-check"></i> 保存记录
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('add_sleep') }}">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">睡眠时长 (小时)</label>
-                    <input type="number" step="0.5" name="duration" class="form-control" placeholder="7.5" min="0" max="24">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">睡眠质量</label>
-                    <select name="quality" class="form-select">
-                        <option value="10">10 - 非常好</option>
-                        <option value="8" selected>8 - 良好</option>
-                        <option value="6">6 - 一般</option>
-                        <option value="4">4 - 较差</option>
-                        <option value="2">2 - 很差</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">影响因素</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="caffeine" id="caffeine">
-                        <label class="form-check-label" for="caffeine">睡前喝咖啡/茶</label>
+    
+    <!-- 导入智能手表数据 -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-smartwatch"></i> 导入智能手表数据</h5>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                <form method="POST" action="{{ url_for('import_sleep') }}" enctype="multipart/form-data" id="import-form">
+                    <div class="mb-3">
+                        <label class="form-label">选择JSON文件</label>
+                        <input type="file" name="sleep_file" class="form-control" accept=".json" id="sleep-file">
+                        <small class="text-muted">支持 Apple Health、Google Fit、华为健康等导出的 JSON 格式</small>
                     </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="heavy_meal" id="heavy_meal">
-                        <label class="form-check-label" for="heavy_meal">睡前吃太多</label>
-                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-upload"></i> 导入数据
+                    </button>
+                </form>
+                <hr>
+                <div class="small text-muted">
+                    <p class="mb-1"><strong>支持的格式示例：</strong></p>
+                    <pre class="bg-light p-2 rounded small mb-0">{
+  "date": "2024-01-15",
+  "duration": 7.5,
+  "quality": 8,
+  "bed_time": "2024-01-14T23:00",
+  "wake_time": "2024-01-15T06:30"
+}</pre>
                 </div>
             </div>
-            <div class="mt-3">
-                <label class="form-label">备注</label>
-                <input type="text" name="notes" class="form-control" placeholder="optional">
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check"></i> 保存记录
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -82,6 +140,8 @@
                 <thead class="table-light">
                     <tr>
                         <th>日期</th>
+                        <th>就寝</th>
+                        <th>起床</th>
                         <th>时长</th>
                         <th>质量</th>
                         <th>影响因素</th>
@@ -93,6 +153,20 @@
                     {% for record in records %}
                     <tr>
                         <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if record.bed_time %}
+                                {{ record.bed_time.strftime('%H:%M') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.wake_time %}
+                                {{ record.wake_time.strftime('%H:%M') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if record.duration %}
                                 {{ "%.1f"|format(record.duration) }} 小时
@@ -121,12 +195,18 @@
                             {% if record.heavy_meal_before_bed %}
                             <span class="badge bg-danger me-1">饱腹</span>
                             {% endif %}
-                            {% if not record.caffeine_before_bed and not record.heavy_meal_before_bed %}
+                            {% if record.screen_time %}
+                            <span class="badge bg-info me-1">玩手机</span>
+                            {% endif %}
+                            {% if not record.caffeine_before_bed and not record.heavy_meal_before_bed and not record.screen_time %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>{{ record.notes or '-' }}</td>
                         <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="analyzeSleep({{ record.id }})">
+                                <i class="bi bi-search"></i> 分析
+                            </button>
                             <a href="{{ url_for('edit_sleep', record_id=record.id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i> 编辑
                             </a>
@@ -148,6 +228,96 @@
             <p class="mt-3">暂无睡眠记录</p>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- 睡眠分析模态框 -->
+<div class="modal fade" id="sleepAnalysisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <h5 class="modal-title"><i class="bi bi-clipboard2-pulse me-2"></i>睡眠详细分析</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- 日期 -->
+                <div class="text-center mb-3">
+                    <span class="badge bg-secondary fs-6 px-3 py-2" id="analysis-date">-</span>
+                </div>
+                
+                <!-- 大数字评分 -->
+                <div class="text-center mb-4">
+                    <div class="display-1 fw-bold" id="analysis-score" style="color: #11998e;">0</div>
+                    <div class="h4 text-muted mb-2">综合评分</div>
+                    <span class="badge fs-6 px-4 py-2" id="analysis-level"></span>
+                </div>
+                
+                <!-- 三个指标卡片 -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm bg-primary bg-opacity-10">
+                            <div class="card-body text-center">
+                                <i class="bi bi-moon-stars text-primary fs-1 mb-2"></i>
+                                <h4 id="analysis-duration">-</h4>
+                                <small class="text-muted">睡眠时长</small>
+                                <div class="mt-2"><span class="badge bg-primary" id="analysis-duration-score">0/50</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm bg-warning bg-opacity-10">
+                            <div class="card-body text-center">
+                                <i class="bi bi-star text-warning fs-1 mb-2"></i>
+                                <h4 id="analysis-quality">-</h4>
+                                <small class="text-muted">睡眠质量</small>
+                                <div class="mt-2"><span class="badge bg-warning text-dark" id="analysis-quality-score">0/30</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm bg-success bg-opacity-10">
+                            <div class="card-body text-center">
+                                <i class="bi bi-emoji-smile text-success fs-1 mb-2"></i>
+                                <h4 id="analysis-impact">-</h4>
+                                <small class="text-muted">影响因素</small>
+                                <div class="mt-2"><span class="badge bg-success" id="analysis-impact-score">0/20</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Nav tabs -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-panel" type="button" role="tab">
+                            <i class="bi bi-info-circle me-1"></i>分析结果
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tips-tab" data-bs-toggle="tab" data-bs-target="#tips-panel" type="button" role="tab">
+                            <i class="bi bi-lightbulb me-1"></i>改善建议
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- Tab content -->
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="result-panel" role="tabpanel">
+                        <div class="alert mb-0" id="analysis-result" role="alert">
+                            <h5 class="alert-heading" id="analysis-result-title"><i class="bi bi-clipboard2-pulse me-2"></i>综合评价</h5>
+                            <p class="mb-0" id="analysis-message"></p>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="tips-panel" role="tabpanel">
+                        <div class="card border-0" style="background: #f8f9fa;">
+                            <div class="card-body">
+                                <ul class="mb-0" id="analysis-tips" style="list-style: none; padding-left: 0;"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -177,4 +347,201 @@
         </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 根据睡眠时长自动计算睡眠质量
+function calculateSleepQuality(duration) {
+    if (duration < 5) return { quality: 2, status: '质量差', class: 'bg-danger' };
+    if (duration < 6) return { quality: 4, status: '质量较差', class: 'bg-warning' };
+    if (duration < 7) return { quality: 6, status: '质量一般', class: 'bg-info' };
+    if (duration < 8) return { quality: 8, status: '质量良好', class: 'bg-success' };
+    if (duration <= 9) return { quality: 10, status: '质量非常好', class: 'bg-success' };
+    return { quality: 6, status: '质量一般(睡眠偏多)', class: 'bg-info' };
+}
+
+// 睡眠时长输入事件监听
+document.getElementById('duration').addEventListener('input', function() {
+    const duration = parseFloat(this.value);
+    const qualitySelect = document.getElementById('quality-select');
+    const qualityStatus = document.getElementById('quality-status');
+    
+    if (duration && duration > 0) {
+        const result = calculateSleepQuality(duration);
+        qualitySelect.value = result.quality.toString();
+        qualityStatus.textContent = result.status;
+        qualityStatus.className = 'badge ' + result.class;
+    } else {
+        qualityStatus.textContent = '待计算';
+        qualityStatus.className = 'badge bg-secondary';
+    }
+});
+
+// 根据就寝和起床时间自动计算睡眠时长
+document.getElementById('wake-time').addEventListener('change', function() {
+    const bedTime = document.getElementById('bed-time').value;
+    const wakeTime = this.value;
+    
+    if (bedTime && wakeTime) {
+        const bed = new Date(bedTime);
+        const wake = new Date(wakeTime);
+        let duration = (wake - bed) / (1000 * 60 * 60);
+        
+        // 如果wake time在bed time之前，说明跨了一天
+        if (duration < 0) {
+            duration += 24;
+        }
+        
+        if (duration > 0 && duration <= 24) {
+            const durationInput = document.getElementById('duration');
+            durationInput.value = duration.toFixed(1);
+            durationInput.dispatchEvent(new Event('input'));
+        }
+    }
+});
+
+// 睡眠分析功能
+function analyzeSleep(recordId) {
+    const row = document.querySelector(`button[onclick="analyzeSleep(${recordId})"]`).closest('tr');
+    const cells = row.querySelectorAll('td');
+    
+    const date = cells[0].textContent.trim();
+    const durationText = cells[3].textContent.trim();
+    const duration = parseFloat(durationText) || 0;
+    const qualityText = cells[4].textContent.trim();
+    const qualityMatch = qualityText.match(/(\d+)/);
+    const quality = qualityMatch ? parseInt(qualityMatch[1]) : 0;
+    const hasCaffeine = cells[5].querySelector('.bg-warning') !== null;
+    const hasHeavyMeal = cells[5].querySelector('.bg-danger') !== null;
+    const hasScreenTime = cells[5].querySelector('.bg-info') !== null;
+    
+    // 计算综合评分 (满分100)
+    let score = 0;
+    let tips = [];
+    let message = '';
+    let levelClass = '';
+    let levelText = '';
+    
+    // 1. 时长评分 (占50分)
+    let durationScore = 0;
+    if (duration >= 7 && duration <= 9) {
+        durationScore = 50;
+        message = '睡眠时长非常理想！';
+    } else if (duration >= 6 && duration < 7) {
+        durationScore = 40;
+        message = '睡眠时长略短，建议增加睡眠时间';
+        tips.push('尽量提前30分钟上床睡觉');
+    } else if (duration > 9 && duration <= 10) {
+        durationScore = 35;
+        message = '睡眠时间偏多，可能影响睡眠效率';
+        tips.push('尝试固定起床时间，避免周末睡懒觉');
+    } else if (duration < 5) {
+        durationScore = 15;
+        message = '睡眠严重不足！';
+        tips.push('必须保证每天7-9小时睡眠');
+        tips.push('避免睡前使用电子设备');
+    } else if (duration >= 5 && duration < 6) {
+        durationScore = 30;
+        message = '睡眠时间偏少';
+        tips.push('每晚增加30-60分钟睡眠');
+    } else {
+        durationScore = 25;
+        message = '睡眠时间过多';
+        tips.push('保持规律的睡眠时间');
+    }
+    
+    // 2. 质量评分 (占30分)
+    let qualityScore = quality * 3;
+    
+    // 3. 影响因素评分 (占20分)
+    let impactScore = 20;
+    let impactDetails = [];
+    if (hasCaffeine) {
+        impactScore -= 7;
+        impactDetails.push('咖啡因');
+        tips.push('睡前3小时避免摄入咖啡因');
+    }
+    if (hasHeavyMeal) {
+        impactScore -= 7;
+        impactDetails.push('饱腹');
+        tips.push('睡前2-3小时不要进食');
+    }
+    if (hasScreenTime) {
+        impactScore -= 6;
+        impactDetails.push('玩手机');
+        tips.push('睡前1小时放下手机，使用夜间模式');
+    }
+    if (impactScore < 0) impactScore = 0;
+    if (impactDetails.length === 0) impactDetails = ['无不良因素'];
+    
+    // 计算总分
+    score = durationScore + qualityScore + impactScore;
+    score = Math.max(0, Math.min(100, score));
+    
+    // 评语
+    if (score >= 80) {
+        levelClass = 'bg-success';
+        levelText = '睡眠优秀';
+    } else if (score >= 60) {
+        levelClass = 'bg-info';
+        levelText = '睡眠良好';
+    } else if (score >= 40) {
+        levelClass = 'bg-warning';
+        levelText = '需改善';
+    } else {
+        levelClass = 'bg-danger';
+        levelText = '需重点改善';
+    }
+    
+    // 更新模态框内容
+    document.getElementById('analysis-date').textContent = date;
+    
+    const scoreEl = document.getElementById('analysis-score');
+    scoreEl.textContent = score;
+    scoreEl.style.color = score >= 60 ? '#28a745' : score >= 40 ? '#ffc107' : '#dc3545';
+    
+    document.getElementById('analysis-level').className = 'badge fs-6 px-4 py-2 ' + levelClass;
+    document.getElementById('analysis-level').textContent = levelText;
+    
+    document.getElementById('analysis-duration').textContent = duration.toFixed(1) + 'h';
+    document.getElementById('analysis-duration-score').textContent = durationScore + '/50';
+    
+    document.getElementById('analysis-quality').textContent = quality + '/10';
+    document.getElementById('analysis-quality-score').textContent = qualityScore + '/30';
+    
+    document.getElementById('analysis-impact').textContent = impactDetails.join(', ');
+    document.getElementById('analysis-impact-score').textContent = impactScore + '/20';
+    
+    // 更新分析结果
+    const resultEl = document.getElementById('analysis-result');
+    resultEl.className = 'alert mb-0 ' + (score >= 60 ? 'alert-success' : score >= 40 ? 'alert-warning' : 'alert-danger');
+    document.getElementById('analysis-message').innerHTML = `
+        <strong>${message}</strong><br>
+        <small>本次睡眠得分：${score}/100</small>
+    `;
+    
+    // 更新建议列表
+    const tipsEl = document.getElementById('analysis-tips');
+    if (tips.length === 0) {
+        tipsEl.innerHTML = `
+            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>继续保持良好的睡眠习惯！</li>
+            <li class="text-muted"><i class="bi bi-star text-warning me-2"></i>建议保持每天7-9小时的睡眠时间</li>
+        `;
+    } else {
+        tipsEl.innerHTML = tips.map(tip => `
+            <li class="mb-2"><i class="bi bi-lightbulb-fill text-warning me-2"></i>${tip}</li>
+        `).join('');
+    }
+    
+    // 重置到第一个标签页
+    const triggerEl = document.querySelector('#result-tab');
+    const tab = bootstrap.Tab.getOrCreateInstance(triggerEl);
+    tab.show();
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('sleepAnalysisModal'));
+    modal.show();
+}
+</script>
 {% endblock %}
