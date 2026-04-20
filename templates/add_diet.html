@@ -8,52 +8,65 @@
     </a>
 </div>
 
-<!-- 快速输入方式 -->
+<!-- 日期选择 -->
 <div class="card mb-3">
-    <div class="card-header py-3">
-        <h6 class="mb-0">选择输入方式</h6>
-    </div>
-    <div class="card-body p-3">
-        <div class="row g-2">
-            <div class="col-3">
-                <button class="btn btn-outline-primary w-100 py-3 d-flex flex-column align-items-center" onclick="switchMode('search')">
-                    <i class="bi bi-search fs-4 mb-1"></i>
-                    <span class="small">搜索</span>
-                </button>
+    <div class="card-body p-2">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <label class="form-label mb-0 text-muted small">记录日期</label>
             </div>
-            <div class="col-3">
-                <button class="btn btn-outline-success w-100 py-3 d-flex flex-column align-items-center" onclick="switchMode('barcode')">
-                    <i class="bi bi-upc-scan fs-4 mb-1"></i>
-                    <span class="small">扫码</span>
-                </button>
-            </div>
-            <div class="col-3">
-                <button class="btn btn-outline-warning w-100 py-3 d-flex flex-column align-items-center" onclick="switchMode('voice')">
-                    <i class="bi bi-mic fs-4 mb-1"></i>
-                    <span class="small">语音</span>
-                </button>
-            </div>
-            <div class="col-3">
-                <button class="btn btn-outline-info w-100 py-3 d-flex flex-column align-items-center" onclick="switchMode('manual')">
-                    <i class="bi bi-pencil fs-4 mb-1"></i>
-                    <span class="small">手动</span>
-                </button>
+            <div class="col">
+                <input type="date" name="record_date" id="record_date" class="form-control" value="{{ request.args.get('date', today) }}">
             </div>
         </div>
     </div>
 </div>
 
-<!-- 常用食物 -->
-{% if recent_foods %}
+<!-- 餐次选择 -->
 <div class="card mb-3">
     <div class="card-header py-3">
+        <h6 class="mb-0"><i class="bi bi-clock"></i> 选择餐次</h6>
+    </div>
+    <div class="card-body p-3">
+        <div class="btn-group w-100" role="group">
+            <input type="radio" class="btn-check" name="meal_type" id="meal_breakfast" value="breakfast" checked>
+            <label class="btn btn-outline-primary" for="meal_breakfast">
+                <i class="bi bi-sunrise"></i> 早餐
+            </label>
+            
+            <input type="radio" class="btn-check" name="meal_type" id="meal_lunch" value="lunch">
+            <label class="btn btn-outline-success" for="meal_lunch">
+                <i class="bi bi-sun"></i> 午餐
+            </label>
+            
+            <input type="radio" class="btn-check" name="meal_type" id="meal_dinner" value="dinner">
+            <label class="btn btn-outline-danger" for="meal_dinner">
+                <i class="bi bi-moon-stars"></i> 晚餐
+            </label>
+            
+            <input type="radio" class="btn-check" name="meal_type" id="meal_snack" value="snack">
+            <label class="btn btn-outline-warning" for="meal_snack">
+                <i class="bi bi-cookie"></i> 零食
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- 常用食物快捷添加 -->
+{% if recent_foods %}
+<div class="card mb-3">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="bi bi-star"></i> 常用食物</h6>
+        <small class="text-muted">点击直接添加</small>
     </div>
     <div class="card-body p-3">
         <div class="d-flex flex-wrap gap-2">
             {% for item in recent_foods %}
-            <button class="btn btn-outline-secondary btn-sm" onclick="selectFood('{{ item.food_name }}')">
-                {{ item.food_name }} <span class="badge bg-light text-dark ms-1">{{ item.count }}</span>
+            <button class="btn btn-outline-secondary btn-sm position-relative" onclick="quickSelectFood('{{ item.food_name }}')">
+                {{ item.food_name }}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">
+                    {{ item.count }}
+                </span>
             </button>
             {% endfor %}
         </div>
@@ -61,255 +74,443 @@
 </div>
 {% endif %}
 
-<!-- 添加表单 -->
-<form method="POST" class="card">
+<!-- 搜索区域 -->
+<div class="card mb-3">
+    <div class="card-header py-3">
+        <h6 class="mb-0"><i class="bi bi-search"></i> 搜索食物</h6>
+    </div>
     <div class="card-body p-3">
-        <input type="hidden" name="input_method" id="input_method" value="text">
-        
-        <div class="mb-3">
-            <label class="form-label fw-bold">食物名称</label>
-            <div class="input-group">
-                <input type="text" name="food_name" id="food_name" class="form-control form-control-lg" required placeholder="搜索或输入食物名称">
-                <input type="hidden" name="food_id" id="food_id">
-                <button class="btn btn-outline-secondary" type="button" onclick="searchFood()">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-            <div id="search_results" class="list-group mt-2" style="display: none;"></div>
+        <div class="input-group mb-3">
+            <input type="text" id="search_query" class="form-control form-control-lg" 
+                   placeholder="输入食物名称搜索（如：面包、鸡蛋、牛奶）" 
+                   onkeyup="handleSearchKeyup(event)">
+            <button class="btn btn-primary" type="button" onclick="searchFoods()">
+                <i class="bi bi-search"></i> 搜索
+            </button>
         </div>
         
-        <div class="row g-2 mb-3">
-            <div class="col-4">
-                <label class="form-label small">份量(g)</label>
-                <input type="number" name="quantity" id="quantity" class="form-control" value="100" min="1" required>
+        <!-- 搜索结果列表（多选模式） -->
+        <div id="search_results" class="list-group" style="display: none;">
+            <div class="list-group-item active fw-bold">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-check2-square"></i> 搜索结果（勾选后点击"添加选中"）</span>
+                    <span class="badge bg-light text-dark" id="selected_count">已选 0 种</span>
+                </div>
             </div>
-            <div class="col-4">
-                <label class="form-label small">餐次</label>
-                <select name="meal_type" class="form-select" required>
-                    <option value="breakfast">早餐</option>
-                    <option value="lunch">午餐</option>
-                    <option value="dinner">晚餐</option>
-                    <option value="snack">零食</option>
-                </select>
-            </div>
-            <div class="col-4">
-                <label class="form-label small">热量 <span class="text-danger">*</span></label>
-                <input type="number" name="calories" id="calories" class="form-control" placeholder="kcal" step="0.1" min="0" required>
-            </div>
+            <div id="search_results_list"></div>
         </div>
         
-        <div class="row g-2 mb-3">
-            <div class="col-4">
-                <label class="form-label small">蛋白质(g)</label>
-                <input type="number" name="protein" id="protein" class="form-control" step="0.1" min="0" placeholder="0">
+        <!-- 统一份量设置 -->
+        <div id="quantity_setting" class="mt-3 p-3 bg-light rounded" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong><i class="bi bi-sliders"></i> 统一份量设置</strong>
+                <button class="btn btn-sm btn-outline-primary" onclick="applyQuantityToAll()">应用到所有</button>
             </div>
-            <div class="col-4">
-                <label class="form-label small">碳水(g)</label>
-                <input type="number" name="carbs" id="carbs" class="form-control" step="0.1" min="0" placeholder="0">
-            </div>
-            <div class="col-4">
-                <label class="form-label small">脂肪(g)</label>
-                <input type="number" name="fat" id="fat" class="form-control" step="0.1" min="0" placeholder="0">
-            </div>
-        </div>
-        
-        <!-- 营养预览 -->
-        <div id="nutrition_preview" class="alert alert-info py-2" style="display: none;">
-            <h6 class="mb-2"><i class="bi bi-info-circle"></i> 营养预览 (每100g)</h6>
-            <div class="row text-center g-2">
-                <div class="col-3">
-                    <div class="fw-bold small" id="preview_calories">0</div>
-                    <small class="text-muted" style="font-size: 0.7rem;">千卡</small>
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="form-label small">份量 (g)</label>
+                    <input type="number" id="batch_quantity" class="form-control" value="100" min="1">
                 </div>
-                <div class="col-3">
-                    <div class="fw-bold small" id="preview_protein">0</div>
-                    <small class="text-muted" style="font-size: 0.7rem;">蛋白质</small>
-                </div>
-                <div class="col-3">
-                    <div class="fw-bold small" id="preview_carbs">0</div>
-                    <small class="text-muted" style="font-size: 0.7rem;">碳水</small>
-                </div>
-                <div class="col-3">
-                    <div class="fw-bold small" id="preview_fat">0</div>
-                    <small class="text-muted" style="font-size: 0.7rem;">脂肪</small>
+                <div class="col-6 d-flex align-items-end">
+                    <button class="btn btn-success w-100" onclick="addSelectedFoods()">
+                        <i class="bi bi-plus-lg"></i> 添加选中的食物
+                    </button>
                 </div>
             </div>
         </div>
-        
-        <div class="d-grid">
-            <button type="submit" class="btn btn-primary btn-lg py-3" style="background: linear-gradient(135deg, #43a047, #2e7d32); border: none;">
-                <i class="bi bi-check-lg"></i> 确认添加
+    </div>
+</div>
+
+<!-- 已选食物列表 -->
+<div class="card mb-3" id="selectedFoodsCard" style="display: none;">
+    <div class="card-header py-3 bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-cart-check"></i> 已选食物 (<span id="selectedFoodCount">0</span>种)</h6>
+            <button class="btn btn-sm btn-light" onclick="clearAllSelected()">
+                <i class="bi bi-trash"></i> 清空
             </button>
         </div>
     </div>
-</form>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40%">食物</th>
+                        <th class="text-center">份量</th>
+                        <th class="text-end">热量</th>
+                        <th class="text-end">蛋白质</th>
+                        <th class="text-end">碳水</th>
+                        <th class="text-end">脂肪</th>
+                        <th class="text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="selectedFoodsBody">
+                </tbody>
+                <tfoot class="table-success fw-bold">
+                    <tr>
+                        <td colspan="2" class="text-end">合计：</td>
+                        <td class="text-end" id="totalCalories">0 kcal</td>
+                        <td class="text-end" id="totalProtein">0g</td>
+                        <td class="text-end" id="totalCarbs">0g</td>
+                        <td class="text-end" id="totalFat">0g</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 提交按钮 -->
+<div class="d-grid gap-2" id="submitSection" style="display: none;">
+    <button type="button" class="btn btn-primary btn-lg py-3" 
+            style="background: linear-gradient(135deg, #43a047, #2e7d32); border: none;" 
+            onclick="submitAllFoods()">
+        <i class="bi bi-check-lg"></i> 
+        <span id="submitText">确认添加 0 种食物</span>
+    </button>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-let selectedFood = null;
+// 已选食物列表
+let selectedFoods = [];
+let foodCounter = 0;
+let searchResults = [];
 
-function searchFood() {
-    const query = document.getElementById('food_name').value;
-    if (query.length < 1) return;
+// 餐次映射
+const mealTypeNames = {
+    'breakfast': '早餐',
+    'lunch': '午餐', 
+    'dinner': '晚餐',
+    'snack': '零食'
+};
+
+// 回车搜索
+function handleSearchKeyup(event) {
+    if (event.key === 'Enter') {
+        searchFoods();
+    }
+}
+
+// 搜索食物
+function searchFoods() {
+    const query = document.getElementById('search_query').value.trim();
+    if (query.length < 1) {
+        showToast('请输入食物名称', 'warning');
+        return;
+    }
     
     fetch(`/api/foods?q=${encodeURIComponent(query)}`)
         .then(r => r.json())
         .then(foods => {
-            const results = document.getElementById('search_results');
-            results.innerHTML = '';
-            
-            if (foods.length === 0) {
-                results.innerHTML = '<div class="list-group-item text-muted">未找到匹配的食物</div>';
-                results.style.display = 'block';
-                return;
-            }
-            
-            foods.forEach(food => {
-                const item = document.createElement('div');
-                item.className = 'list-group-item list-group-item-action cursor-pointer';
-                item.style.cursor = 'pointer';
-                item.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong class="text-primary">${food.name}</strong>
-                            <small class="text-muted d-block">${food.category || '未分类'}</small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-success">${food.calories} kcal/100g</span>
-                            <small class="text-muted d-block">点击选择</small>
-                        </div>
-                    </div>
-                `;
-                item.onclick = function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    selectFoodData(food);
-                };
-                results.appendChild(item);
-            });
-            results.style.display = 'block';
+            searchResults = foods;
+            renderSearchResults();
+        })
+        .catch(err => {
+            console.error('搜索失败:', err);
+            showToast('搜索失败，请重试', 'danger');
         });
 }
 
-function selectFoodData(food) {
-    selectedFood = food;
-    document.getElementById('food_name').value = food.name;
-    document.getElementById('food_id').value = food.id;
-    document.getElementById('search_results').style.display = 'none';
+// 渲染搜索结果
+function renderSearchResults() {
+    const container = document.getElementById('search_results');
+    const listContainer = document.getElementById('search_results_list');
     
-    // 获取份量（默认100g）
-    const quantity = parseFloat(document.getElementById('quantity').value) || 100;
-    const factor = quantity / 100;
+    if (searchResults.length === 0) {
+        listContainer.innerHTML = '<div class="list-group-item text-muted text-center py-4">未找到匹配的食物</div>';
+    } else {
+        listContainer.innerHTML = searchResults.map((food, index) => `
+            <div class="list-group-item">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="food_check_${index}" 
+                           onchange="toggleFoodSelection(${index})">
+                    <label class="form-check-label w-100" for="food_check_${index}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong class="text-primary">${food.name}</strong>
+                                ${food.food_nature ? `<span class="badge ms-1 ${food.food_nature === 'cold' ? 'bg-primary' : food.food_nature === 'cool' ? 'bg-info' : food.food_nature === 'neutral' ? 'bg-secondary' : food.food_nature === 'warm' ? 'bg-warning text-dark' : 'bg-danger'}">${food.food_nature === 'cold' ? '寒' : food.food_nature === 'cool' ? '凉' : food.food_nature === 'neutral' ? '平' : food.food_nature === 'warm' ? '温' : '热'}</span>` : ''}
+                                <small class="text-muted d-block">${food.category || '未分类'}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-success">${food.calories} kcal/100g</span>
+                                <div class="small text-muted">
+                                    蛋白${food.protein}g · 碳水${food.carbs}g · 脂${food.fat}g
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        `).join('');
+    }
     
-    // 计算实际营养值（按份量）
-    const actualCalories = Math.round((food.calories || 0) * factor);
-    const actualProtein = parseFloat(((food.protein || 0) * factor).toFixed(1));
-    const actualCarbs = parseFloat(((food.carbs || 0) * factor).toFixed(1));
-    const actualFat = parseFloat(((food.fat || 0) * factor).toFixed(1));
-    
-    // 填充表单字段
-    document.getElementById('calories').value = actualCalories;
-    document.getElementById('protein').value = actualProtein;
-    document.getElementById('carbs').value = actualCarbs;
-    document.getElementById('fat').value = actualFat;
-    
-    // 更新预览（显示每100g的值）
-    document.getElementById('preview_calories').textContent = food.calories || 0;
-    document.getElementById('preview_protein').textContent = food.protein || 0;
-    document.getElementById('preview_carbs').textContent = food.carbs || 0;
-    document.getElementById('preview_fat').textContent = food.fat || 0;
-    document.getElementById('nutrition_preview').style.display = 'block';
-    
-    // 显示成功提示
-    showToast(`已选择：${food.name}，营养数据已自动填充`);
+    container.style.display = 'block';
+    document.getElementById('quantity_setting').style.display = 'block';
+    updateSelectedCount();
 }
 
-// 显示提示消息
-function showToast(message) {
+// 切换食物选择
+function toggleFoodSelection(index) {
+    const food = searchResults[index];
+    const checkbox = document.getElementById(`food_check_${index}`);
+    
+    if (checkbox.checked) {
+        // 添加到已选列表
+        selectedFoods.push({
+            id: foodCounter++,
+            food_id: food.id,
+            name: food.name,
+            quantity: parseFloat(document.getElementById('batch_quantity').value) || 100,
+            calories_per_100g: food.calories,
+            protein_per_100g: food.protein,
+            carbs_per_100g: food.carbs,
+            fat_per_100g: food.fat
+        });
+    } else {
+        // 从已选列表移除
+        const idx = selectedFoods.findIndex(f => f.food_id === food.id);
+        if (idx > -1) selectedFoods.splice(idx, 1);
+    }
+    
+    updateSelectedCount();
+    renderSelectedFoods();
+}
+
+// 更新选中计数
+function updateSelectedCount() {
+    document.getElementById('selected_count').textContent = `已选 ${selectedFoods.length} 种`;
+}
+
+// 渲染已选食物列表
+function renderSelectedFoods() {
+    const card = document.getElementById('selectedFoodsCard');
+    const tbody = document.getElementById('selectedFoodsBody');
+    
+    if (selectedFoods.length === 0) {
+        card.style.display = 'none';
+        document.getElementById('submitSection').style.display = 'none';
+        return;
+    }
+    
+    card.style.display = 'block';
+    document.getElementById('submitSection').style.display = 'block';
+    document.getElementById('selectedFoodCount').textContent = selectedFoods.length;
+    
+    // 计算合计
+    let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    
+    tbody.innerHTML = selectedFoods.map(item => {
+        const calories = (item.calories_per_100g * item.quantity / 100).toFixed(0);
+        const protein = (item.protein_per_100g * item.quantity / 100).toFixed(1);
+        const carbs = (item.carbs_per_100g * item.quantity / 100).toFixed(1);
+        const fat = (item.fat_per_100g * item.quantity / 100).toFixed(1);
+        
+        totalCalories += parseFloat(calories);
+        totalProtein += parseFloat(protein);
+        totalCarbs += parseFloat(carbs);
+        totalFat += parseFloat(fat);
+        
+        return `
+            <tr>
+                <td><strong>${item.name}</strong></td>
+                <td class="text-center">
+                    <div class="input-group input-group-sm mx-auto" style="max-width: 100px;">
+                        <input type="number" class="form-control text-center" 
+                               value="${item.quantity}" min="1"
+                               onchange="updateFoodQuantity(${item.id}, this.value)">
+                        <span class="input-group-text">g</span>
+                    </div>
+                </td>
+                <td class="text-end text-danger fw-bold">${calories} kcal</td>
+                <td class="text-end">${protein}g</td>
+                <td class="text-end">${carbs}g</td>
+                <td class="text-end">${fat}g</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFood(${item.id})">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // 更新合计
+    document.getElementById('totalCalories').textContent = totalCalories.toFixed(0) + ' kcal';
+    document.getElementById('totalProtein').textContent = totalProtein.toFixed(1) + 'g';
+    document.getElementById('totalCarbs').textContent = totalCarbs.toFixed(1) + 'g';
+    document.getElementById('totalFat').textContent = totalFat.toFixed(1) + 'g';
+    document.getElementById('submitText').textContent = `确认添加 ${selectedFoods.length} 种食物`;
+}
+
+// 更新单个食物份量
+function updateFoodQuantity(id, quantity) {
+    const item = selectedFoods.find(f => f.id === id);
+    if (item) {
+        item.quantity = parseFloat(quantity) || 100;
+        renderSelectedFoods();
+    }
+}
+
+// 应用份量到所有
+function applyQuantityToAll() {
+    const qty = parseFloat(document.getElementById('batch_quantity').value) || 100;
+    selectedFoods.forEach(item => {
+        item.quantity = qty;
+    });
+    renderSelectedFoods();
+    showToast(`已将份量统一设置为 ${qty}g`, 'success');
+}
+
+// 快速选择食物（从常用食物）
+function quickSelectFood(name) {
+    // 先搜索
+    fetch(`/api/foods?q=${encodeURIComponent(name)}`)
+        .then(r => r.json())
+        .then(foods => {
+            if (foods.length > 0) {
+                // 直接添加第一个匹配的结果
+                const food = foods[0];
+                const existing = selectedFoods.find(f => f.food_id === food.id);
+                if (!existing) {
+                    selectedFoods.push({
+                        id: foodCounter++,
+                        food_id: food.id,
+                        name: food.name,
+                        quantity: 100,
+                        calories_per_100g: food.calories,
+                        protein_per_100g: food.protein,
+                        carbs_per_100g: food.carbs,
+                        fat_per_100g: food.fat
+                    });
+                    renderSelectedFoods();
+                    showToast(`已添加：${food.name}`, 'success');
+                } else {
+                    showToast(`${food.name} 已在列表中`, 'warning');
+                }
+            } else {
+                showToast(`未找到：${name}`, 'warning');
+            }
+        });
+}
+
+// 删除单个食物
+function removeFood(id) {
+    selectedFoods = selectedFoods.filter(f => f.id !== id);
+    
+    // 同步取消搜索结果的勾选
+    if (searchResults.length > 0) {
+        const food = selectedFoods.find(f => f.id === id);
+        // 如果从已选列表删除，需要取消对应的搜索结果勾选
+    }
+    
+    renderSelectedFoods();
+    updateSelectedCount();
+}
+
+// 清空所有已选
+function clearAllSelected() {
+    if (selectedFoods.length > 0 && !confirm('确定要清空所有已选食物吗？')) {
+        return;
+    }
+    selectedFoods = [];
+    
+    // 取消所有搜索结果勾选
+    searchResults.forEach((_, index) => {
+        const checkbox = document.getElementById(`food_check_${index}`);
+        if (checkbox) checkbox.checked = false;
+    });
+    
+    renderSelectedFoods();
+    updateSelectedCount();
+}
+
+// 添加选中的食物（从搜索结果）
+function addSelectedFoods() {
+    if (selectedFoods.length === 0) {
+        showToast('请先选择食物', 'warning');
+        return;
+    }
+    
+    // 关闭搜索结果区域
+    document.getElementById('search_results').style.display = 'none';
+    document.getElementById('quantity_setting').style.display = 'none';
+    document.getElementById('search_query').value = '';
+    searchResults = [];
+    
+    // 清空勾选状态
+    document.querySelectorAll('[id^="food_check_"]').forEach(cb => cb.checked = false);
+    
+    showToast(`已添加 ${selectedFoods.length} 种食物到列表`, 'success');
+}
+
+// 提交所有食物
+function submitAllFoods() {
+    if (selectedFoods.length === 0) {
+        showToast('请先添加食物', 'warning');
+        return;
+    }
+    
+    const mealType = document.querySelector('input[name="meal_type"]:checked').value;
+    const foodsData = selectedFoods.map(item => ({
+        food_id: item.food_id,
+        food_name: item.name,
+        quantity: item.quantity,
+        calories_per_100g: item.calories_per_100g,
+        protein_per_100g: item.protein_per_100g,
+        carbs_per_100g: item.carbs_per_100g,
+        fat_per_100g: item.fat_per_100g
+    }));
+    
+    // 获取记录日期
+    const recordDate = document.getElementById('record_date')?.value || new Date().toISOString().split('T')[0];
+    
+    fetch('{{ url_for("add_diet_record") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            meal_type: mealType,
+            foods: foodsData,
+            record_date: recordDate,
+            input_method: 'batch'
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast(`成功添加 ${selectedFoods.length} 条饮食记录！`, 'success');
+            selectedFoods = [];
+            renderSelectedFoods();
+            setTimeout(() => {
+                window.location.href = '{{ url_for("diet") }}?date=' + recordDate;
+            }, 1000);
+        } else {
+            showToast(result.message || '添加失败', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('添加失败，请重试', 'danger');
+    });
+}
+
+// 显示提示
+function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 200px;';
     toast.innerHTML = `
-        <i class="bi bi-check-circle"></i> ${message}
+        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'x-circle'}"></i> ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
-
-function selectFood(name) {
-    document.getElementById('food_name').value = name;
-    searchFood();
-}
-
-function switchMode(mode) {
-    document.getElementById('input_method').value = mode;
-    
-    if (mode === 'voice') {
-        alert('语音识别功能需要麦克风权限');
-        // 这里可以集成 Web Speech API
-    } else if (mode === 'barcode') {
-        alert('条形码扫描功能正在开发中');
-        // 这里可以集成条形码扫描库
-    }
-}
-
-// 份量变化时更新预览和计算
-document.getElementById('quantity').addEventListener('input', function() {
-    const qty = parseFloat(this.value) || 100;
-    if (selectedFood) {
-        const factor = qty / 100;
-        document.getElementById('preview_calories').textContent = Math.round(selectedFood.calories * factor);
-        document.getElementById('preview_protein').textContent = (selectedFood.protein * factor).toFixed(1);
-        document.getElementById('preview_carbs').textContent = (selectedFood.carbs * factor).toFixed(1);
-        document.getElementById('preview_fat').textContent = (selectedFood.fat * factor).toFixed(1);
-        
-        // 同时更新营养输入字段（按份量计算后的值）
-        document.getElementById('calories').value = Math.round(selectedFood.calories * factor);
-        document.getElementById('protein').value = (selectedFood.protein * factor).toFixed(1);
-        document.getElementById('carbs').value = (selectedFood.carbs * factor).toFixed(1);
-        document.getElementById('fat').value = (selectedFood.fat * factor).toFixed(1);
-    }
-});
-
-// 输入时实时搜索（防抖）
-let searchTimeout;
-document.getElementById('food_name').addEventListener('input', function(e) {
-    clearTimeout(searchTimeout);
-    const query = this.value.trim();
-    if (query.length >= 1) {
-        searchTimeout = setTimeout(() => searchFood(), 300);
-    } else {
-        document.getElementById('search_results').style.display = 'none';
-    }
-});
-
-// 回车搜索
-document.getElementById('food_name').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        clearTimeout(searchTimeout);
-        searchFood();
-    }
-});
-
-// 点击其他地方隐藏搜索结果
-document.addEventListener('click', function(e) {
-    const searchContainer = document.querySelector('.mb-3');
-    if (!searchContainer.contains(e.target)) {
-        document.getElementById('search_results').style.display = 'none';
-    }
-});
-
-// 表单提交验证
-document.querySelector('form').addEventListener('submit', function(e) {
-    const calories = document.getElementById('calories').value;
-    if (!calories || parseFloat(calories) <= 0) {
-        e.preventDefault();
-        alert('请输入食物的热量值，或从上方搜索并选择食物');
-        document.getElementById('calories').focus();
-    }
-});
 </script>
 {% endblock %}

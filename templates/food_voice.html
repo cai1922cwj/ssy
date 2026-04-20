@@ -1,46 +1,108 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
-<h2><i class="bi bi-mic" style="color: #43a047;"></i> 语音输入食物</h2>
+<style>
+/* 麦克风按钮样式 */
+#micButton {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+#micButton:active {
+    transform: scale(0.95);
+}
+#micButton.ready {
+    animation: pulse-ring 2s infinite;
+}
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(67, 160, 71, 0.5); }
+    70% { box-shadow: 0 0 0 20px rgba(67, 160, 71, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(67, 160, 71, 0); }
+}
+#micButton.recording {
+    background: linear-gradient(135deg, #dc3545, #c82333) !important;
+    animation: recording-pulse-btn 1s infinite;
+}
+@keyframes recording-pulse-btn {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+/* 结果卡片动画 */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<h2><i class="bi bi-mic-fill" style="color: #43a047;"></i> 语音输入食物</h2>
+
+<!-- 手机端提示 -->
+<div class="alert alert-success d-md-none mb-3">
+    <i class="bi bi-info-circle"></i>
+    <strong>语音输入：</strong>点击下方麦克风，说出食物名称即可
+</div>
 
 <div class="card mb-4">
-    <div class="card-body text-center py-5">
-        <p class="text-muted mb-4">点击麦克风，说出食物名称和份量，系统将自动识别并记录</p>
+    <div class="card-body text-center py-4 py-md-5">
         
-        <div id="voiceArea" class="mb-4">
-            <button type="button" class="btn btn-lg rounded-circle p-4" id="micButton" onclick="startVoiceInput()" 
-                    style="background: linear-gradient(135deg, #43a047, #2e7d32); color: white; width: 120px; height: 120px;">
-                <i class="bi bi-mic-fill display-3"></i>
+        <!-- 麦克风主按钮 -->
+        <div id="voiceArea">
+            <button type="button" class="btn btn-lg rounded-circle" id="micButton"
+                    style="background: linear-gradient(135deg, #43a047, #2e7d32); color: white; width: 150px; height: 150px; box-shadow: 0 6px 25px rgba(67, 160, 71, 0.5);">
+                <i class="bi bi-mic-fill" style="font-size: 4rem;"></i>
             </button>
-            <p class="mt-3 text-muted" id="voiceHint">点击麦克风开始说话</p>
+            <p class="mt-3 fw-bold text-success" id="voiceHint">点击麦克风开始说话</p>
         </div>
         
+        <!-- 录音中指示器 -->
         <div id="recordingIndicator" style="display: none;">
             <div class="recording-animation">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
-            <p class="mt-3 text-danger" id="voiceStatus">正在聆听...</p>
+            <p class="mt-2 fw-bold text-danger fs-5" id="voiceStatus">
+                <i class="bi bi-ear"></i> 正在聆听...
+            </p>
+            <p class="text-muted small">说完后点击停止</p>
+            <button type="button" class="btn btn-danger btn-lg mt-2 px-5" id="stopBtn">
+                <i class="bi bi-stop-fill"></i> 停止录音
+            </button>
         </div>
         
-        <div class="mt-3">
-            <button type="button" class="btn btn-outline-secondary me-2" onclick="showExamples()">
+        <!-- 操作按钮 -->
+        <div class="mt-3" id="actionButtons">
+            <button type="button" class="btn btn-outline-secondary me-2 mb-2" id="examplesBtn">
                 <i class="bi bi-question-circle"></i> 查看示例
             </button>
-            <button type="button" class="btn btn-outline-primary" onclick="switchToText()">
-                <i class="bi bi-keyboard"></i> 切换到文字输入
+            <button type="button" class="btn btn-outline-primary mb-2" id="textModeBtn">
+                <i class="bi bi-keyboard"></i> 切换文字
             </button>
         </div>
     </div>
 </div>
 
+<!-- 文字输入区 - 始终显示 -->
+<div class="card mt-4" id="textCard">
+    <div class="card-header" style="background: #6c757d; color: white;">
+        <h5 class="mb-0"><i class="bi bi-keyboard"></i> 文字输入</h5>
+    </div>
+    <div class="card-body">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" id="textInput" placeholder="输入食物名称，如：一碗米饭、两个鸡蛋" autocomplete="off">
+            <button class="btn btn-primary" type="button" id="textSubmitBtn">
+                <i class="bi bi-search"></i> 识别
+            </button>
+        </div>
+        <small class="text-muted">输入食物名称后点击<strong>识别</strong>按钮</small>
+    </div>
+</div>
+
 <!-- 语音识别结果 -->
-<div class="card" id="resultCard" style="display: none;">
+<div class="card mt-4" id="resultCard" style="display: none;">
     <div class="card-header" style="background: #43a047; color: white;">
         <h5 class="mb-0"><i class="bi bi-check-circle"></i> 识别结果</h5>
     </div>
     <div class="card-body">
         <div class="alert alert-info">
-            <i class="bi bi-quora"></i> <strong>您说的：</strong><span id="recognizedText"></span>
+            <i class="bi bi-chat-left-text"></i> <strong>您说的：</strong><span id="recognizedText"></span>
         </div>
         
         <h5 class="mb-3">识别到的食物：</h5>
@@ -73,9 +135,14 @@
             </table>
         </div>
         
-        <button class="btn w-100 mt-3" style="background: #43a047; color: white;" onclick="saveAllRecords()">
-            <i class="bi bi-plus-lg"></i> 全部添加到今日饮食
-        </button>
+        <div class="d-grid gap-2 mt-3">
+            <button class="btn btn-success btn-lg" id="saveAllBtn">
+                <i class="bi bi-plus-lg"></i> 全部添加到今日饮食
+            </button>
+            <button class="btn btn-outline-success" id="continueBtn">
+                <i class="bi bi-arrow-repeat"></i> 继续记录
+            </button>
+        </div>
     </div>
 </div>
 
@@ -96,8 +163,6 @@
                     <li class="list-group-item">"100克鸡胸肉"</li>
                     <li class="list-group-item">"一碗番茄炒蛋"</li>
                 </ul>
-                <hr>
-                <p class="text-muted small">系统会识别食物名称和数量，自动计算营养成分</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
@@ -109,34 +174,38 @@
 
 {% block scripts %}
 <script>
+// 全局变量
 let recognition = null;
 let isRecording = false;
 let recognizedFoods = [];
+let currentTranscript = '';
+let speechTimeout = null;
 
+// 食物数据库
 const foodDatabase = {
     '米饭': { calories: 130, protein: 2.5, carbs: 28, fat: 0.3, serving: '一碗(150g)' },
     '粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2, serving: '一碗(240g)' },
     '面条': { calories: 284, protein: 8, carbs: 59, fat: 0.8, serving: '一碗(200g)' },
     '馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
+    '包子': { calories: 200, protein: 7, carbs: 35, fat: 4, serving: '一个(100g)' },
+    '饺子': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '10个(100g)' },
     '鸡蛋': { calories: 144, protein: 13, carbs: 1, fat: 10, serving: '一个(50g)' },
     '鸡胸肉': { calories: 133, protein: 31, carbs: 0, fat: 1, serving: '100g' },
+    '鸡腿': { calories: 181, protein: 26, carbs: 0, fat: 8, serving: '100g' },
     '猪肉': { calories: 143, protein: 21, carbs: 0, fat: 6, serving: '100g' },
     '牛肉': { calories: 125, protein: 26, carbs: 0, fat: 3, serving: '100g' },
-    '鱼肉': { calories: 90, protein: 20, carbs: 0, fat: 1, serving: '100g' },
     '牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
     '酸奶': { calories: 72, protein: 3, carbs: 10, fat: 2, serving: '一杯(200g)' },
     '苹果': { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, serving: '一个(200g)' },
     '香蕉': { calories: 93, protein: 1, carbs: 23, fat: 0.3, serving: '一根(100g)' },
-    '橙子': { calories: 47, protein: 1, carbs: 12, fat: 0.1, serving: '一个(150g)' },
-    '西瓜': { calories: 30, protein: 0.6, carbs: 8, fat: 0.1, serving: '一块(300g)' },
-    '白菜': { calories: 17, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
-    '菠菜': { calories: 23, protein: 3, carbs: 4, fat: 0.3, serving: '100g' },
+    '面包': { calories: 265, protein: 8, carbs: 50, fat: 3, serving: '两片(100g)' },
+    '豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
     '番茄': { calories: 19, protein: 1, carbs: 4, fat: 0.2, serving: '一个(150g)' },
     '土豆': { calories: 76, protein: 2, carbs: 17, fat: 0.1, serving: '一个(150g)' },
-    '豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
-    '豆浆': { calories: 33, protein: 3, carbs: 2, fat: 2, serving: '一杯(300ml)' },
+    '红薯': { calories: 99, protein: 2, carbs: 23, fat: 0.1, serving: '一个(150g)' },
+    '玉米': { calories: 112, protein: 4, carbs: 22, fat: 1, serving: '一根(150g)' },
     '咖啡': { calories: 1, protein: 0, carbs: 0, fat: 0, serving: '一杯(240ml)' },
-    '可乐': { calories: 42, protein: 0, carbs: 11, fat: 0, serving: '一瓶(500ml)' },
+    '奶茶': { calories: 150, protein: 2, carbs: 25, fat: 4, serving: '一杯(500ml)' },
     '红烧肉': { calories: 295, protein: 13, carbs: 7, fat: 24, serving: '100g' },
     '番茄炒蛋': { calories: 89, protein: 6, carbs: 4, fat: 5, serving: '一份(200g)' },
     '宫保鸡丁': { calories: 197, protein: 15, carbs: 9, fat: 12, serving: '一份(200g)' },
@@ -150,51 +219,209 @@ const quantityMap = {
     '6': 6, '7': 7, '8': 8, '9': 9, '10': 10
 };
 
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = 'zh-CN';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    
-    recognition.onresult = function(event) {
-        let finalTranscript = '';
-        let interimTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                finalTranscript += transcript;
-            } else {
-                interimTranscript += transcript;
-            }
-        }
-        
-        document.getElementById('voiceHint').textContent = interimTranscript || '正在聆听...';
-        
-        if (finalTranscript) {
-            processVoiceInput(finalTranscript);
-        }
-    };
-    
-    recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
-        stopRecording();
-        if (event.error === 'not-allowed') {
-            alert('请允许使用麦克风');
-        }
-    };
-    
-    recognition.onend = function() {
-        if (isRecording) {
-            recognition.start();
-        }
-    };
+// 检测语音支持
+function checkSpeechSupport() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
+// 初始化语音识别
+function initSpeechRecognition() {
+    if (!checkSpeechSupport()) {
+        console.log('浏览器不支持语音识别');
+        return false;
+    }
+    
+    try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        recognition.onresult = function(event) {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            
+            if (finalTranscript) {
+                currentTranscript = finalTranscript;
+            } else if (interimTranscript) {
+                currentTranscript = interimTranscript;
+            }
+            
+            // 更新显示 - 实时显示识别的文字
+            const statusEl = document.getElementById('voiceStatus');
+            if (statusEl) {
+                const displayText = interimTranscript || finalTranscript || '正在聆听...';
+                statusEl.innerHTML = '<i class="bi bi-ear"></i> ' + displayText;
+            }
+            
+            // 重置超时
+            resetSpeechTimeout();
+            
+            // 如果有最终结果，处理它
+            if (finalTranscript) {
+                clearTimeout(speechTimeout);
+                processRecognitionResult(finalTranscript);
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('语音识别错误:', event.error);
+            if (event.error !== 'aborted') {
+                stopRecording();
+                if (event.error === 'service-not-allowed') {
+                    alert('语音识别服务受限，请使用文字输入');
+                }
+            }
+        };
+        
+        recognition.onend = function() {
+            if (isRecording) {
+                // 超时后自动停止 - 处理已累积的临时结果
+                clearTimeout(speechTimeout);
+                if (currentTranscript && currentTranscript.trim()) {
+                    processRecognitionResult(currentTranscript.trim());
+                } else {
+                    stopRecording();
+                    alert('未识别到语音，请使用文字输入');
+                }
+            }
+        };
+        
+        return true;
+    } catch(e) {
+        console.error('初始化语音识别失败:', e);
+        return false;
+    }
+}
+
+// 重置超时
+function resetSpeechTimeout() {
+    clearTimeout(speechTimeout);
+    speechTimeout = setTimeout(() => {
+        if (isRecording && currentTranscript) {
+            processRecognitionResult(currentTranscript);
+        }
+    }, 3000);
+}
+
+// 处理识别结果
+function processRecognitionResult(text) {
+    stopRecording();
+    
+    // 显示结果
+    document.getElementById('recognizedText').textContent = text;
+    recognizedFoods = parseVoiceText(text);
+    
+    if (recognizedFoods.length === 0) {
+        document.getElementById('foodList').innerHTML = 
+            '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 未能识别食物，已填充到下方输入框，可修改后重新识别</div>';
+        document.getElementById('textInput').value = text;
+    } else {
+        let html = '';
+        recognizedFoods.forEach((item) => {
+            html += '<div class="card mb-2"><div class="card-body py-2"><div class="d-flex justify-content-between align-items-center"><div><strong>' + item.quantity + item.unit + '</strong> ' + item.name + '</div><span class="badge bg-success">' + item.calories + ' kcal</span></div></div></div>';
+        });
+        document.getElementById('foodList').innerHTML = html;
+        updateNutritionTable();
+    }
+    
+    // 显示结果卡片
+    document.getElementById('voiceArea').style.display = 'none';
+    document.getElementById('recordingIndicator').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    
+    const resultCard = document.getElementById('resultCard');
+    resultCard.style.display = 'block';
+    resultCard.style.animation = 'fadeInUp 0.5s ease';
+    
+    resultCard.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 解析语音文本
+function parseVoiceText(text) {
+    const results = [];
+    text = text.replace(/[，。！？、]/g, ' ');
+    
+    const pattern1 = /([一二两三四五六七八九十\d]+)\s*(个|碗|杯|瓶|份|块|根|盘|袋|条)?\s*(.+?)(?:\s|$)/g;
+    let match;
+    
+    while ((match = pattern1.exec(text)) !== null) {
+        const q = match[1];
+        const u = match[2] || '';
+        const name = match[3].trim();
+        const quantity = quantityMap[q] || parseInt(q) || 1;
+        
+        for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
+            if (name.includes(foodName) || foodName.includes(name)) {
+                results.push({
+                    name: foodName,
+                    quantity: quantity,
+                    unit: u || nutrition.serving,
+                    calories: Math.round(nutrition.calories * quantity),
+                    protein: Math.round(nutrition.protein * quantity * 10) / 10,
+                    carbs: Math.round(nutrition.carbs * quantity * 10) / 10,
+                    fat: Math.round(nutrition.fat * quantity * 10) / 10
+                });
+                break;
+            }
+        }
+    }
+    
+    // 简单匹配
+    if (results.length === 0) {
+        for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
+            if (text.includes(foodName)) {
+                results.push({
+                    name: foodName,
+                    quantity: 1,
+                    unit: nutrition.serving,
+                    calories: nutrition.calories,
+                    protein: nutrition.protein,
+                    carbs: nutrition.carbs,
+                    fat: nutrition.fat
+                });
+                break;
+            }
+        }
+    }
+    
+    return results;
+}
+
+// 更新营养表格
+function updateNutritionTable() {
+    let html = '';
+    let totalCal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    
+    recognizedFoods.forEach((item) => {
+        html += '<tr><td>' + item.name + '</td><td>' + item.quantity + item.unit + '</td><td>' + item.calories + '</td><td>' + item.protein + '</td><td>' + item.carbs + '</td><td>' + item.fat + '</td></tr>';
+        totalCal += item.calories;
+        totalProtein += item.protein;
+        totalCarbs += item.carbs;
+        totalFat += item.fat;
+    });
+    
+    document.getElementById('nutritionTable').innerHTML = html;
+    document.getElementById('totalCal').textContent = Math.round(totalCal);
+    document.getElementById('totalProtein').textContent = Math.round(totalProtein * 10) / 10;
+    document.getElementById('totalCarbs').textContent = Math.round(totalCarbs * 10) / 10;
+    document.getElementById('totalFat').textContent = Math.round(totalFat * 10) / 10;
+}
+
+// 开始语音
 function startVoiceInput() {
     if (!recognition) {
-        alert('您的浏览器不支持语音识别，请使用Chrome浏览器并允许麦克风权限');
+        alert('语音识别不可用，请使用文字输入');
         return;
     }
     
@@ -203,136 +430,95 @@ function startVoiceInput() {
         return;
     }
     
-    isRecording = true;
-    recognition.start();
-    
-    document.getElementById('voiceArea').style.display = 'none';
-    document.getElementById('recordingIndicator').style.display = 'block';
+    try {
+        isRecording = true;
+        currentTranscript = '';
+        
+        // 更新UI
+        const micButton = document.getElementById('micButton');
+        micButton.classList.remove('ready');
+        micButton.classList.add('recording');
+        micButton.innerHTML = '<i class="bi bi-mic-fill" style="font-size: 4rem;"></i>';
+        
+        document.getElementById('voiceArea').style.display = 'none';
+        document.getElementById('recordingIndicator').style.display = 'block';
+        document.getElementById('actionButtons').style.display = 'none';
+        
+        recognition.start();
+        resetSpeechTimeout();
+    } catch(e) {
+        console.error('启动语音识别失败:', e);
+        isRecording = false;
+        alert('无法启动语音识别');
+    }
 }
 
+// 停止语音
 function stopRecording() {
     isRecording = false;
+    clearTimeout(speechTimeout);
+    
+    const micButton = document.getElementById('micButton');
+    if (micButton) {
+        micButton.classList.remove('recording');
+    }
+    
     if (recognition) {
-        recognition.stop();
+        try { recognition.stop(); } catch(e) {}
     }
+}
+
+// 文字输入处理
+function processTextInput() {
+    const text = document.getElementById('textInput').value.trim();
+    if (!text) {
+        alert('请输入食物名称');
+        return;
+    }
+    
+    // 禁用按钮防止重复点击
+    const btn = document.getElementById('textSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 识别中...';
+    
+    // 隐藏麦克风
+    document.getElementById('voiceArea').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    
+    // 直接显示结果
+    processRecognitionResult(text);
+    
+    // 恢复按钮状态
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-search"></i> 识别';
+    }, 1000);
+}
+
+// 继续记录
+function continueRecording() {
+    document.getElementById('resultCard').style.display = 'none';
     document.getElementById('voiceArea').style.display = 'block';
-    document.getElementById('recordingIndicator').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'block';
+    
+    // 重置状态
+    recognizedFoods = [];
+    currentTranscript = '';
     document.getElementById('voiceHint').textContent = '点击麦克风开始说话';
+    
+    const micButton = document.getElementById('micButton');
+    micButton.classList.add('ready');
+    
+    document.getElementById('voiceArea').scrollIntoView({ behavior: 'smooth' });
 }
 
-function processVoiceInput(text) {
-    stopRecording();
-    
-    document.getElementById('recognizedText').textContent = text;
-    recognizedFoods = parseVoiceText(text);
-    
-    if (recognizedFoods.length === 0) {
-        document.getElementById('foodList').innerHTML = 
-            '<div class="alert alert-warning">未能识别食物，请尝试说出食物名称和数量</div>';
-    } else {
-        let html = '';
-        recognizedFoods.forEach((item, index) => {
-            html += `
-                <div class="card mb-2">
-                    <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${item.quantity}${item.unit || '份'}</strong> ${item.name}
-                            </div>
-                            <span class="badge bg-success">${item.calories} kcal</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        document.getElementById('foodList').innerHTML = html;
-        
-        updateNutritionTable();
-    }
-    
-    document.getElementById('resultCard').style.display = 'block';
-}
-
-function parseVoiceText(text) {
-    const results = [];
-    const patterns = [
-        /([一二两三四五六七八九十\d]+)\s*(个|碗|杯|瓶|份|块|根|盘|克|g)?\s*(.+?)(?:好?|了|$)/g,
-        /(一碗|一杯|一个|一瓶|一份|一块|一根|一盘)(.+?)(?:好?|了|$)/g,
-        /(\d+)\s*克\s*(.+?)(?:好?|了|$)/g
-    ];
-    
-    for (const pattern of patterns) {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            let quantity = 1;
-            let unit = '';
-            let name = '';
-            
-            if (match[2] && match[3]) {
-                quantity = quantityMap[match[1]] || 1;
-                unit = match[2];
-                name = match[3];
-            } else if (match[1].startsWith('一')) {
-                quantity = 1;
-                unit = match[1].replace('一', '');
-                name = match[2];
-            } else {
-                continue;
-            }
-            
-            name = name.trim();
-            
-            for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
-                if (name.includes(foodName) || foodName.includes(name)) {
-                    const factor = quantity;
-                    results.push({
-                        name: foodName,
-                        quantity: quantity,
-                        unit: unit || nutrition.serving,
-                        calories: Math.round(nutrition.calories * factor),
-                        protein: Math.round(nutrition.protein * factor * 10) / 10,
-                        carbs: Math.round(nutrition.carbs * factor * 10) / 10,
-                        fat: Math.round(nutrition.fat * factor * 10) / 10
-                    });
-                    break;
-                }
-            }
-        }
-    }
-    
-    return results;
-}
-
-function updateNutritionTable() {
-    let tbody = document.getElementById('nutritionTable');
-    tbody.innerHTML = '';
-    
-    let totalCal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
-    
-    recognizedFoods.forEach(item => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${item.name}</td>
-                <td>${item.quantity}${item.unit}</td>
-                <td>${item.calories} kcal</td>
-                <td>${item.protein}g</td>
-                <td>${item.carbs}g</td>
-                <td>${item.fat}g</td>
-            </tr>
-        `;
-        totalCal += item.calories;
-        totalProtein += item.protein;
-        totalCarbs += item.carbs;
-        totalFat += item.fat;
-    });
-    
-    document.getElementById('totalCal').textContent = totalCal;
-    document.getElementById('totalProtein').textContent = totalProtein;
-    document.getElementById('totalCarbs').textContent = totalCarbs;
-    document.getElementById('totalFat').textContent = totalFat;
-}
-
+// 保存所有记录
 function saveAllRecords() {
+    if (recognizedFoods.length === 0) {
+        alert('没有可添加的食物');
+        return;
+    }
+    
     fetch('{{ url_for("add_diet_record") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -341,46 +527,75 @@ function saveAllRecords() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('已添加到今日饮食记录！');
-            window.location.href = '{{ url_for("diet") }}';
+            alert('已添加到今日饮食！');
+            continueRecording();
+        } else {
+            alert('添加失败：' + (data.error || '未知错误'));
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加失败，请重试');
     });
 }
 
-function showExamples() {
-    new bootstrap.Modal(document.getElementById('exampleModal')).show();
-}
-
-function switchToText() {
-    window.location.href = '{{ url_for("food_text") }}';
-}
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化语音识别
+    const speechAvailable = initSpeechRecognition();
+    
+    if (!speechAvailable) {
+        document.getElementById('voiceArea').style.display = 'none';
+    } else {
+        document.getElementById('micButton').classList.add('ready');
+    }
+    
+    // 绑定按钮事件 - 使用 addEventListener 提高兼容性
+    const micBtn = document.getElementById('micButton');
+    const stopBtnEl = document.getElementById('stopBtn');
+    const textSubmitBtn = document.getElementById('textSubmitBtn');
+    const saveAllBtnEl = document.getElementById('saveAllBtn');
+    const continueBtnEl = document.getElementById('continueBtn');
+    const examplesBtn = document.getElementById('examplesBtn');
+    const textModeBtn = document.getElementById('textModeBtn');
+    const textInputEl = document.getElementById('textInput');
+    
+    micBtn.addEventListener('click', startVoiceInput);
+    stopBtnEl.addEventListener('click', stopRecording);
+    textSubmitBtn.addEventListener('click', processTextInput);
+    saveAllBtnEl.addEventListener('click', saveAllRecords);
+    continueBtnEl.addEventListener('click', continueRecording);
+    examplesBtn.addEventListener('click', function() {
+        new bootstrap.Modal(document.getElementById('exampleModal')).show();
+    });
+    textModeBtn.addEventListener('click', function() {
+        window.location.href = '{{ url_for("food_text") }}';
+    });
+    
+    // 回车提交
+    textInputEl.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            processTextInput();
+        }
+    });
+    
+    // 确保文字输入按钮在移动端也能响应
+    textSubmitBtn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        processTextInput();
+    });
+    
+    // 移动端触摸事件
+    const micButton = document.getElementById('micButton');
+    micButton.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        this.style.transform = 'scale(0.95)';
+    }, { passive: false });
+    micButton.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        this.style.transform = '';
+        startVoiceInput();
+    }, { passive: false });
+});
 </script>
-<style>
-.recording-animation {
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    height: 60px;
-    gap: 6px;
-}
-
-.recording-animation span {
-    width: 12px;
-    height: 12px;
-    background: #dc3545;
-    border-radius: 50%;
-    animation: bounce 1s infinite;
-}
-
-.recording-animation span:nth-child(1) { animation-delay: 0s; }
-.recording-animation span:nth-child(2) { animation-delay: 0.1s; }
-.recording-animation span:nth-child(3) { animation-delay: 0.2s; }
-.recording-animation span:nth-child(4) { animation-delay: 0.3s; }
-.recording-animation span:nth-child(5) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-    0%, 100% { height: 12px; }
-    50% { height: 50px; }
-}
-</style>
 {% endblock %}

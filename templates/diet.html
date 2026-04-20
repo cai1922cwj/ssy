@@ -34,7 +34,7 @@
     <div class="col-6 col-md-3">
         <div class="card bg-primary text-white h-100">
             <div class="card-body text-center p-3">
-                <h4 class="mb-1">{{ total_calories|int }}</h4>
+                <h4 class="mb-1">{{ total_calories|round|int }}</h4>
                 <small class="d-block mb-2">摄入热量</small>
                 <div class="progress" style="height: 6px; background: rgba(255,255,255,0.3);">
                     <div class="progress-bar bg-white" style="width: {{ (total_calories / target_calories * 100)|round|int if target_calories > 0 else 0 }}%"></div>
@@ -46,7 +46,7 @@
     <div class="col-6 col-md-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body text-center p-3">
-                <h4 class="mb-1">{{ total_protein|int }}g</h4>
+                <h4 class="mb-1">{{ (total_protein)|round(1) }}g</h4>
                 <small>蛋白质</small>
             </div>
         </div>
@@ -54,7 +54,7 @@
     <div class="col-6 col-md-3">
         <div class="card bg-warning text-dark h-100">
             <div class="card-body text-center p-3">
-                <h4 class="mb-1">{{ total_carbs|int }}g</h4>
+                <h4 class="mb-1">{{ (total_carbs)|round(1) }}g</h4>
                 <small>碳水</small>
             </div>
         </div>
@@ -62,7 +62,7 @@
     <div class="col-6 col-md-3">
         <div class="card bg-danger text-white h-100">
             <div class="card-body text-center p-3">
-                <h4 class="mb-1">{{ total_fat|int }}g</h4>
+                <h4 class="mb-1">{{ (total_fat)|round(1) }}g</h4>
                 <small>脂肪</small>
             </div>
         </div>
@@ -94,7 +94,7 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <small class="text-muted">
-                        蛋{{ record.protein|int }}g · 碳{{ record.carbs|int }}g · 脂{{ record.fat|int }}g
+                        蛋{{ (record.protein)|round(1) }}g · 碳{{ (record.carbs)|round(1) }}g · 脂{{ (record.fat)|round(1) }}g
                     </small>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-primary" onclick="editRecord({{ record.id }}, '{{ record.food_name }}', {{ record.quantity }}, {{ record.calories }}, {{ record.protein }}, {{ record.carbs }}, {{ record.fat }}, '{{ record.meal_type }}')" title="编辑">
@@ -135,10 +135,10 @@
                         </td>
                         <td>{{ record.food_name }}</td>
                         <td>{{ record.quantity|int }}g</td>
-                        <td class="text-danger fw-bold">{{ record.calories|int }} kcal</td>
-                        <td>{{ record.protein|int }}g</td>
-                        <td>{{ record.carbs|int }}g</td>
-                        <td>{{ record.fat|int }}g</td>
+                        <td class="text-danger fw-bold">{{ record.calories|round|int }} kcal</td>
+                        <td>{{ (record.protein)|round(1) }}g</td>
+                        <td>{{ (record.carbs)|round(1) }}g</td>
+                        <td>{{ (record.fat)|round(1) }}g</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary" onclick="editRecord({{ record.id }}, '{{ record.food_name }}', {{ record.quantity }}, {{ record.calories }}, {{ record.protein }}, {{ record.carbs }}, {{ record.fat }}, '{{ record.meal_type }}')" title="编辑">
                                 <i class="bi bi-pencil"></i>

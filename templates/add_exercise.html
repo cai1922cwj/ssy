@@ -5,33 +5,200 @@
 
 <form method="POST" class="card">
     <div class="card-body">
-        <div class="mb-3">
-            <label class="form-label">选择运动项目</label>
+        <!-- 常用运动快捷选择 -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">
+                <i class="bi bi-star-fill text-warning"></i> 常用运动
+            </label>
             <div class="row g-2 mb-3">
-                {% for ex in exercises %}
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="form-check card p-2">
-                        <input class="form-check-input" type="radio" name="exercise_id" value="{{ ex.id }}" id="ex{{ ex.id }}">
-                        <label class="form-check-label w-100" for="ex{{ ex.id }}">
-                            <div class="text-center">
-                                <small>{{ ex.name }}</small>
-                                <div class="small text-muted">{{ ex.calories_per_hour }} kcal/h</div>
-                            </div>
-                        </label>
+                {% for ex in common_exercises %}
+                <div class="col-4 col-md-3 col-lg-2">
+                    <div class="quick-exercise-btn p-2 border rounded text-center cursor-pointer {{ 'selected' if selected_id == ex.id else '' }}" 
+                         data-id="{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                        <div class="fw-bold small">{{ ex.name }}</div>
+                        <div class="text-muted small">{{ ex.calories_per_hour }}kcal/h</div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
+
+        <!-- 全部分类选择 -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="form-label fw-bold mb-0">
+                    <i class="bi bi-list-ul"></i> 选择运动项目
+                </label>
+                <span class="badge bg-secondary" id="selected_count">已选: 0 项</span>
+            </div>
+            
+            <!-- 分类标签 -->
+            <ul class="nav nav-pills mb-3" id="exerciseTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button">全部</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cardio-tab" data-bs-toggle="tab" data-bs-target="#cardio" type="button">有氧运动</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="strength-tab" data-bs-toggle="tab" data-bs-target="#strength" type="button">力量训练</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sports-tab" data-bs-toggle="tab" data-bs-target="#sports" type="button">球类运动</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button">日常活动</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="flex-tab" data-bs-toggle="tab" data-bs-target="#flex" type="button">休闲运动</button>
+                </li>
+            </ul>
+            
+            <!-- 运动项目网格 -->
+            <div class="tab-content" id="exerciseTabContent">
+                <!-- 全部 -->
+                <div class="tab-pane fade show active" id="all" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item" data-category="{{ ex.category }}">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 有氧运动 -->
+                <div class="tab-pane fade" id="cardio" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises if ex.category == 'cardio' %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 力量训练 -->
+                <div class="tab-pane fade" id="strength" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises if ex.category == 'strength' %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 球类运动 -->
+                <div class="tab-pane fade" id="sports" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises if ex.category == 'sports' %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 日常活动 -->
+                <div class="tab-pane fade" id="daily" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises if ex.category == 'daily' %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 休闲运动 -->
+                <div class="tab-pane fade" id="flex" role="tabpanel">
+                    <div class="row g-2">
+                        {% for ex in exercises if ex.category == 'flexibility' %}
+                        <div class="col-6 col-md-4 col-lg-3 exercise-item">
+                            <div class="form-check exercise-card p-3 border rounded h-100">
+                                <input class="form-check-input exercise-checkbox" type="checkbox" name="exercise_ids" value="{{ ex.id }}" id="ex{{ ex.id }}" data-cal="{{ ex.calories_per_hour }}" data-name="{{ ex.name }}">
+                                <label class="form-check-label w-100" for="ex{{ ex.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">{{ ex.name }}</div>
+                                            <div class="small text-muted">{{ ex.description }}</div>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">{{ ex.calories_per_hour }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
         
+        <!-- 运动时长 -->
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">运动时长 (分钟)</label>
-                <input type="number" name="duration" class="form-control" value="30" min="1" required>
+                <input type="number" name="duration" id="duration" class="form-control" value="30" min="1" required>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">运动强度</label>
-                <select name="intensity" class="form-select">
+                <select name="intensity" id="intensity" class="form-select">
                     <option value="low">低强度</option>
                     <option value="moderate" selected>中等强度</option>
                     <option value="high">高强度</option>
@@ -39,18 +206,36 @@
             </div>
         </div>
         
+        <!-- 手动输入（备选） -->
         <div class="mb-3">
-            <label class="form-label">或手动输入运动名称</label>
-            <input type="text" name="exercise_name" class="form-control" placeholder="如果上方没有您要的运动">
+            <label class="form-label">
+                <i class="bi bi-keyboard"></i> 或手动输入自定义运动
+            </label>
+            <div class="row g-2">
+                <div class="col-8">
+                    <input type="text" name="exercise_name" id="custom_exercise" class="form-control" placeholder="运动名称">
+                </div>
+                <div class="col-4">
+                    <input type="number" name="custom_calories" id="custom_calories" class="form-control" placeholder="kcal/h">
+                </div>
+            </div>
         </div>
         
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> 
-            预计消耗: <span id="calories_preview" class="fw-bold">150</span> kcal
+        <!-- 热量预览 -->
+        <div class="alert alert-info" id="calories_preview_box">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-fire"></i> 
+                    预计总消耗: <span id="calories_preview" class="fw-bold fs-5">0</span> kcal
+                </div>
+                <small class="text-muted" id="duration_note"></small>
+            </div>
+            <div class="selected-items mt-2" id="selected_items"></div>
         </div>
         
+        <!-- 提交按钮 -->
         <div class="d-grid">
-            <button type="submit" class="btn btn-primary btn-lg">
+            <button type="submit" class="btn btn-primary btn-lg" id="submit_btn" disabled>
                 <i class="bi bi-check-lg"></i> 确认添加
             </button>
         </div>
@@ -59,26 +244,178 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+.exercise-card {
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.exercise-card:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+.exercise-card input:checked + label {
+    color: var(--bs-primary);
+}
+.exercise-card input:checked ~ * {
+    border-color: var(--bs-primary) !important;
+}
+.quick-exercise-btn {
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.quick-exercise-btn:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+.quick-exercise-btn.selected {
+    border-color: var(--bs-primary) !important;
+    background-color: var(--bs-primary);
+    color: white;
+}
+.quick-exercise-btn.selected .text-muted {
+    color: rgba(255,255,255,0.8) !important;
+}
+.selected-item-tag {
+    display: inline-block;
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin: 2px;
+}
+.cursor-pointer { cursor: pointer; }
+</style>
 <script>
-document.querySelectorAll('input[name="exercise_id"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const selected = document.querySelector('input[name="exercise_id"]:checked');
-        if (selected) {
-            const label = selected.nextElementSibling;
-            const caloriesText = label.querySelector('.text-muted').textContent;
-            const perHour = parseInt(caloriesText);
-            const duration = parseInt(document.querySelector('input[name="duration"]').value);
-            const estimated = Math.round(perHour * duration / 60);
-            document.getElementById('calories_preview').textContent = estimated;
-        }
-    });
-});
-
-document.querySelector('input[name="duration"]').addEventListener('input', function() {
-    const selected = document.querySelector('input[name="exercise_id"]:checked');
-    if (selected) {
-        selected.dispatchEvent(new Event('change'));
+document.addEventListener('DOMContentLoaded', function() {
+    const quickBtns = document.querySelectorAll('.quick-exercise-btn');
+    const checkboxes = document.querySelectorAll('.exercise-checkbox');
+    const durationInput = document.getElementById('duration');
+    const intensitySelect = document.getElementById('intensity');
+    const caloriesPreview = document.getElementById('calories_preview');
+    const selectedCount = document.getElementById('selected_count');
+    const selectedItems = document.getElementById('selected_items');
+    const submitBtn = document.getElementById('submit_btn');
+    const customExercise = document.getElementById('custom_exercise');
+    const customCalories = document.getElementById('custom_calories');
+    
+    // 强度系数
+    const intensityFactor = {
+        'low': 0.7,
+        'moderate': 1.0,
+        'high': 1.3
+    };
+    
+    // 获取已选择的运动
+    function getSelectedExercises() {
+        const selected = [];
+        document.querySelectorAll('.exercise-checkbox:checked').forEach(cb => {
+            selected.push({
+                id: cb.value,
+                name: cb.dataset.name,
+                calPerHour: parseInt(cb.dataset.cal)
+            });
+        });
+        return selected;
     }
+    
+    // 计算总热量
+    function calculateCalories() {
+        const duration = parseInt(durationInput.value) || 0;
+        const intensity = intensitySelect.value;
+        const factor = intensityFactor[intensity];
+        
+        let selected = getSelectedExercises();
+        
+        // 加上自定义运动
+        if (customExercise.value && customCalories.value) {
+            selected.push({
+                name: customExercise.value,
+                calPerHour: parseInt(customCalories.value)
+            });
+        }
+        
+        if (selected.length === 0 || duration === 0) {
+            return 0;
+        }
+        
+        let total = 0;
+        selected.forEach(ex => {
+            total += ex.calPerHour * factor * duration / 60;
+        });
+        
+        return Math.round(total);
+    }
+    
+    // 更新UI
+    function updateUI() {
+        const selected = getSelectedExercises();
+        const count = selected.length;
+        const hasCustom = customExercise.value && customCalories.value;
+        const totalCount = count + (hasCustom ? 1 : 0);
+        
+        // 更新计数
+        selectedCount.textContent = `已选: ${totalCount} 项`;
+        
+        // 更新已选项目标签
+        let tagsHtml = '';
+        selected.forEach(ex => {
+            tagsHtml += `<span class="selected-item-tag">${ex.name}</span>`;
+        });
+        if (hasCustom) {
+            tagsHtml += `<span class="selected-item-tag">${customExercise.value}</span>`;
+        }
+        selectedItems.innerHTML = tagsHtml;
+        
+        // 更新热量
+        caloriesPreview.textContent = calculateCalories();
+        
+        // 更新提交按钮状态
+        submitBtn.disabled = totalCount === 0;
+    }
+    
+    // 快捷按钮点击
+    quickBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const checkbox = document.getElementById('ex' + id);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                this.classList.toggle('selected', checkbox.checked);
+            }
+            updateUI();
+        });
+    });
+    
+    // 复选框变化
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            // 同步快捷按钮状态
+            const quickBtn = document.querySelector(`.quick-exercise-btn[data-id="${this.value}"]`);
+            if (quickBtn) {
+                quickBtn.classList.toggle('selected', this.checked);
+            }
+            updateUI();
+        });
+    });
+    
+    // 时长和强度变化
+    durationInput.addEventListener('input', updateUI);
+    intensitySelect.addEventListener('change', updateUI);
+    
+    // 自定义运动变化
+    customExercise.addEventListener('input', updateUI);
+    customCalories.addEventListener('input', updateUI);
+    
+    // Tab切换时保持复选框状态
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', updateUI);
+    });
+    
+    // 初始化
+    updateUI();
 });
 </script>
 {% endblock %}

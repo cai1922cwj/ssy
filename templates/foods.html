@@ -57,6 +57,15 @@
                             {% if food.is_custom %}
                             <span class="badge bg-info ms-1">自定义</span>
                             {% endif %}
+                            {% if food.food_nature %}
+                            <span class="badge ms-1 {% if food.food_nature == 'cold' %}bg-primary{% elif food.food_nature == 'cool' %}bg-info{% elif food.food_nature == 'neutral' %}bg-secondary{% elif food.food_nature == 'warm' %}bg-warning text-dark{% elif food.food_nature == 'hot' %}bg-danger{% endif %}">
+                                {% if food.food_nature == 'cold' %}寒
+                                {% elif food.food_nature == 'cool' %}凉
+                                {% elif food.food_nature == 'neutral' %}平
+                                {% elif food.food_nature == 'warm' %}温
+                                {% elif food.food_nature == 'hot' %}热{% endif %}
+                            </span>
+                            {% endif %}
                         </td>
                         <td>{{ food.category or '-' }}</td>
                         <td class="text-danger fw-bold">{{ food.calories|int }} kcal</td>
@@ -121,10 +130,23 @@ function showFoodDetail(foodId) {
         .then(food => {
             currentFood = food;
             document.getElementById('foodDetailTitle').textContent = food.name;
+            
+            // 食性标签
+            const natureMap = {
+                'cold': { label: '寒性', class: 'bg-primary', desc: '清热泻火，适合热性体质' },
+                'cool': { label: '凉性', class: 'bg-info', desc: '清热生津，适合偏热体质' },
+                'neutral': { label: '平性', class: 'bg-secondary', desc: '性平温和，适合大多数人群' },
+                'warm': { label: '温性', class: 'bg-warning text-dark', desc: '温中散寒，适合偏寒体质' },
+                'hot': { label: '热性', class: 'bg-danger', desc: '温热助阳，适合寒性体质' }
+            };
+            const nature = natureMap[food.food_nature] || natureMap['neutral'];
+            
             document.getElementById('foodDetailContent').innerHTML = `
                 <div class="text-center mb-3">
-                    <span class="badge bg-danger fs-6 px-3 py-2">${food.calories} kcal / 100g</span>
+                    <span class="badge ${nature.class} fs-6 px-3 py-2">${nature.label}食物</span>
+                    <span class="badge bg-danger fs-6 px-3 py-2 ms-2">${food.calories} kcal / 100g</span>
                 </div>
+                ${food.food_nature ? `<div class="alert alert-light text-center small mb-3">${nature.desc}</div>` : ''}
                 <table class="table table-sm">
                     <tr><td>蛋白质</td><td class="fw-bold">${food.protein}g</td></tr>
                     <tr><td>碳水化合物</td><td class="fw-bold">${food.carbs}g</td></tr>

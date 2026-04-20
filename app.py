@@ -10,6 +10,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
+from datetime import timezone, tzinfo
 import os
 import json
 import base64
@@ -18,7 +19,8 @@ import re
 from io import BytesIO
 import feedparser
 
-from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, BmiRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog
+from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, BmiRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog, PageView
+from functools import wraps
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -77,6 +79,69 @@ def inject_variables():
 
 
 # ==================== 辅助函数 ====================
+
+# 北京时区 (UTC+8)
+BJ_TZ = timezone(timedelta(hours=8))
+
+def now_bj():
+    """获取北京时间"""
+    return datetime.now(BJ_TZ)
+
+# 页面名称映射
+PAGE_NAMES = {
+    'index': '首页',
+    'diet': '饮食记录',
+    'add_diet': '添加饮食',
+    'foods': '食物库',
+    'exercise': '运动记录',
+    'add_exercise': '添加运动',
+    'weight': '体重管理',
+    'sleep': '睡眠记录',
+    'profile': '个人设置',
+    'news': '健康新闻',
+    'ai_analysis': 'AI分析',
+    'fasting': '轻断食',
+    'beverages': '饮品记录',
+    'food_camera': '拍照识别',
+    'food_text': '文本输入',
+    'food_voice': '语音输入',
+    'food_barcode': '扫码识别',
+    'learned_foods': '学习库',
+    'learned_food_detail': '学习详情',
+}
+
+def track_page_view(f_page_name=None):
+    """页面访问记录装饰器"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 执行原函数
+            response = f(*args, **kwargs)
+            
+            # 仅在用户已登录时记录
+            if current_user.is_authenticated:
+                try:
+                    endpoint = request.endpoint or ''
+                    page_name = f_page_name or PAGE_NAMES.get(endpoint, endpoint)
+                    
+                    # 记录访问
+                    view = PageView(
+                        user_id=current_user.id,
+                        endpoint=endpoint,
+                        page_name=page_name,
+                        page_url=request.full_path if request.query_string else request.path,
+                        referrer=request.referrer or '',
+                        user_agent=request.user_agent.string[:255] if request.user_agent else ''
+                    )
+                    db.session.add(view)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"记录页面访问失败: {e}")
+            
+            return response
+        return decorated_function
+    return decorator
 
 def init_database():
     """初始化数据库和示例数据"""
@@ -194,29 +259,50 @@ def init_exercises():
         Exercise(name='快走', category='cardio', met_value=3.8, calories_per_hour=280, description='户外或跑步机快走'),
         Exercise(name='慢跑', category='cardio', met_value=7.0, calories_per_hour=500, description='每小时7-8公里'),
         Exercise(name='跑步', category='cardio', met_value=9.8, calories_per_hour=700, description='每小时10-12公里'),
+        Exercise(name='快跑', category='cardio', met_value=11.0, calories_per_hour=800, description='冲刺或高强度跑'),
         Exercise(name='游泳', category='cardio', met_value=6.0, calories_per_hour=450, description='自由泳'),
+        Exercise(name='游泳(慢)', category='cardio', met_value=4.0, calories_per_hour=300, description='休闲游泳'),
         Exercise(name='骑自行车', category='cardio', met_value=5.8, calories_per_hour=400, description='户外骑行'),
+        Exercise(name='动感单车', category='cardio', met_value=7.0, calories_per_hour=500, description='室内动感单车'),
         Exercise(name='跳绳', category='cardio', met_value=11.8, calories_per_hour=850, description='中等强度'),
-        Exercise(name='瑜伽', category='flexibility', met_value=3.0, calories_per_hour=200, description='哈他瑜伽'),
         Exercise(name='健身操', category='cardio', met_value=6.5, calories_per_hour=480, description='有氧健身操'),
+        Exercise(name='有氧舞蹈', category='cardio', met_value=5.5, calories_per_hour=400, description='舞蹈有氧'),
+        Exercise(name='爬山', category='cardio', met_value=7.5, calories_per_hour=550, description='户外爬山'),
+        Exercise(name='划船机', category='cardio', met_value=7.0, calories_per_hour=500, description='室内划船'),
+        Exercise(name='椭圆机', category='cardio', met_value=5.0, calories_per_hour=360, description='椭圆机训练'),
         
         # 力量训练
         Exercise(name='哑铃训练', category='strength', met_value=5.0, calories_per_hour=350, description='上肢力量训练'),
+        Exercise(name='杠铃训练', category='strength', met_value=6.0, calories_per_hour=420, description='负重训练'),
         Exercise(name='深蹲', category='strength', met_value=5.0, calories_per_hour=350, description='自重深蹲'),
         Exercise(name='硬拉', category='strength', met_value=6.0, calories_per_hour=420, description='负重硬拉'),
         Exercise(name='俯卧撑', category='strength', met_value=4.0, calories_per_hour=280, description='标准俯卧撑'),
         Exercise(name='平板支撑', category='strength', met_value=4.0, calories_per_hour=280, description='核心训练'),
+        Exercise(name='引体向上', category='strength', met_value=5.0, calories_per_hour=350, description='自重或负重'),
+        Exercise(name='核心训练', category='strength', met_value=4.5, calories_per_hour=320, description='腹肌训练'),
         
         # 球类运动
         Exercise(name='篮球', category='sports', met_value=8.0, calories_per_hour=580, description='半场或全场'),
         Exercise(name='足球', category='sports', met_value=8.0, calories_per_hour=580, description='比赛或训练'),
+        Exercise(name='羽毛球', category='sports', met_value=5.5, calories_per_hour=400, description='单打比赛'),
         Exercise(name='网球', category='sports', met_value=7.3, calories_per_hour=520, description='单打比赛'),
         Exercise(name='乒乓球', category='sports', met_value=4.0, calories_per_hour=280, description='休闲打球'),
+        Exercise(name='排球', category='sports', met_value=3.0, calories_per_hour=220, description='室内排球'),
+        Exercise(name='高尔夫', category='sports', met_value=3.5, calories_per_hour=250, description='步行下场'),
+        Exercise(name='保龄球', category='sports', met_value=3.0, calories_per_hour=220, description='休闲保龄球'),
         
         # 日常活动
+        Exercise(name='散步', category='daily', met_value=2.5, calories_per_hour=180, description='轻松步行'),
         Exercise(name='家务劳动', category='daily', met_value=3.5, calories_per_hour=250, description='清洁打扫'),
         Exercise(name='爬楼梯', category='cardio', met_value=8.8, calories_per_hour=650, description='连续爬楼'),
-        Exercise(name='散步', category='cardio', met_value=2.5, calories_per_hour=180, description='轻松步行'),
+        Exercise(name='遛狗', category='daily', met_value=3.0, calories_per_hour=220, description='遛宠物'),
+        Exercise(name='园艺', category='daily', met_value=4.0, calories_per_hour=280, description='种植除草'),
+        
+        # 休闲运动
+        Exercise(name='瑜伽', category='flexibility', met_value=3.0, calories_per_hour=200, description='哈他瑜伽'),
+        Exercise(name='普拉提', category='flexibility', met_value=3.8, calories_per_hour=280, description='核心普拉提'),
+        Exercise(name='太极', category='flexibility', met_value=3.0, calories_per_hour=200, description='太极拳'),
+        Exercise(name='八段锦', category='flexibility', met_value=3.0, calories_per_hour=200, description='传统健身功法'),
     ]
     
     for ex in exercises:
@@ -254,7 +340,7 @@ def init_news():
                         category = random.choice(categories)
                     
                     # 解析发布时间
-                    published_at = datetime.now()
+                    published_at = now_bj()
                     if hasattr(entry, 'published_parsed') and entry.published_parsed:
                         try:
                             from time import mktime
@@ -286,7 +372,7 @@ def init_news():
                 'source': news['source'],
                 'source_url': '',
                 'category': news['category'],
-                'published_at': datetime.now() - timedelta(days=i * 2)
+                'published_at': now_bj() - timedelta(days=i * 2)
             })
     
     # 写入数据库
@@ -323,7 +409,7 @@ def fetch_latest_news():
                     else:
                         category = random.choice(categories)
                     
-                    published_at = datetime.now()
+                    published_at = now_bj()
                     if hasattr(entry, 'published_parsed') and entry.published_parsed:
                         try:
                             from time import mktime
@@ -413,6 +499,7 @@ def calculate_life_expectancy():
 # ==================== 路由 ====================
 
 @app.route('/')
+@track_page_view('首页')
 def index():
     """首页"""
     life_expectancy_bonus, tips = calculate_life_expectancy() if current_user.is_authenticated else (0, [])
@@ -480,6 +567,7 @@ def logout():
 
 @app.route('/foods')
 @login_required
+@track_page_view('食物库')
 def foods():
     """食物库页面"""
     category = request.args.get('category')
@@ -884,6 +972,7 @@ def admin_sync_foods():
 
 @app.route('/diet')
 @login_required
+@track_page_view('饮食记录')
 def diet():
     """饮食记录页面"""
     record_date = request.args.get('date', date.today().isoformat())
@@ -926,29 +1015,68 @@ def add_diet_record():
             quantity = float(data.get('serving_size', 100))
             input_method = data.get('input_method', 'text')
             
-            # 支持批量添加（语音输入）
+            # 支持批量添加（多食物批量输入）
             foods = data.get('foods', [])
+            meal_type = data.get('meal_type', 'snack')
+            
+            # 获取记录日期
+            record_date_str = data.get('record_date')
+            if record_date_str:
+                try:
+                    record_date = datetime.strptime(record_date_str, '%Y-%m-%d').date()
+                except:
+                    record_date = date.today()
+            else:
+                record_date = date.today()
+            
             if foods:
                 for item in foods:
+                    quantity = float(item.get('quantity', 100))
+                    # 如果传入的是每100g数据，需要根据实际份量换算
+                    cal_per_100 = float(item.get('calories_per_100g', 0))
+                    if cal_per_100 > 0:
+                        calories = cal_per_100 * quantity / 100
+                        protein = float(item.get('protein_per_100g', 0)) * quantity / 100
+                        carbs = float(item.get('carbs_per_100g', 0)) * quantity / 100
+                        fat = float(item.get('fat_per_100g', 0)) * quantity / 100
+                    else:
+                        calories = float(item.get('calories', 0))
+                        protein = float(item.get('protein', 0))
+                        carbs = float(item.get('carbs', 0))
+                        fat = float(item.get('fat', 0))
+                    
                     record = FoodRecord(
                         user_id=current_user.id,
-                        food_name=item.get('name', '未知'),
-                        quantity=item.get('quantity', 1),
-                        meal_type='snack',
-                        calories=float(item.get('calories', 0)),
-                        protein=float(item.get('protein', 0)),
-                        carbs=float(item.get('carbs', 0)),
-                        fat=float(item.get('fat', 0)),
-                        input_method=input_method
+                        food_id=item.get('food_id'),
+                        food_name=item.get('food_name', '未知'),
+                        quantity=quantity,
+                        meal_type=meal_type,
+                        calories=calories,
+                        protein=protein,
+                        carbs=carbs,
+                        fat=fat,
+                        input_method=input_method,
+                        date=record_date,
+                        time=now_bj().time()  # 使用当前时间
                     )
                     db.session.add(record)
                 db.session.commit()
-                return jsonify({'success': True, 'message': '批量添加成功'})
+                return jsonify({'success': True, 'message': f'批量添加{len(foods)}条记录成功'})
         else:
             food_id = request.form.get('food_id')
             food_name = request.form.get('food_name')
             quantity = float(request.form.get('quantity', 100))
             meal_type = request.form.get('meal_type', 'snack')
+            
+            # 获取记录日期
+            record_date_str = request.form.get('record_date')
+            if record_date_str:
+                try:
+                    record_date = datetime.strptime(record_date_str, '%Y-%m-%d').date()
+                except:
+                    record_date = date.today()
+            else:
+                record_date = date.today()
             
             food = Food.query.get(food_id) if food_id else None
             
@@ -958,6 +1086,7 @@ def add_diet_record():
             user_carbs = float(request.form.get('carbs', 0) or 0)
             user_fat = float(request.form.get('fat', 0) or 0)
             
+            matched_food = None
             if user_calories > 0 or user_protein > 0 or user_carbs > 0 or user_fat > 0:
                 # 用户手动输入了营养数据
                 calories = user_calories
@@ -985,7 +1114,7 @@ def add_diet_record():
             
             record = FoodRecord(
                 user_id=current_user.id,
-                food_id=food_id or (matched_food.id if 'matched_food' in dir() else None),
+                food_id=food_id or (matched_food.id if matched_food else None),
                 food_name=food_name or (food.name if food else '未知食物'),
                 quantity=quantity,
                 meal_type=meal_type,
@@ -993,14 +1122,16 @@ def add_diet_record():
                 protein=protein,
                 carbs=carbs,
                 fat=fat,
-                input_method=request.form.get('input_method', 'text')
+                input_method=request.form.get('input_method', 'text'),
+                date=record_date,
+                time=now_bj().time()
             )
             
             db.session.add(record)
             db.session.commit()
             
             flash('饮食记录已添加！', 'success')
-            return redirect(url_for('diet'))
+            return redirect(url_for('diet', date=record_date.isoformat()))
         
         # JSON单条记录
         record = FoodRecord(
@@ -1030,7 +1161,7 @@ def add_diet_record():
         db.func.count(FoodRecord.id).desc()
     ).limit(10).all()
     
-    return render_template('add_diet.html', recent_foods=recent_foods)
+    return render_template('add_diet.html', recent_foods=recent_foods, today=date.today().isoformat())
 
 
 # ==================== 拍照识别食物 ====================
@@ -1191,6 +1322,7 @@ def api_diet_delete(record_id):
 
 @app.route('/exercise')
 @login_required
+@track_page_view('运动记录')
 def exercise():
     """运动记录页面"""
     record_date = request.args.get('date', date.today().isoformat())
@@ -1213,37 +1345,70 @@ def exercise():
 def add_exercise():
     """添加运动记录"""
     if request.method == 'POST':
-        exercise_id = request.form.get('exercise_id')
+        exercise_ids = request.form.getlist('exercise_ids')
         exercise_name = request.form.get('exercise_name')
         duration = int(request.form.get('duration', 30))
         intensity = request.form.get('intensity', 'moderate')
         
-        exercise = Exercise.query.get(exercise_id) if exercise_id else None
+        # 获取自定义运动的卡路里
+        custom_calories = request.form.get('custom_calories')
+        custom_name = request.form.get('exercise_name')
         
-        calories = 0
-        if exercise:
-            calories = exercise.get_calories_burned(current_user.weight, duration)
+        # 处理选择的运动
+        added_count = 0
+        total_calories = 0
+        
+        if exercise_ids:
+            for ex_id in exercise_ids:
+                try:
+                    exercise = Exercise.query.get(int(ex_id))
+                    if exercise:
+                        calories = exercise.get_calories_burned(current_user.weight, duration)
+                        record = ExerciseRecord(
+                            user_id=current_user.id,
+                            exercise_id=exercise.id,
+                            exercise_name=exercise.name,
+                            duration=duration,
+                            calories_burned=calories,
+                            intensity=intensity
+                        )
+                        db.session.add(record)
+                        total_calories += calories
+                        added_count += 1
+                except (ValueError, TypeError):
+                    continue
+        
+        # 处理自定义运动
+        if custom_name and custom_calories:
+            cal_per_hour = int(custom_calories)
+            # 根据强度调整
+            intensity_factor = {'low': 0.7, 'moderate': 1.0, 'high': 1.3}.get(intensity, 1.0)
+            calories = int(cal_per_hour * intensity_factor * duration / 60)
+            record = ExerciseRecord(
+                user_id=current_user.id,
+                exercise_name=custom_name,
+                duration=duration,
+                calories_burned=calories,
+                intensity=intensity
+            )
+            db.session.add(record)
+            total_calories += calories
+            added_count += 1
+        
+        if added_count > 0:
+            db.session.commit()
+            flash(f'已添加 {added_count} 项运动记录！共燃烧 {total_calories} kcal', 'success')
         else:
-            # 默认估算
-            calories = duration * 5  # 约5kcal/分钟
+            flash('请至少选择一项运动', 'warning')
         
-        record = ExerciseRecord(
-            user_id=current_user.id,
-            exercise_id=exercise_id,
-            exercise_name=exercise_name or (exercise.name if exercise else '未知运动'),
-            duration=duration,
-            calories_burned=calories,
-            intensity=intensity
-        )
-        
-        db.session.add(record)
-        db.session.commit()
-        
-        flash(f'运动记录已添加！燃烧了 {calories} kcal', 'success')
         return redirect(url_for('exercise'))
     
-    exercises = Exercise.query.order_by(Exercise.name).all()
-    return render_template('add_exercise.html', exercises=exercises)
+    exercises = Exercise.query.order_by(Exercise.category, Exercise.name).all()
+    # 常用运动：选择热量消耗较高的8种
+    common_exercises = Exercise.query.filter(
+        Exercise.name.in_(['跑步', '游泳', '骑自行车', '跳绳', '篮球', '羽毛球', '快走', '瑜伽'])
+    ).all()
+    return render_template('add_exercise.html', exercises=exercises, common_exercises=common_exercises)
 
 
 @app.route('/exercise/edit/<int:record_id>', methods=['GET', 'POST'])
@@ -1310,11 +1475,12 @@ def api_exercises():
 
 @app.route('/weight')
 @login_required
+@track_page_view('体重管理')
 def weight():
     """体重记录页面"""
     records = WeightRecord.query.filter_by(user_id=current_user.id).order_by(WeightRecord.date.desc()).limit(30).all()
     
-    current_weight = records[0].weight if records else current_user.weight
+    current_weight = records[0].weight if records else (current_user.weight or 65.0)
     weight_change = 0
     if len(records) >= 2:
         weight_change = records[0].weight - records[1].weight
@@ -1322,7 +1488,7 @@ def weight():
     return render_template('weight.html',
                          records=records,
                          current_weight=current_weight,
-                         weight_change=weight_change,
+                         weight_change=round(weight_change, 1),
                          target_weight=request.args.get('target', 65))
 
 
@@ -1356,14 +1522,6 @@ def save_bmi_record():
     try:
         data = request.get_json()
         
-        # 解析日期，默认今天
-        record_date = date.today()
-        if data.get('date'):
-            try:
-                record_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-            except:
-                record_date = date.today()
-        
         bmi_record = BmiRecord(
             user_id=current_user.id,
             bmi=data.get('bmi'),
@@ -1371,8 +1529,7 @@ def save_bmi_record():
             height=data.get('height'),
             weight=data.get('weight'),
             age=data.get('age', current_user.age),
-            gender=data.get('gender', current_user.gender),
-            date=record_date
+            gender=data.get('gender', current_user.gender)
         )
         
         db.session.add(bmi_record)
@@ -1462,126 +1619,52 @@ def calculate_bmi():
         }), 500
 
 
-@app.route('/api/bmi/update/<int:record_id>', methods=['POST'])
-@login_required
-def update_bmi_record(record_id):
-    """更新BMI记录"""
-    try:
-        record = BmiRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
-        if not record:
-            return jsonify({'success': False, 'message': '记录不存在'}), 404
-        
-        data = request.get_json()
-        
-        if 'bmi' in data:
-            record.bmi = data['bmi']
-        if 'date' in data:
-            record.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-        
-        # 重新计算分类
-        bmi = record.bmi
-        if bmi < 18.5:
-            record.category = '偏瘦'
-        elif bmi < 24.9:
-            record.category = '正常'
-        elif bmi < 29.9:
-            record.category = '超重'
-        elif bmi < 34.9:
-            record.category = 'I度肥胖'
-        elif bmi < 39.9:
-            record.category = 'II度肥胖'
-        else:
-            record.category = 'III度肥胖'
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'BMI记录已更新',
-            'record': record.to_dict()
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-
-
-@app.route('/api/bmi/delete/<int:record_id>', methods=['POST'])
-@login_required
-def delete_bmi_record(record_id):
-    """删除BMI记录"""
-    try:
-        record = BmiRecord.query.filter_by(id=record_id, user_id=current_user.id).first()
-        if not record:
-            return jsonify({'success': False, 'message': '记录不存在'}), 404
-        
-        db.session.delete(record)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'BMI记录已删除'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-
-
-@app.route('/weight/edit/<int:record_id>', methods=['GET', 'POST'])
-@login_required
-def edit_weight(record_id):
-    """编辑体重记录"""
-    record = WeightRecord.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
-    
-    if request.method == 'POST':
-        record.weight = float(request.form.get('weight'))
-        record.body_fat = request.form.get('body_fat')
-        record.notes = request.form.get('notes')
-        
-        # 更新用户当前体重
-        current_user.weight = record.weight
-        
-        db.session.commit()
-        flash('体重记录已更新！', 'success')
-        return redirect(url_for('weight'))
-    
-    return render_template('weight_edit.html', record=record)
-
-
-@app.route('/weight/delete/<int:record_id>', methods=['POST'])
-@login_required
-def delete_weight(record_id):
-    """删除体重记录"""
-    record = WeightRecord.query.filter_by(id=record_id, user_id=current_user.id).first_or_404()
-    
-    db.session.delete(record)
-    db.session.commit()
-    
-    flash('体重记录已删除！', 'success')
-    return redirect(url_for('weight'))
-
-
 # ==================== 睡眠管理 ====================
 
 @app.route('/sleep')
 @login_required
+@track_page_view('睡眠记录')
 def sleep():
     """睡眠记录页面"""
     records = SleepRecord.query.filter_by(user_id=current_user.id).order_by(SleepRecord.date.desc()).limit(14).all()
     
+    # 计算统计数据
     avg_duration = 0
     avg_quality = 0
+    avg_score = 0
+    avg_deep = 0
+    avg_rem = 0
+    today = date.today()
+    
     if records:
-        avg_duration = sum(r.duration for r in records if r.duration) / len(records)
-        avg_quality = sum(r.quality for r in records if r.quality) / len(records)
+        valid_records = [r for r in records if r.duration]
+        if valid_records:
+            avg_duration = sum(r.duration for r in valid_records) / len(valid_records)
+        
+        quality_records = [r for r in records if r.quality]
+        if quality_records:
+            avg_quality = sum(r.quality for r in quality_records) / len(quality_records)
+        
+        score_records = [r for r in records if r.sleep_score and r.sleep_score > 0]
+        if score_records:
+            avg_score = sum(r.sleep_score for r in score_records) / len(score_records)
+        
+        deep_records = [r for r in records if r.deep_sleep]
+        if deep_records:
+            avg_deep = sum(r.deep_sleep for r in deep_records) / len(deep_records)
+        
+        rem_records = [r for r in records if r.rem_sleep]
+        if rem_records:
+            avg_rem = sum(r.rem_sleep for r in rem_records) / len(rem_records)
     
     return render_template('sleep.html',
                          records=records,
+                         today=today,
                          avg_duration=round(avg_duration, 1),
-                         avg_quality=round(avg_quality, 1))
+                         avg_quality=round(avg_quality, 1),
+                         avg_score=round(avg_score, 0) if avg_score > 0 else round(avg_quality * 10, 0),
+                         avg_deep=round(avg_deep, 0),
+                         avg_rem=round(avg_rem, 0))
 
 
 @app.route('/sleep/add', methods=['POST'])
@@ -1590,111 +1673,73 @@ def add_sleep():
     """添加睡眠记录"""
     bed_time_str = request.form.get('bed_time')
     wake_time_str = request.form.get('wake_time')
+    duration_str = request.form.get('duration')
     
+    bed_time = None
+    wake_time = None
+    duration = None
+    
+    # 尝试解析时间
     try:
-        bed_time = datetime.strptime(bed_time_str, '%Y-%m-%dT%H:%M') if bed_time_str else None
-        wake_time = datetime.strptime(wake_time_str, '%Y-%m-%dT%H:%M') if wake_time_str else None
-        
-        duration = None
-        if bed_time and wake_time:
-            duration = (wake_time - bed_time).total_seconds() / 3600
+        if bed_time_str:
+            bed_time = datetime.strptime(bed_time_str, '%Y-%m-%dT%H:%M')
+        if wake_time_str:
+            wake_time = datetime.strptime(wake_time_str, '%Y-%m-%dT%H:%M')
     except:
-        duration = float(request.form.get('duration', 7))
+        pass
+    
+    # 计算时长
+    if bed_time and wake_time:
+        diff = (wake_time - bed_time).total_seconds() / 3600
+        # 处理跨天情况
+        if diff < 0:
+            diff += 24
+        duration = round(diff, 1)
+    elif duration_str:
+        try:
+            duration = float(duration_str)
+        except:
+            duration = 7.0
+    
+    # 确保有默认值
+    if not duration:
+        duration = 7.0
+    
+    # 获取睡眠分期数据（分钟）
+    deep_sleep = request.form.get('deep_sleep')
+    light_sleep = request.form.get('light_sleep')
+    rem_sleep = request.form.get('rem_sleep')
+    awake_time = request.form.get('awake_time')
+    
+    # 检查是否有分期数据
+    has_stages = any([deep_sleep, light_sleep, rem_sleep, awake_time])
     
     record = SleepRecord(
         user_id=current_user.id,
         bed_time=bed_time,
         wake_time=wake_time,
         duration=duration,
-        quality=int(request.form.get('quality', 7)),
+        quality=int(request.form.get('quality', 8)),
         caffeine_before_bed=bool(request.form.get('caffeine')),
         heavy_meal_before_bed=bool(request.form.get('heavy_meal')),
         screen_time=bool(request.form.get('screen_time')),
-        notes=request.form.get('notes')
+        notes=request.form.get('notes'),
+        data_source='manual',
+        # 睡眠分期数据
+        deep_sleep=float(deep_sleep) if deep_sleep and deep_sleep.strip() else 0,
+        light_sleep=float(light_sleep) if light_sleep and light_sleep.strip() else 0,
+        rem_sleep=float(rem_sleep) if rem_sleep and rem_sleep.strip() else 0,
+        awake_time=float(awake_time) if awake_time and awake_time.strip() else 0
     )
     
     db.session.add(record)
     db.session.commit()
     
-    flash('睡眠记录已添加！', 'success')
-    return redirect(url_for('sleep'))
-
-
-@app.route('/sleep/import', methods=['POST'])
-@login_required
-def import_sleep():
-    """导入智能手表睡眠数据"""
-    if 'sleep_file' not in request.files:
-        flash('请选择文件', 'error')
-        return redirect(url_for('sleep'))
-    
-    file = request.files['sleep_file']
-    if file.filename == '':
-        flash('请选择文件', 'error')
-        return redirect(url_for('sleep'))
-    
-    try:
-        import json
-        data = json.load(file)
-        
-        # 支持单条记录或多条记录
-        records = data if isinstance(data, list) else [data]
-        imported_count = 0
-        
-        for item in records:
-            date_str = item.get('date')
-            duration = float(item.get('duration', 7))
-            quality = int(item.get('quality', 7))
-            
-            # 解析时间
-            bed_time = None
-            wake_time = None
-            if item.get('bed_time'):
-                try:
-                    bed_time = datetime.strptime(item['bed_time'], '%Y-%m-%dT%H:%M')
-                except:
-                    pass
-            if item.get('wake_time'):
-                try:
-                    wake_time = datetime.strptime(item['wake_time'], '%Y-%m-%dT%H:%M')
-                except:
-                    pass
-            
-            # 解析日期
-            record_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
-            
-            # 检查是否已存在该日期记录
-            existing = SleepRecord.query.filter_by(
-                user_id=current_user.id,
-                date=record_date
-            ).first()
-            
-            if existing:
-                # 更新现有记录
-                existing.duration = duration
-                existing.quality = quality
-                existing.bed_time = bed_time
-                existing.wake_time = wake_time
-                existing.notes = item.get('notes', existing.notes)
-            else:
-                # 创建新记录
-                record = SleepRecord(
-                    user_id=current_user.id,
-                    date=record_date,
-                    duration=duration,
-                    quality=quality,
-                    bed_time=bed_time,
-                    wake_time=wake_time,
-                    notes=item.get('notes')
-                )
-                db.session.add(record)
-            
-            imported_count += 1
-        
-        db.session.commit()
-        flash(f'成功导入 {imported_count} 条睡眠记录！', 'success')
-    except Exception as e:
-        flash(f'导入失败：{str(e)}', 'error')
+    # 根据是否有分期数据显示不同提示
+    if has_stages:
+        flash(f'睡眠记录已添加！时长 {duration:.1f} 小时，深睡 {deep_sleep or 0} 分钟，REM {rem_sleep or 0} 分钟', 'success')
+    else:
+        flash(f'睡眠记录已添加！时长 {duration:.1f} 小时', 'success')
     
     return redirect(url_for('sleep'))
 
@@ -1717,14 +1762,23 @@ def edit_sleep(record_id):
             if bed_time_str and wake_time_str:
                 record.bed_time = datetime.strptime(bed_time_str, '%Y-%m-%dT%H:%M')
                 record.wake_time = datetime.strptime(wake_time_str, '%Y-%m-%dT%H:%M')
-                record.duration = (record.wake_time - record.bed_time).total_seconds() / 3600
+                diff = (record.wake_time - record.bed_time).total_seconds() / 3600
+                if diff < 0:
+                    diff += 24
+                record.duration = round(diff, 1)
             else:
                 record.duration = float(request.form.get('duration', 7))
 
-            record.quality = int(request.form.get('quality', 7))
+            record.quality = int(request.form.get('quality', 8))
             record.caffeine_before_bed = bool(request.form.get('caffeine'))
             record.heavy_meal_before_bed = bool(request.form.get('heavy_meal'))
             record.notes = request.form.get('notes')
+            
+            # 睡眠分期数据
+            record.deep_sleep = float(request.form.get('deep_sleep') or 0)
+            record.light_sleep = float(request.form.get('light_sleep') or 0)
+            record.rem_sleep = float(request.form.get('rem_sleep') or 0)
+            record.awake_time = float(request.form.get('awake_time') or 0)
 
             db.session.commit()
             flash('睡眠记录已更新！', 'success')
@@ -1750,6 +1804,424 @@ def delete_sleep(record_id):
     db.session.commit()
     flash('睡眠记录已删除！', 'success')
     return redirect(url_for('sleep'))
+
+
+@app.route('/sleep/import', methods=['GET', 'POST'])
+@login_required
+def sleep_import():
+    """从智能手表导入睡眠数据（CSV格式）"""
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            flash('请选择CSV文件', 'error')
+            return redirect(url_for('sleep_import'))
+        
+        file = request.files['csv_file']
+        device_type = request.form.get('device_type', 'generic')  # huawei/apple/xiaomi/generic
+        
+        if file.filename == '':
+            flash('请选择CSV文件', 'error')
+            return redirect(url_for('sleep_import'))
+        
+        try:
+            import csv
+            import io
+            
+            # 读取CSV内容
+            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+            reader = csv.DictReader(stream)
+            
+            imported_count = 0
+            updated_count = 0
+            errors = []
+            
+            for row_num, row in enumerate(reader, 2):
+                try:
+                    # 解析日期
+                    date_str = row.get('date') or row.get('日期') or row.get('sleep_date') or row.get('记录日期')
+                    if not date_str:
+                        continue
+                    
+                    # 尝试多种日期格式
+                    for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y']:
+                        try:
+                            record_date = datetime.strptime(date_str, fmt).date()
+                            break
+                        except:
+                            continue
+                    else:
+                        errors.append(f'行{row_num}: 日期格式错误')
+                        continue
+                    
+                    # 检查是否已存在该日期的记录
+                    existing = SleepRecord.query.filter_by(
+                        user_id=current_user.id,
+                        date=record_date
+                    ).first()
+                    
+                    # 解析睡眠时长（分钟或小时）
+                    duration_str = row.get('duration') or row.get('睡眠时长') or row.get('总睡眠时长') or row.get('sleep_duration')
+                    duration = parse_duration(duration_str) if duration_str else None
+                    
+                    # 解析睡眠分期（分钟）
+                    deep_sleep = parse_duration(row.get('deep_sleep') or row.get('深睡') or row.get('深睡眠时长') or '0')
+                    light_sleep = parse_duration(row.get('light_sleep') or row.get('浅睡') or row.get('浅睡眠时长') or '0')
+                    rem_sleep = parse_duration(row.get('rem_sleep') or row.get('REM') or row.get('快速眼动') or '0')
+                    awake_time = parse_duration(row.get('awake') or row.get('清醒') or row.get('清醒时长') or '0')
+                    
+                    # 解析时间
+                    bed_time = parse_datetime(row.get('bed_time') or row.get('入睡时间') or row.get('bedtime'))
+                    wake_time = parse_datetime(row.get('wake_time') or row.get('醒来时间') or row.get('waketime'))
+                    
+                    # 解析其他数据
+                    quality = int(float(row.get('quality') or row.get('质量') or row.get('sleep_quality') or 0))
+                    sleep_score = int(float(row.get('sleep_score') or row.get('睡眠评分') or row.get('score') or 0))
+                    avg_spo2 = float(row.get('avg_spo2') or row.get('平均血氧') or row.get('spo2_avg') or 0)
+                    min_spo2 = float(row.get('min_spo2') or row.get('最低血氧') or row.get('spo2_min') or 0)
+                    sleep_hr_avg = int(float(row.get('hr_avg') or row.get('平均心率') or row.get('sleep_hr_avg') or 0))
+                    
+                    if existing:
+                        # 更新现有记录
+                        existing.duration = duration
+                        existing.deep_sleep = deep_sleep
+                        existing.light_sleep = light_sleep
+                        existing.rem_sleep = rem_sleep
+                        existing.awake_time = awake_time
+                        existing.bed_time = bed_time or existing.bed_time
+                        existing.wake_time = wake_time or existing.wake_time
+                        existing.quality = quality or existing.quality
+                        existing.sleep_score = sleep_score
+                        existing.avg_spo2 = avg_spo2
+                        existing.min_spo2 = min_spo2
+                        existing.sleep_hr_avg = sleep_hr_avg
+                        existing.data_source = device_type
+                        updated_count += 1
+                    else:
+                        # 创建新记录
+                        record = SleepRecord(
+                            user_id=current_user.id,
+                            date=record_date,
+                            duration=duration,
+                            deep_sleep=deep_sleep,
+                            light_sleep=light_sleep,
+                            rem_sleep=rem_sleep,
+                            awake_time=awake_time,
+                            bed_time=bed_time,
+                            wake_time=wake_time,
+                            quality=quality,
+                            sleep_score=sleep_score,
+                            avg_spo2=avg_spo2,
+                            min_spo2=min_spo2,
+                            sleep_hr_avg=sleep_hr_avg,
+                            data_source=device_type,
+                            source_device=row.get('device') or row.get('设备') or ''
+                        )
+                        db.session.add(record)
+                        imported_count += 1
+                        
+                except Exception as e:
+                    errors.append(f'行{row_num}: {str(e)}')
+            
+            db.session.commit()
+            
+            if imported_count > 0 or updated_count > 0:
+                msg = f'导入成功！新增 {imported_count} 条，更新 {updated_count} 条'
+                if errors:
+                    msg += f'，{len(errors)} 条出错'
+                flash(msg, 'success')
+            elif errors:
+                flash(f'导入完成但有问题: {errors[0]}', 'warning')
+            else:
+                flash('没有找到有效数据', 'warning')
+                
+        except Exception as e:
+            flash(f'导入失败: {str(e)}', 'error')
+        
+        return redirect(url_for('sleep'))
+    
+    # 显示导入页面
+    return render_template('sleep_import.html')
+
+
+@app.route('/sleep/add-online', methods=['POST'])
+@login_required
+def sleep_add_online():
+    """在线表单添加睡眠数据"""
+    try:
+        date_str = request.form.get('date')
+        duration = float(request.form.get('duration', 0))
+        
+        if not date_str or not duration:
+            return jsonify({'success': False, 'error': '请填写日期和睡眠时长'}), 400
+        
+        record_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # 检查是否已存在该日期的记录
+        existing = SleepRecord.query.filter_by(
+            user_id=current_user.id,
+            date=record_date
+        ).first()
+        
+        if existing:
+            # 更新现有记录
+            existing.duration = duration
+            existing.deep_sleep = float(request.form.get('deep_sleep') or 0)
+            existing.light_sleep = float(request.form.get('light_sleep') or 0)
+            existing.rem_sleep = float(request.form.get('rem_sleep') or 0)
+            existing.awake_time = float(request.form.get('awake') or 0)
+            existing.sleep_score = int(request.form.get('sleep_score') or 0)
+            existing.avg_spo2 = float(request.form.get('avg_spo2') or 0)
+            existing.min_spo2 = float(request.form.get('min_spo2') or 0)
+            existing.sleep_hr_avg = int(request.form.get('hr_avg') or 0)
+            existing.notes = request.form.get('notes')
+            existing.data_source = request.form.get('device_type', 'manual')
+            
+            if request.form.get('bed_time'):
+                existing.bed_time = parse_datetime(record_date.strftime('%Y-%m-%d') + ' ' + request.form.get('bed_time'))
+            if request.form.get('wake_time'):
+                existing.wake_time = parse_datetime(record_date.strftime('%Y-%m-%d') + ' ' + request.form.get('wake_time'))
+        else:
+            # 创建新记录
+            record = SleepRecord(
+                user_id=current_user.id,
+                date=record_date,
+                duration=duration,
+                deep_sleep=float(request.form.get('deep_sleep') or 0),
+                light_sleep=float(request.form.get('light_sleep') or 0),
+                rem_sleep=float(request.form.get('rem_sleep') or 0),
+                awake_time=float(request.form.get('awake') or 0),
+                sleep_score=int(request.form.get('sleep_score') or 0),
+                avg_spo2=float(request.form.get('avg_spo2') or 0),
+                min_spo2=float(request.form.get('min_spo2') or 0),
+                sleep_hr_avg=int(request.form.get('hr_avg') or 0),
+                notes=request.form.get('notes'),
+                data_source=request.form.get('device_type', 'manual')
+            )
+            
+            if request.form.get('bed_time'):
+                record.bed_time = parse_datetime(record_date.strftime('%Y-%m-%d') + ' ' + request.form.get('bed_time'))
+            if request.form.get('wake_time'):
+                record.wake_time = parse_datetime(record_date.strftime('%Y-%m-%d') + ' ' + request.form.get('wake_time'))
+            
+            db.session.add(record)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '导入成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/sleep/analyze/<int:record_id>')
+@login_required
+def sleep_analyze(record_id):
+    """获取单条睡眠记录的详细分析"""
+    record = SleepRecord.query.get_or_404(record_id)
+    
+    if record.user_id != current_user.id:
+        return jsonify({'error': '无权访问'}), 403
+    
+    # 生成分析和建议
+    analysis = analyze_sleep_record(record)
+    
+    return jsonify(analysis)
+
+
+def parse_duration(value):
+    """解析时长字符串（支持分钟和小时格式）"""
+    if not value:
+        return 0
+    value = str(value).strip()
+    
+    # 如果包含冒号（HH:MM格式）
+    if ':' in value:
+        parts = value.split(':')
+        if len(parts) == 2:
+            return float(parts[0]) + float(parts[1]) / 60
+        elif len(parts) == 3:
+            return float(parts[0]) + float(parts[1]) / 60 + float(parts[2]) / 3600
+    
+    # 如果包含"小时"或"h"
+    if '小时' in value or 'h' in value.lower():
+        try:
+            return float(value.replace('小时', '').replace('h', '').replace('H', '').strip())
+        except:
+            return 0
+    
+    # 如果包含"分钟"或"min"
+    if '分钟' in value or 'min' in value.lower():
+        try:
+            return float(value.replace('分钟', '').replace('min', '').replace('Min', '').strip()) / 60
+        except:
+            return 0
+    
+    # 纯数字，假设是小时
+    try:
+        return float(value)
+    except:
+        return 0
+
+
+def parse_datetime(value):
+    """解析日期时间字符串"""
+    if not value:
+        return None
+    value = str(value).strip()
+    
+    formats = [
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %H:%M',
+        '%Y/%m/%d %H:%M:%S',
+        '%Y/%m/%d %H:%M',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%M',
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt)
+        except:
+            continue
+    return None
+
+
+def analyze_sleep_record(record):
+    """分析单条睡眠记录，生成解读和建议"""
+    analysis = {
+        'summary': '',
+        'score': 0,
+        'interpretation': [],
+        'suggestions': []
+    }
+    
+    if not record.duration:
+        return analysis
+    
+    # 计算睡眠结构评分
+    score = 0
+    issues = []
+    suggestions = []
+    
+    # 检查是否有智能手表详细数据
+    has_watch_data = any([
+        record.deep_sleep and record.deep_sleep > 0,
+        record.rem_sleep and record.rem_sleep > 0,
+        record.awake_time and record.awake_time > 0,
+        record.avg_spo2 and record.avg_spo2 > 0,
+        record.sleep_hr_avg and record.sleep_hr_avg > 0
+    ])
+    
+    # 1. 时长评估 (40分)
+    if record.duration < 6:
+        score += max(0, int(record.duration * 5))  # 每小时5分
+        issues.append('睡眠时长不足')
+        suggestions.append('建议保证7-9小时睡眠，成年人每晚需要充足睡眠才能维持健康')
+    elif record.duration > 9:
+        if record.duration > 11:
+            score += 20
+            issues.append('睡眠时间过长')
+            suggestions.append('过长的睡眠可能反映疲劳或健康问题，建议保持7-9小时的规律睡眠')
+        else:
+            score += 30
+            analysis['interpretation'].append(f'睡眠时长 {record.duration:.1f}小时，略长但可接受')
+    elif record.duration >= 7 and record.duration <= 9:
+        score += 40
+        analysis['interpretation'].append(f'✓ 睡眠时长理想 ({record.duration:.1f}小时)')
+    else:  # 6-7小时
+        score += 25
+        analysis['interpretation'].append(f'睡眠时长 {record.duration:.1f}小时，接近推荐值')
+    
+    # 2. 深睡眠评估（应占20-25%）- 15分
+    if record.duration and record.deep_sleep and record.deep_sleep > 0:
+        deep_ratio = record.deep_sleep / (record.duration * 60) * 100
+        if deep_ratio < 15:
+            issues.append('深睡眠不足')
+            suggestions.append('深睡眠不足会影响身体修复，建议睡前避免剧烈运动和摄入咖啡因')
+        elif deep_ratio > 30:
+            score += 15
+            analysis['interpretation'].append(f'✓ 深睡眠充足 ({deep_ratio:.0f}%)')
+        else:
+            score += 10
+            analysis['interpretation'].append(f'深睡眠占比 {deep_ratio:.0f}%，基本正常')
+    
+    # 3. REM睡眠评估（应占20-25%）- 15分
+    if record.duration and record.rem_sleep and record.rem_sleep > 0:
+        rem_ratio = record.rem_sleep / (record.duration * 60) * 100
+        if rem_ratio < 15:
+            issues.append('REM睡眠不足')
+            suggestions.append('REM睡眠与记忆整合相关，建议规律作息以改善REM睡眠质量')
+        else:
+            score += 15
+            analysis['interpretation'].append(f'✓ REM睡眠正常 ({rem_ratio:.0f}%)')
+    
+    # 4. 清醒次数评估 - 10分
+    if record.awake_time and record.awake_time > 0:
+        if record.awake_time > 60:
+            issues.append('夜间清醒时间较长')
+            suggestions.append('夜间频繁醒来可能与呼吸暂停或睡眠环境有关，建议检查卧室环境')
+        elif record.awake_time > 30:
+            score += 5
+            analysis['interpretation'].append(f'清醒时间 {record.awake_time:.0f} 分钟')
+        else:
+            score += 10
+            analysis['interpretation'].append(f'✓ 夜间清醒次数少 ({record.awake_time:.0f}分钟)')
+    
+    # 5. 血氧评估 - 10分
+    if record.min_spo2 and record.min_spo2 > 0:
+        if record.min_spo2 < 90:
+            issues.append('夜间血氧偏低')
+            suggestions.append('血氧低于90%可能提示睡眠呼吸暂停，建议咨询医生')
+        elif record.avg_spo2 and record.avg_spo2 > 0:
+            score += 10
+            analysis['interpretation'].append(f'✓ 血氧正常 (平均{record.avg_spo2:.0f}%)')
+    
+    # 6. 心率评估 - 10分
+    if record.sleep_hr_avg and record.sleep_hr_avg > 0:
+        if record.sleep_hr_avg > 70:
+            issues.append('睡眠心率偏高')
+            suggestions.append('睡眠心率偏高可能与压力、运动不足或咖啡因摄入有关')
+        elif record.sleep_hr_avg < 45:
+            issues.append('睡眠心率偏低')
+            suggestions.append('如果您不是运动员，这可能需要咨询医生')
+        else:
+            score += 10
+            analysis['interpretation'].append(f'✓ 睡眠心率正常 ({record.sleep_hr_avg}次/分)')
+    
+    # 7. 如果没有智能手表数据，使用质量评分
+    if not has_watch_data and record.quality:
+        # 质量分数占剩余权重
+        quality_score = record.quality * 6  # 质量10分 -> 60分
+        analysis['interpretation'].append(f'基于您的睡眠质量自评 ({record.quality}/10)')
+    
+    # 限制分数在100以内
+    score = min(score, 100)
+    
+    # 如果分数太低但有时长数据，使用时长估算
+    if score < 30 and record.duration:
+        # 根据时长重新估算
+        if record.duration >= 7 and record.duration <= 9:
+            score = 60 + (record.quality or 5) * 3 if record.quality else 70
+        elif record.duration >= 6:
+            score = 40 + (record.quality or 5) * 4 if record.quality else 50
+    
+    # 生成综合评语
+    if score >= 85:
+        summary = '优秀'
+    elif score >= 70:
+        summary = '良好'
+    elif score >= 50:
+        summary = '一般'
+    else:
+        summary = '需改善'
+    
+    analysis['score'] = max(1, score)  # 至少1分
+    analysis['summary'] = f'本次睡眠{summary} (评分: {analysis["score"]}/100)'
+    
+    if issues:
+        analysis['issues'] = issues
+    analysis['suggestions'] = suggestions[:3]  # 最多返回3条建议
+    
+    return analysis
 
 
 # ==================== 茶与咖啡 ====================
@@ -1827,7 +2299,7 @@ def start_fasting():
     record = IntermittentFasting(
         user_id=current_user.id,
         fasting_type=fasting_type,
-        start_time=datetime.now(),
+        start_time=now_bj(),
         status='active'
     )
     
@@ -1848,7 +2320,7 @@ def end_fasting(record_id):
         flash('无权操作', 'error')
         return redirect(url_for('fasting'))
     
-    record.end_time = datetime.now()
+    record.end_time = now_bj()
     record.status = 'completed'
     if record.start_time:
         record.duration = (record.end_time - record.start_time).total_seconds() / 3600
@@ -2233,6 +2705,7 @@ def generate_ai_analysis(stats):
 # ==================== 健康新闻 ====================
 
 @app.route('/news')
+@track_page_view('健康新闻')
 def news():
     """健康新闻页面"""
     category = request.args.get('category')
@@ -2246,10 +2719,74 @@ def news():
     return render_template('news.html', news_items=news_items, current_category=category)
 
 
+# ==================== 页面访问统计 ====================
+
+@app.route('/page-stats')
+@login_required
+def page_stats():
+    """页面访问统计"""
+    days = request.args.get('days', 7, type=int)
+    
+    # 获取页面访问统计
+    stats = PageView.get_page_stats(user_id=current_user.id, days=days)
+    
+    # 计算总计
+    total_views = sum(s.view_count for s in stats)
+    
+    # 获取每日趋势
+    start_date = now_bj() - timedelta(days=days)
+    
+    # 直接用 Python 处理，避免数据库函数兼容性问题
+    all_views = PageView.query.filter(
+        PageView.user_id == current_user.id,
+        PageView.viewed_at >= start_date
+    ).all()
+    
+    # 按日期分组
+    daily_data = {}
+    for v in all_views:
+        day = v.viewed_at.strftime('%Y-%m-%d')
+        daily_data[day] = daily_data.get(day, 0) + 1
+    
+    daily_views = sorted(daily_data.items())
+    
+    # 获取最近访问记录
+    recent_views = PageView.query.filter_by(user_id=current_user.id).order_by(
+        PageView.viewed_at.desc()
+    ).limit(20).all()
+    
+    return render_template('page_stats.html', 
+                         stats=stats,
+                         total_views=total_views,
+                         daily_views=daily_views,
+                         recent_views=recent_views,
+                         days=days)
+
+
+@app.route('/api/page-stats')
+@login_required
+def api_page_stats():
+    """页面统计API"""
+    days = request.args.get('days', 7, type=int)
+    stats = PageView.get_page_stats(user_id=current_user.id, days=days)
+    
+    return jsonify({
+        'stats': [
+            {
+                'page_name': s.page_name,
+                'endpoint': s.endpoint,
+                'view_count': s.view_count,
+                'last_viewed': s.last_viewed.strftime('%Y-%m-%d %H:%M') if s.last_viewed else None
+            } for s in stats
+        ]
+    })
+
+
 # ==================== 个人设置 ====================
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
+@track_page_view('个人设置')
 def profile():
     """个人资料设置"""
     if request.method == 'POST':
@@ -2334,3 +2871,7 @@ if __name__ == '__main__':
     with app.app_context():
         init_database()
     app.run(debug=True, host='0.0.0.0', port=5000)
+else:
+    # PythonAnywhere WSGI 模式
+    with app.app_context():
+        init_database()

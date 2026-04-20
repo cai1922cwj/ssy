@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}页面访问统计 - 熵食源{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-bar-chart-fill text-primary"></i> 页面访问统计</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('page_stats', days=7) }}" class="btn btn-sm {{ 'btn-primary' if days == 7 else 'btn-outline-primary' }}">7天</a>
+            <a href="{{ url_for('page_stats', days=14) }}" class="btn btn-sm {{ 'btn-primary' if days == 14 else 'btn-outline-primary' }}">14天</a>
+            <a href="{{ url_for('page_stats', days=30) }}" class="btn btn-sm {{ 'btn-primary' if days == 30 else 'btn-outline-primary' }}">30天</a>
+        </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-primary mb-1">{{ total_views }}</h3>
+                    <small class="text-muted">总访问次数</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-success mb-1">{{ stats|length }}</h3>
+                    <small class="text-muted">访问页面数</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-info mb-1">{{ "%.1f"|format(total_views / days if days > 0 else 0) }}</h3>
+                    <small class="text-muted">日均访问</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页面访问排名 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-list-ol"></i> 页面访问排名</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">排名</th>
+                            <th>页面名称</th>
+                            <th>访问次数</th>
+                            <th>占比</th>
+                            <th>最后访问</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if loop.index <= 3 %}
+                                <span class="badge bg-{{ ['warning', 'secondary', 'danger']|safe if loop.index <= 3 else 'light' }}">
+                                    {{ loop.index }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">{{ loop.index }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <i class="bi bi-file-earmark-text me-2 text-muted"></i>
+                                {{ stat.page_name }}
+                            </td>
+                            <td>
+                                <strong>{{ stat.view_count }}</strong>
+                                <div class="progress mt-1" style="height: 4px; width: 100px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ (stat.view_count / total_views * 100)|int }}%"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ "%.1f"|format(stat.view_count / total_views * 100) }}%</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if stat.last_viewed %}
+                                        {{ stat.last_viewed.strftime('%m-%d %H:%M') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </small>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                暂无访问记录
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 每日趋势 -->
+    {% if daily_views %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-graph-up"></i> 每日访问趋势</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="dailyChart" height="120"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 最近访问 -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-clock-history"></i> 最近访问记录</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">时间</th>
+                            <th>页面</th>
+                            <th>来源</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for view in recent_views %}
+                        <tr>
+                            <td class="ps-4 text-muted">
+                                {{ view.viewed_at.strftime('%m-%d %H:%M') }}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ view.page_name }}</span>
+                            </td>
+                            <td>
+                                {% if view.referrer %}
+                                <small class="text-muted">{{ view.referrer[:50] }}...</small>
+                                {% else %}
+                                <small class="text-muted">直接访问</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                暂无访问记录
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if daily_views %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('dailyChart').getContext('2d');
+    const dailyData = {{ daily_views|tojson }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => d[0]),
+            datasets: [{
+                label: '访问次数',
+                data: dailyData.map(d => d[1]),
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#0d6efd'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

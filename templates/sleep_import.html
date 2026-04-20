@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2><i class="bi bi-cloud-upload text-primary"></i> 导入智能手表睡眠数据</h2>
+
+<!-- Tab 切换 -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#online-form">
+            <i class="bi bi-pencil-square"></i> 在线填写
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#upload-csv">
+            <i class="bi bi-file-earmark-arrow-up"></i> 上传CSV
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- 在线填写表单 -->
+    <div class="tab-pane fade show active" id="online-form">
+        <div class="card mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> 在线填写睡眠数据</h5>
+            </div>
+            <div class="card-body">
+                <form id="onlineForm">
+                    <div class="row g-3">
+                        <!-- 日期 -->
+                        <div class="col-md-4">
+                            <label class="form-label">日期 <span class="text-danger">*</span></label>
+                            <input type="date" name="date" class="form-control" required>
+                        </div>
+                        
+                        <!-- 睡眠时长 -->
+                        <div class="col-md-4">
+                            <label class="form-label">总睡眠时长 <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" step="0.1" name="duration" class="form-control" placeholder="7.5" min="0" max="24" required>
+                                <span class="input-group-text">小时</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 睡眠评分 -->
+                        <div class="col-md-4">
+                            <label class="form-label">睡眠评分（0-100）</label>
+                            <input type="number" name="sleep_score" class="form-control" placeholder="85" min="0" max="100">
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h6 class="text-primary mb-3"><i class="bi bi-pie-chart"></i> 睡眠分期（分钟）</h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">深睡眠</label>
+                            <div class="input-group">
+                                <input type="number" name="deep_sleep" class="form-control" placeholder="90" min="0">
+                                <span class="input-group-text">分钟</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">浅睡眠</label>
+                            <div class="input-group">
+                                <input type="number" name="light_sleep" class="form-control" placeholder="240" min="0">
+                                <span class="input-group-text">分钟</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">REM睡眠</label>
+                            <div class="input-group">
+                                <input type="number" name="rem_sleep" class="form-control" placeholder="90" min="0">
+                                <span class="input-group-text">分钟</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">清醒次数</label>
+                            <div class="input-group">
+                                <input type="number" name="awake" class="form-control" placeholder="20" min="0">
+                                <span class="input-group-text">分钟</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h6 class="text-info mb-3"><i class="bi bi-heart-pulse"></i> 其他数据</h6>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">入睡时间</label>
+                            <input type="time" name="bed_time" class="form-control" placeholder="23:00">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">醒来时间</label>
+                            <input type="time" name="wake_time" class="form-control" placeholder="06:30">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">平均血氧%</label>
+                            <input type="number" name="avg_spo2" class="form-control" placeholder="96" min="80" max="100">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">最低血氧%</label>
+                            <input type="number" name="min_spo2" class="form-control" placeholder="94" min="70" max="100">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">平均心率</label>
+                            <input type="number" name="hr_avg" class="form-control" placeholder="58" min="30" max="150">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <label class="form-label">备注</label>
+                        <input type="text" name="notes" class="form-control" placeholder="可选">
+                    </div>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> 导入此记录
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="addAnotherRow()">
+                            <i class="bi bi-plus-circle"></i> 继续添加下一条
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" onclick="loadLastNight()">
+                            <i class="bi bi-calendar-today"></i> 填入昨晚数据
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- 批量添加区域 -->
+                <div id="batchArea" class="mt-4" style="display: none;">
+                    <hr>
+                    <h6 class="text-secondary"><i class="bi bi-list-ul"></i> 待导入记录</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="batchTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>日期</th>
+                                    <th>时长(h)</th>
+                                    <th>评分</th>
+                                    <th>深睡(m)</th>
+                                    <th>浅睡(m)</th>
+                                    <th>REM(m)</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="importAllRecords()">
+                        <i class="bi bi-cloud-upload"></i> 批量导入全部记录
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 快速参考 -->
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 华为健康App数据参考</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">打开华为健康App → 健康 → 睡眠，点击查看详情，记录以下数据：</p>
+                <div class="row">
+                    <div class="col-md-4">
+                        <ul class="list-unstyled small">
+                            <li><i class="bi bi-check text-success me-2"></i>睡眠时长</li>
+                            <li><i class="bi bi-check text-success me-2"></i>深睡眠时长</li>
+                            <li><i class="bi bi-check text-success me-2"></i>浅睡眠时长</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <ul class="list-unstyled small">
+                            <li><i class="bi bi-check text-success me-2"></i>REM睡眠时长</li>
+                            <li><i class="bi bi-check text-success me-2"></i>睡眠评分</li>
+                            <li><i class="bi bi-check text-success me-2"></i>入睡/醒来时间</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <ul class="list-unstyled small">
+                            <li><i class="bi bi-check text-success me-2"></i>血氧饱和度</li>
+                            <li><i class="bi bi-check text-success me-2"></i>睡眠心率</li>
+                            <li><i class="bi bi-check text-success me-2"></i>清醒次数</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 上传CSV -->
+    <div class="tab-pane fade" id="upload-csv">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> 上传CSV文件</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">选择数据来源</label>
+                        <select name="device_type" class="form-select" required>
+                            <option value="huawei">华为手表/手环</option>
+                            <option value="apple">苹果手表 (Apple Watch)</option>
+                            <option value="xiaomi">小米手表/手环</option>
+                            <option value="samsung">三星手表</option>
+                            <option value="generic">其他设备（通用格式）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">选择CSV文件</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> 开始导入
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> CSV格式说明</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">CSV文件应包含以下列（至少需要日期和睡眠时长）：</p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>列名</th>
+                                <th>说明</th>
+                                <th>示例</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>date</code></td><td>睡眠日期</td><td>2024-01-15</td></tr>
+                            <tr><td><code>duration</code></td><td>总睡眠时长（小时）</td><td>7.5</td></tr>
+                            <tr><td><code>deep_sleep</code></td><td>深睡眠时长（分钟）</td><td>90</td></tr>
+                            <tr><td><code>light_sleep</code></td><td>浅睡眠时长（分钟）</td><td>240</td></tr>
+                            <tr><td><code>rem_sleep</code></td><td>REM睡眠时长（分钟）</td><td>90</td></tr>
+                            <tr><td><code>awake</code></td><td>清醒时长（分钟）</td><td>20</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('sleep') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回睡眠管理
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// 批量记录存储
+let batchRecords = [];
+
+// 设置默认日期为今天
+document.querySelector('input[name="date"]').valueAsDate = new Date();
+
+// 加载昨晚数据
+function loadLastNight() {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    document.querySelector('input[name="date"]').valueAsDate = yesterday;
+    document.querySelector('input[name="bed_time"]').value = '23:00';
+    document.querySelector('input[name="wake_time"]').value = '07:00';
+    document.querySelector('input[name="duration"]').focus();
+}
+
+// 添加到批量列表
+function addAnotherRow() {
+    const form = document.getElementById('onlineForm');
+    const formData = new FormData(form);
+    
+    // 验证必填项
+    if (!formData.get('date') || !formData.get('duration')) {
+        alert('请填写日期和睡眠时长！');
+        return;
+    }
+    
+    // 创建记录对象
+    const record = {
+        date: formData.get('date'),
+        duration: formData.get('duration'),
+        sleep_score: formData.get('sleep_score') || 0,
+        deep_sleep: formData.get('deep_sleep') || 0,
+        light_sleep: formData.get('light_sleep') || 0,
+        rem_sleep: formData.get('rem_sleep') || 0,
+        awake: formData.get('awake') || 0,
+        bed_time: formData.get('bed_time'),
+        wake_time: formData.get('wake_time'),
+        avg_spo2: formData.get('avg_spo2') || 0,
+        min_spo2: formData.get('min_spo2') || 0,
+        hr_avg: formData.get('hr_avg') || 0,
+        notes: formData.get('notes') || ''
+    };
+    
+    batchRecords.push(record);
+    updateBatchTable();
+    
+    // 清空表单，继续添加
+    form.reset();
+    document.querySelector('input[name="date"]').valueAsDate = new Date();
+    
+    // 显示批量区域
+    document.getElementById('batchArea').style.display = 'block';
+}
+
+// 更新批量表格
+function updateBatchTable() {
+    const tbody = document.getElementById('batchTableBody');
+    tbody.innerHTML = batchRecords.map((r, i) => `
+        <tr>
+            <td>${r.date}</td>
+            <td>${r.duration}h</td>
+            <td>${r.sleep_score || '-'}</td>
+            <td>${r.deep_sleep || '-'}</td>
+            <td>${r.light_sleep || '-'}</td>
+            <td>${r.rem_sleep || '-'}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRecord(${i})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 删除单条记录
+function removeRecord(index) {
+    batchRecords.splice(index, 1);
+    updateBatchTable();
+    if (batchRecords.length === 0) {
+        document.getElementById('batchArea').style.display = 'none';
+    }
+}
+
+// 批量导入所有记录
+async function importAllRecords() {
+    if (batchRecords.length === 0) {
+        alert('没有记录可导入！');
+        return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 导入中...';
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const record of batchRecords) {
+        try {
+            const formData = new FormData();
+            for (const key in record) {
+                formData.append(key, record[key]);
+            }
+            formData.append('device_type', 'manual');
+            
+            const response = await fetch('/sleep/add-online', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        } catch (e) {
+            errorCount++;
+        }
+    }
+    
+    if (successCount > 0) {
+        alert(`导入成功！共 ${successCount} 条记录`);
+        window.location.href = '/sleep';
+    } else if (errorCount > 0) {
+        alert(`导入失败！请重试`);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload"></i> 批量导入全部记录';
+    }
+}
+
+// 表单直接提交（单条记录）
+document.getElementById('onlineForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 导入中...';
+    
+    formData.append('device_type', 'manual');
+    
+    try {
+        const response = await fetch('/sleep/add-online', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            alert('导入成功！');
+            window.location.href = '/sleep';
+        } else {
+            alert('导入失败，请重试');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> 导入此记录';
+        }
+    } catch (e) {
+        alert('导入失败：' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> 导入此记录';
+    }
+});
+</script>
+{% endblock %}

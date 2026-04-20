@@ -1,10 +1,17 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from datetime import datetime, date
+from datetime import datetime, date, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
 db = SQLAlchemy()
+
+# 北京时区
+BJ_TZ = timezone(timedelta(hours=8))
+
+def now_bj():
+    """获取北京时间"""
+    return datetime.now(BJ_TZ)
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -13,7 +20,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     # 个人资料
     age = db.Column(db.Integer, default=25)
@@ -124,6 +131,10 @@ class Food(db.Model):
     iron = db.Column(db.Float, default=0)  # mg
     potassium = db.Column(db.Float, default=0)  # mg
     
+    # 中医食性（五性分类）
+    # cold(寒), cool(凉), neutral(平), warm(温), hot(热)
+    food_nature = db.Column(db.String(10), default='neutral')
+    
     # 配料表分析
     ingredients = db.Column(db.Text)
     additives = db.Column(db.Text)  # JSON格式存储添加剂
@@ -134,7 +145,7 @@ class Food(db.Model):
     
     is_custom = db.Column(db.Boolean, default=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     def to_dict(self):
         return {
@@ -153,6 +164,7 @@ class Food(db.Model):
             'calcium': self.calcium,
             'iron': self.iron,
             'potassium': self.potassium,
+            'food_nature': self.food_nature,
             'image_url': self.image_url,
             'barcode': self.barcode
         }
@@ -181,8 +193,8 @@ class FoodRecord(db.Model):
     photo_url = db.Column(db.String(255))
     
     date = db.Column(db.Date, default=date.today)
-    time = db.Column(db.Time, default=datetime.now().time)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    time = db.Column(db.Time, default=lambda: now_bj().time())
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     food = db.relationship('Food', backref='records')
 
@@ -206,8 +218,8 @@ class CategoryLibrary(db.Model):
     # 该类别下的食物数量
     food_count = db.Column(db.Integer, default=0)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
+    updated_at = db.Column(db.DateTime, default=lambda: now_bj(), onupdate=lambda: now_bj())
     
     # 关系
     foods = db.relationship('LearnedFood', backref='category', lazy=True)
@@ -259,8 +271,8 @@ class LearnedFood(db.Model):
     max_brightness = db.Column(db.Float, default=255)
     
     is_active = db.Column(db.Boolean, default=True)  # 是否激活
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
+    updated_at = db.Column(db.DateTime, default=lambda: now_bj(), onupdate=lambda: now_bj())
     
     # 关系
     samples = db.relationship('FoodImageSample', backref='learned_food', lazy=True, cascade='all, delete-orphan')
@@ -307,7 +319,7 @@ class FoodImageSample(db.Model):
     # 元数据
     is_confirmed = db.Column(db.Boolean, default=True)  # 是否已确认
     confidence_at_save = db.Column(db.Float)  # 保存时的置信度
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     def get_region_colors(self):
         """获取区域颜色列表"""
@@ -345,7 +357,7 @@ class FoodRecognitionLog(db.Model):
     is_learned = db.Column(db.Boolean, default=False)
     learned_food_id = db.Column(db.Integer, db.ForeignKey('learned_foods.id'))
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     def get_recognized_foods(self):
         if self.recognized_foods:
@@ -380,8 +392,8 @@ class FoodImageFeature(db.Model):
     
     # 统计信息
     confirmed_count = db.Column(db.Integer, default=1)  # 被确认次数
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_used = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
+    last_used = db.Column(db.DateTime, default=lambda: now_bj())
     
     user = db.relationship('User', backref='image_features')
     
@@ -431,9 +443,9 @@ class ExerciseRecord(db.Model):
     intensity = db.Column(db.String(20), default='moderate')  # low, moderate, high
     
     date = db.Column(db.Date, default=date.today)
-    time = db.Column(db.Time, default=datetime.now().time)
+    time = db.Column(db.Time, default=lambda: now_bj().time())
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     exercise = db.relationship('Exercise', backref='records')
 
@@ -448,7 +460,7 @@ class WeightRecord(db.Model):
     water = db.Column(db.Float)  # 水分率
     date = db.Column(db.Date, default=date.today)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
 
 
 class BmiRecord(db.Model):
@@ -464,7 +476,7 @@ class BmiRecord(db.Model):
     age = db.Column(db.Integer)  # 年龄
     gender = db.Column(db.String(10))  # male, female
     date = db.Column(db.Date, default=date.today)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
     
     user = db.relationship('User', backref='bmi_records')
     
@@ -489,8 +501,35 @@ class SleepRecord(db.Model):
     
     bed_time = db.Column(db.DateTime)
     wake_time = db.Column(db.DateTime)
-    duration = db.Column(db.Float)  # 小时
+    duration = db.Column(db.Float)  # 总睡眠时长（小时）
     quality = db.Column(db.Integer)  # 1-10评分
+    
+    # ===== 智能手表扩展字段 =====
+    # 睡眠分期时长（分钟）
+    deep_sleep = db.Column(db.Float, default=0)      # 深睡时长
+    light_sleep = db.Column(db.Float, default=0)     # 浅睡时长
+    rem_sleep = db.Column(db.Float, default=0)       # REM/快速眼动时长
+    awake_time = db.Column(db.Float, default=0)      # 清醒时长
+    
+    # 血氧数据
+    avg_spo2 = db.Column(db.Float, default=0)        # 平均血氧饱和度
+    min_spo2 = db.Column(db.Float, default=0)        # 最低血氧饱和度
+    spo2_below_90_minutes = db.Column(db.Float, default=0)  # 低血氧时长(分钟)
+    
+    # 心率数据
+    sleep_hr_avg = db.Column(db.Integer, default=0)  # 睡眠平均心率
+    sleep_hr_min = db.Column(db.Integer, default=0)  # 睡眠最低心率
+    sleep_hr_max = db.Column(db.Integer, default=0)  # 睡眠最高心率
+    
+    # 综合评分（来自手表）
+    sleep_score = db.Column(db.Integer, default=0)   # 0-100综合睡眠评分
+    
+    # 数据来源
+    data_source = db.Column(db.String(20), default='manual')  # manual/huawei/apple/xiaomi/csv
+    source_device = db.Column(db.String(50))         # 设备型号
+    
+    # 详细睡眠阶段（JSON格式存储时间序列）
+    sleep_stages_detail = db.Column(db.Text)         # 详细的睡眠分期时间点
     
     # 睡眠影响因素
     caffeine_before_bed = db.Column(db.Boolean, default=False)
@@ -499,7 +538,7 @@ class SleepRecord(db.Model):
     
     date = db.Column(db.Date, default=date.today)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
 
 class TeaCoffeeLog(db.Model):
     __tablename__ = 'tea_coffee_logs'
@@ -510,7 +549,7 @@ class TeaCoffeeLog(db.Model):
     drink_type = db.Column(db.String(50))  # green_tea, black_tea, coffee, oolong, etc.
     amount = db.Column(db.Float, default=250)  # ml
     caffeine_content = db.Column(db.Float, default=0)  # mg
-    time = db.Column(db.DateTime, default=datetime.utcnow)
+    time = db.Column(db.DateTime, default=lambda: now_bj())
     
     # 效果记录
     alertness = db.Column(db.Integer)  # 1-10提神程度
@@ -544,7 +583,7 @@ class HealthNews(db.Model):
     image_url = db.Column(db.String(500))
     published_at = db.Column(db.DateTime)
     category = db.Column(db.String(50))  # nutrition, exercise, sleep, research
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
 
 class AIAnalysis(db.Model):
     __tablename__ = 'ai_analyses'
@@ -559,4 +598,55 @@ class AIAnalysis(db.Model):
     life_expectancy_bonus = db.Column(db.Float)  # 寿命增加年数
     
     date = db.Column(db.Date, default=date.today)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now_bj())
+
+
+class PageView(db.Model):
+    """页面浏览记录"""
+    __tablename__ = 'page_views'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # 页面信息
+    endpoint = db.Column(db.String(100))  # 路由端点
+    page_name = db.Column(db.String(100))  # 页面名称
+    page_url = db.Column(db.String(255))  # 完整URL
+    referrer = db.Column(db.String(255))  # 来源页面
+    
+    # 访问设备信息
+    user_agent = db.Column(db.String(255))  # 浏览器信息
+    
+    # 时间
+    viewed_at = db.Column(db.DateTime, default=lambda: now_bj())
+    
+    user = db.relationship('User', backref='page_views')
+    
+    @staticmethod
+    def get_page_stats(user_id=None, days=7):
+        """获取页面访问统计"""
+        from datetime import timedelta
+        start_date = now_bj() - timedelta(days=days)
+        
+        query = PageView.query.filter(PageView.viewed_at >= start_date)
+        if user_id:
+            query = query.filter_by(user_id=user_id)
+        
+        # 按页面分组统计
+        stats = db.session.query(
+            PageView.page_name,
+            PageView.endpoint,
+            db.func.count(PageView.id).label('view_count'),
+            db.func.max(PageView.viewed_at).label('last_viewed')
+        ).filter(
+            PageView.viewed_at >= start_date
+        )
+        
+        if user_id:
+            stats = stats.filter(PageView.user_id == user_id)
+            
+        stats = stats.group_by(PageView.page_name, PageView.endpoint).order_by(
+            db.func.count(PageView.id).desc()
+        ).all()
+        
+        return stats
