@@ -136,8 +136,8 @@
         </div>
         
         <div class="d-grid gap-2 mt-3">
-            <button class="btn btn-success btn-lg" id="saveAllBtn">
-                <i class="bi bi-plus-lg"></i> 全部添加到今日饮食
+            <button class="btn btn-success btn-lg" id="saveSelectedBtn">
+                <i class="bi bi-plus-lg"></i> 添加选中食物到今日饮食
             </button>
             <button class="btn btn-outline-success" id="continueBtn">
                 <i class="bi bi-arrow-repeat"></i> 继续记录
@@ -181,35 +181,1115 @@ let recognizedFoods = [];
 let currentTranscript = '';
 let speechTimeout = null;
 
-// 食物数据库
+// 食物数据库 - 按优先级排序（越具体的放前面）
 const foodDatabase = {
-    '米饭': { calories: 130, protein: 2.5, carbs: 28, fat: 0.3, serving: '一碗(150g)' },
-    '粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2, serving: '一碗(240g)' },
-    '面条': { calories: 284, protein: 8, carbs: 59, fat: 0.8, serving: '一碗(200g)' },
-    '馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
-    '包子': { calories: 200, protein: 7, carbs: 35, fat: 4, serving: '一个(100g)' },
-    '饺子': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '10个(100g)' },
-    '鸡蛋': { calories: 144, protein: 13, carbs: 1, fat: 10, serving: '一个(50g)' },
+    // 汤类
+    '番茄蛋汤': { calories: 50, protein: 3, carbs: 4, fat: 2, serving: '一碗(200ml)' },
+    '西红柿蛋汤': { calories: 50, protein: 3, carbs: 4, fat: 2, serving: '一碗(200ml)' },
+    '蛋花汤': { calories: 40, protein: 3, carbs: 2, fat: 2, serving: '一碗(200ml)' },
+    '紫菜蛋汤': { calories: 45, protein: 4, carbs: 3, fat: 2, serving: '一碗(200ml)' },
+    '酸辣汤': { calories: 60, protein: 2, carbs: 8, fat: 2, serving: '一碗(200ml)' },
+    '疙瘩汤': { calories: 80, protein: 3, carbs: 12, fat: 2, serving: '一碗(200ml)' },
+    '豆腐汤': { calories: 50, protein: 5, carbs: 3, fat: 2, serving: '一碗(200ml)' },
+    '鸡蛋汤': { calories: 50, protein: 4, carbs: 2, fat: 3, serving: '一碗(200ml)' },
+    '菠菜汤': { calories: 25, protein: 2, carbs: 3, fat: 0.5, serving: '一碗(200ml)' },
+    '萝卜汤': { calories: 25, protein: 1, carbs: 5, fat: 0.2, serving: '一碗(200ml)' },
+    '玉米排骨汤': { calories: 120, protein: 12, carbs: 8, fat: 5, serving: '一碗(250ml)' },
+    '排骨汤': { calories: 100, protein: 10, carbs: 5, fat: 5, serving: '一碗(250ml)' },
+    '鸡汤': { calories: 80, protein: 10, carbs: 2, fat: 4, serving: '一碗(250ml)' },
+    '老母鸡汤': { calories: 100, protein: 14, carbs: 2, fat: 4, serving: '一碗(250ml)' },
+    '鱼汤': { calories: 50, protein: 8, carbs: 2, fat: 1, serving: '一碗(250ml)' },
+    '鲫鱼汤': { calories: 60, protein: 10, carbs: 2, fat: 1.5, serving: '一碗(250ml)' },
+    '豆腐鲫鱼汤': { calories: 80, protein: 12, carbs: 4, fat: 2, serving: '一碗(250ml)' },
+    '冬瓜汤': { calories: 15, protein: 0.5, carbs: 3, fat: 0.1, serving: '一碗(200ml)' },
+    '丝瓜汤': { calories: 20, protein: 1, carbs: 4, fat: 0.2, serving: '一碗(200ml)' },
+    '银耳汤': { calories: 60, protein: 0.5, carbs: 15, fat: 0.2, serving: '一碗(200ml)' },
+    '红枣银耳汤': { calories: 80, protein: 1, carbs: 18, fat: 0.3, serving: '一碗(200ml)' },
+    '绿豆汤': { calories: 45, protein: 2, carbs: 9, fat: 0.3, serving: '一碗(200ml)' },
+    '红豆汤': { calories: 70, protein: 3, carbs: 14, fat: 0.3, serving: '一碗(200ml)' },
+    '八宝粥': { calories: 90, protein: 3, carbs: 18, fat: 1, serving: '一碗(200ml)' },
+    '皮蛋瘦肉粥': { calories: 100, protein: 6, carbs: 12, fat: 3, serving: '一碗(250ml)' },
+    '排骨粥': { calories: 110, protein: 5, carbs: 15, fat: 4, serving: '一碗(250ml)' },
+    '牛肉粥': { calories: 95, protein: 6, carbs: 12, fat: 3, serving: '一碗(250ml)' },
+    '虾粥': { calories: 90, protein: 6, carbs: 12, fat: 2.5, serving: '一碗(250ml)' },
+    '扬州炒饭': { calories: 200, protein: 8, carbs: 28, fat: 7, serving: '一碗(250g)' },
+    '炒饭': { calories: 180, protein: 6, carbs: 25, fat: 6, serving: '一碗(200g)' },
+    '炒面': { calories: 280, protein: 8, carbs: 38, fat: 10, serving: '一份(200g)' },
+    '拌面': { calories: 300, protein: 8, carbs: 42, fat: 12, serving: '一份(200g)' },
+    '凉面': { calories: 260, protein: 7, carbs: 38, fat: 9, serving: '一份(200g)' },
+
+    // 炒菜类
+    '宫保鸡丁': { calories: 197, protein: 15, carbs: 9, fat: 12, serving: '一份(200g)' },
+    '红烧肉': { calories: 295, protein: 13, carbs: 7, fat: 24, serving: '100g' },
+    '红烧排骨': { calories: 280, protein: 18, carbs: 8, fat: 20, serving: '100g' },
+    '糖醋排骨': { calories: 260, protein: 16, carbs: 15, fat: 16, serving: '100g' },
+    '锅包肉': { calories: 280, protein: 15, carbs: 25, fat: 14, serving: '一份(150g)' },
+    '木须肉': { calories: 150, protein: 12, carbs: 8, fat: 8, serving: '一份(150g)' },
+    '鱼香肉丝': { calories: 170, protein: 14, carbs: 12, fat: 8, serving: '一份(150g)' },
+    '京酱肉丝': { calories: 180, protein: 15, carbs: 10, fat: 9, serving: '一份(150g)' },
+    '青椒肉丝': { calories: 140, protein: 12, carbs: 6, fat: 8, serving: '一份(150g)' },
+    '回锅肉': { calories: 290, protein: 14, carbs: 6, fat: 24, serving: '一份(150g)' },
+    '梅菜扣肉': { calories: 320, protein: 15, carbs: 12, fat: 25, serving: '一份(150g)' },
+    '粉蒸肉': { calories: 250, protein: 14, carbs: 15, fat: 16, serving: '一份(150g)' },
+    '水煮鱼': { calories: 200, protein: 20, carbs: 5, fat: 12, serving: '一份(200g)' },
+    '酸菜鱼': { calories: 180, protein: 22, carbs: 6, fat: 8, serving: '一份(200g)' },
+    '清蒸鱼': { calories: 120, protein: 25, carbs: 2, fat: 2, serving: '一份(150g)' },
+    '红烧鱼': { calories: 180, protein: 22, carbs: 6, fat: 8, serving: '一份(150g)' },
+    '糖醋里脊': { calories: 240, protein: 16, carbs: 22, fat: 10, serving: '一份(150g)' },
+    '糖醋鱼': { calories: 180, protein: 18, carbs: 14, fat: 7, serving: '一份(150g)' },
+    '水煮牛肉': { calories: 150, protein: 28, carbs: 2, fat: 3, serving: '一份(150g)' },
+    '涮牛肉': { calories: 140, protein: 25, carbs: 1, fat: 4, serving: '100g' },
+    '牛腩': { calories: 180, protein: 22, carbs: 2, fat: 10, serving: '100g' },
+    '牛排': { calories: 271, protein: 26, carbs: 0, fat: 18, serving: '一块(150g)' },
+    '牛柳': { calories: 140, protein: 26, carbs: 1, fat: 3, serving: '100g' },
+    '麻婆豆腐': { calories: 180, protein: 10, carbs: 8, fat: 13, serving: '一份(200g)' },
+    '家常豆腐': { calories: 150, protein: 10, carbs: 8, fat: 9, serving: '一份(200g)' },
+    '红烧茄子': { calories: 100, protein: 3, carbs: 12, fat: 5, serving: '一份(150g)' },
+    '鱼香茄子': { calories: 110, protein: 3, carbs: 14, fat: 5, serving: '一份(150g)' },
+    '地三鲜': { calories: 120, protein: 4, carbs: 15, fat: 5, serving: '一份(200g)' },
+    '干煸四季豆': { calories: 100, protein: 4, carbs: 10, fat: 5, serving: '一份(150g)' },
+    '蒜蓉西兰花': { calories: 45, protein: 3, carbs: 6, fat: 1.5, serving: '一份(150g)' },
+    '干锅花菜': { calories: 100, protein: 4, carbs: 8, fat: 6, serving: '一份(200g)' },
+    '手撕包菜': { calories: 50, protein: 2, carbs: 7, fat: 2, serving: '一份(150g)' },
+    '醋溜白菜': { calories: 40, protein: 1, carbs: 6, fat: 1, serving: '一份(150g)' },
+    '酸辣土豆丝': { calories: 90, protein: 2, carbs: 15, fat: 3, serving: '一份(150g)' },
+    '土豆丝': { calories: 80, protein: 2, carbs: 14, fat: 2, serving: '一份(150g)' },
+    '炒土豆': { calories: 100, protein: 2, carbs: 18, fat: 2.5, serving: '一份(150g)' },
+    '红烧土豆': { calories: 110, protein: 2, carbs: 20, fat: 3, serving: '一份(150g)' },
+    '土豆炖牛肉': { calories: 200, protein: 20, carbs: 12, fat: 10, serving: '一份(250g)' },
+    '西红柿炒土豆': { calories: 90, protein: 3, carbs: 14, fat: 3, serving: '一份(180g)' },
+    '凉拌黄瓜': { calories: 25, protein: 1, carbs: 4, fat: 0.5, serving: '一份(100g)' },
+    '拍黄瓜': { calories: 25, protein: 1, carbs: 4, fat: 0.5, serving: '一份(100g)' },
+    '黄瓜炒蛋': { calories: 100, protein: 7, carbs: 4, fat: 6, serving: '一份(150g)' },
+    '韭菜炒蛋': { calories: 120, protein: 8, carbs: 5, fat: 7, serving: '一份(150g)' },
+    '苦瓜炒蛋': { calories: 100, protein: 8, carbs: 4, fat: 6, serving: '一份(150g)' },
+    '丝瓜炒蛋': { calories: 95, protein: 7, carbs: 4, fat: 5.5, serving: '一份(150g)' },
+    '洋葱炒蛋': { calories: 110, protein: 7, carbs: 5, fat: 7, serving: '一份(150g)' },
+    '葱花炒蛋': { calories: 120, protein: 7, carbs: 3, fat: 8, serving: '一份(150g)' },
+    '蒜苗炒蛋': { calories: 110, protein: 7, carbs: 4, fat: 7, serving: '一份(150g)' },
+    '西红柿炒土豆片': { calories: 90, protein: 3, carbs: 14, fat: 3, serving: '一份(180g)' },
+    '小鸡炖蘑菇': { calories: 180, protein: 22, carbs: 6, fat: 9, serving: '一份(250g)' },
+    '蘑菇炒肉': { calories: 130, protein: 12, carbs: 5, fat: 7, serving: '一份(150g)' },
+    '香菇炒肉': { calories: 130, protein: 12, carbs: 5, fat: 7, serving: '一份(150g)' },
+    '木须柿子': { calories: 100, protein: 5, carbs: 10, fat: 5, serving: '一份(150g)' },
+    '木须瓜片': { calories: 80, protein: 4, carbs: 7, fat: 4, serving: '一份(150g)' },
+
+    // 面食类
+    '牛肉面': { calories: 350, protein: 20, carbs: 45, fat: 12, serving: '一碗(300g)' },
+    '红烧牛肉面': { calories: 400, protein: 22, carbs: 50, fat: 14, serving: '一碗(350g)' },
+    '兰州拉面': { calories: 380, protein: 18, carbs: 52, fat: 12, serving: '一碗(350g)' },
+    '刀削面': { calories: 320, protein: 10, carbs: 55, fat: 8, serving: '一碗(300g)' },
+    '油泼面': { calories: 350, protein: 10, carbs: 50, fat: 14, serving: '一碗(300g)' },
+    '炸酱面': { calories: 380, protein: 12, carbs: 55, fat: 14, serving: '一碗(300g)' },
+    '热干面': { calories: 380, protein: 10, carbs: 58, fat: 13, serving: '一碗(300g)' },
+    '担担面': { calories: 360, protein: 12, carbs: 50, fat: 13, serving: '一碗(300g)' },
+    '重庆小面': { calories: 340, protein: 10, carbs: 50, fat: 12, serving: '一碗(300g)' },
+    '阳春面': { calories: 280, protein: 8, carbs: 48, fat: 8, serving: '一碗(300g)' },
+    '意大利面': { calories: 350, protein: 12, carbs: 60, fat: 8, serving: '一份(200g)' },
+    '螺蛳粉': { calories: 400, protein: 12, carbs: 60, fat: 14, serving: '一碗(300g)' },
+    '酸辣粉': { calories: 320, protein: 8, carbs: 55, fat: 8, serving: '一碗(300g)' },
+    '麻辣烫': { calories: 350, protein: 15, carbs: 40, fat: 15, serving: '一份(400g)' },
+    '冒菜': { calories: 350, protein: 15, carbs: 40, fat: 15, serving: '一份(400g)' },
+
+    // 早餐类
+    '油条': { calories: 386, protein: 6, carbs: 51, fat: 17, serving: '一根(50g)' },
+    '豆浆': { calories: 33, protein: 3, carbs: 2, fat: 1, serving: '一杯(250ml)' },
+    '小笼包': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '6个(100g)' },
+    '生煎包': { calories: 280, protein: 10, carbs: 30, fat: 14, serving: '4个(100g)' },
+    '煎饼果子': { calories: 300, protein: 10, carbs: 40, fat: 12, serving: '一个(150g)' },
+    '手抓饼': { calories: 280, protein: 8, carbs: 35, fat: 13, serving: '一个(120g)' },
+    '鸡蛋灌饼': { calories: 320, protein: 12, carbs: 38, fat: 14, serving: '一个(150g)' },
+    '肉夹馍': { calories: 350, protein: 15, carbs: 40, fat: 15, serving: '一个(150g)' },
+    '鸡蛋饼': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '一个(120g)' },
+    '煎饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '葱油饼': { calories: 280, protein: 6, carbs: 35, fat: 13, serving: '一个(120g)' },
+    '烧饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '油饼': { calories: 350, protein: 8, carbs: 40, fat: 18, serving: '一个(100g)' },
+    '油炸糕': { calories: 280, protein: 4, carbs: 35, fat: 14, serving: '一个(80g)' },
+    '馄饨': { calories: 220, protein: 10, carbs: 25, fat: 9, serving: '10个(120g)' },
+    '云吞': { calories: 220, protein: 10, carbs: 25, fat: 9, serving: '10个(120g)' },
+    '抄手': { calories: 220, protein: 10, carbs: 25, fat: 9, serving: '10个(120g)' },
+    '豆腐脑': { calories: 80, protein: 6, carbs: 6, fat: 3, serving: '一碗(300ml)' },
+    '豆花': { calories: 80, protein: 6, carbs: 6, fat: 3, serving: '一碗(300ml)' },
+    '鸡蛋羹': { calories: 90, protein: 8, carbs: 2, fat: 5, serving: '一碗(150g)' },
+    '蒸蛋': { calories: 90, protein: 8, carbs: 2, fat: 5, serving: '一碗(150g)' },
+
+    // 火锅/烧烤类
+    '火锅': { calories: 300, protein: 20, carbs: 15, fat: 18, serving: '一顿(500g)' },
+    '涮羊肉': { calories: 200, protein: 25, carbs: 5, fat: 10, serving: '一份(200g)' },
+    '涮肥牛': { calories: 220, protein: 24, carbs: 5, fat: 12, serving: '一份(200g)' },
+    '毛肚': { calories: 90, protein: 15, carbs: 2, fat: 2, serving: '100g' },
+    '黄喉': { calories: 80, protein: 14, carbs: 2, fat: 2, serving: '100g' },
+    '鸭血': { calories: 50, protein: 10, carbs: 2, fat: 0.5, serving: '100g' },
+    '猪血': { calories: 45, protein: 9, carbs: 2, fat: 0.5, serving: '100g' },
+    '虾滑': { calories: 100, protein: 15, carbs: 3, fat: 3, serving: '100g' },
+    '牛肉丸': { calories: 120, protein: 16, carbs: 3, fat: 5, serving: '100g' },
+    '鱼丸': { calories: 80, protein: 12, carbs: 4, fat: 2, serving: '100g' },
+    '撒尿牛丸': { calories: 130, protein: 15, carbs: 5, fat: 6, serving: '100g' },
+    '年糕': { calories: 150, protein: 3, carbs: 35, fat: 0.5, serving: '100g' },
+    '粉丝': { calories: 140, protein: 0.5, carbs: 35, fat: 0.1, serving: '100g' },
+    '宽粉': { calories: 140, protein: 0.5, carbs: 35, fat: 0.1, serving: '100g' },
+    '烧烤': { calories: 250, protein: 18, carbs: 5, fat: 18, serving: '一份(150g)' },
+    '烤串': { calories: 200, protein: 15, carbs: 5, fat: 14, serving: '5串(150g)' },
+    '烤肉': { calories: 250, protein: 20, carbs: 3, fat: 18, serving: '100g' },
+    '烤羊肉串': { calories: 200, protein: 18, carbs: 3, fat: 13, serving: '3串(100g)' },
+    '烤牛肉串': { calories: 180, protein: 20, carbs: 3, fat: 10, serving: '3串(100g)' },
+    '烤鸡翅': { calories: 220, protein: 20, carbs: 5, fat: 14, serving: '3个(100g)' },
+    '烤鸡腿': { calories: 240, protein: 25, carbs: 3, fat: 14, serving: '1个(120g)' },
+    '烤五花肉': { calories: 300, protein: 18, carbs: 2, fat: 24, serving: '5片(100g)' },
+    '烤生蚝': { calories: 80, protein: 10, carbs: 3, fat: 3, serving: '2个(80g)' },
+    '烤扇贝': { calories: 70, protein: 10, carbs: 2, fat: 2, serving: '2个(60g)' },
+    '烤茄子': { calories: 60, protein: 2, carbs: 10, fat: 2, serving: '一个(150g)' },
+    '烤韭菜': { calories: 50, protein: 3, carbs: 6, fat: 2, serving: '一份(100g)' },
+    '烤金针菇': { calories: 40, protein: 3, carbs: 5, fat: 1, serving: '一份(100g)' },
+    '烤玉米': { calories: 100, protein: 3, carbs: 20, fat: 1.5, serving: '一根(150g)' },
+
+    // 小吃零食类
+    '炸鸡': { calories: 298, protein: 24, carbs: 10, fat: 18, serving: '100g' },
+    '炸鸡腿': { calories: 280, protein: 22, carbs: 10, fat: 18, serving: '一个(120g)' },
+    '炸鸡翅': { calories: 260, protein: 20, carbs: 8, fat: 17, serving: '2个(100g)' },
+    '炸鸡排': { calories: 300, protein: 25, carbs: 12, fat: 18, serving: '一块(150g)' },
+    '薯条': { calories: 312, protein: 3, carbs: 41, fat: 15, serving: '100g' },
+    '薯片': { calories: 547, protein: 6, carbs: 53, fat: 35, serving: '100g' },
+    '汉堡': { calories: 295, protein: 15, carbs: 30, fat: 12, serving: '一个(120g)' },
+    '炸薯条': { calories: 312, protein: 3, carbs: 41, fat: 15, serving: '100g' },
+    '鸡米花': { calories: 280, protein: 18, carbs: 15, fat: 18, serving: '100g' },
+    '鸡块': { calories: 280, protein: 18, carbs: 15, fat: 18, serving: '100g' },
+    '爆米花': { calories: 387, protein: 13, carbs: 78, fat: 5, serving: '100g' },
+    '锅巴': { calories: 440, protein: 8, carbs: 65, fat: 17, serving: '100g' },
+    '虾条': { calories: 420, protein: 8, carbs: 60, fat: 16, serving: '100g' },
+    '雪米饼': { calories: 400, protein: 5, carbs: 70, fat: 12, serving: '100g' },
+    '仙贝': { calories: 380, protein: 7, carbs: 65, fat: 10, serving: '100g' },
+    '煎堆': { calories: 300, protein: 5, carbs: 40, fat: 14, serving: '100g' },
+    '麻圆': { calories: 300, protein: 5, carbs: 40, fat: 14, serving: '100g' },
+    '春卷': { calories: 280, protein: 6, carbs: 35, fat: 14, serving: '3个(100g)' },
+    '炸春卷': { calories: 280, protein: 6, carbs: 35, fat: 14, serving: '3个(100g)' },
+    '炸麻花': { calories: 350, protein: 7, carbs: 50, fat: 14, serving: '100g' },
+    '桃酥': { calories: 480, protein: 7, carbs: 60, fat: 24, serving: '100g' },
+    '蛋挞': { calories: 280, protein: 5, carbs: 35, fat: 14, serving: '一个(50g)' },
+    '蛋卷': { calories: 380, protein: 8, carbs: 45, fat: 18, serving: '100g' },
+    '蛋黄派': { calories: 360, protein: 5, carbs: 55, fat: 14, serving: '100g' },
+    '沙琪玛': { calories: 380, protein: 6, carbs: 60, fat: 13, serving: '100g' },
+    '凤梨酥': { calories: 400, protein: 4, carbs: 60, fat: 16, serving: '100g' },
+    '绿豆糕': { calories: 320, protein: 5, carbs: 55, fat: 9, serving: '100g' },
+    '月饼': { calories: 400, protein: 8, carbs: 50, fat: 20, serving: '一个(100g)' },
+    '粽子': { calories: 200, protein: 4, carbs: 40, fat: 2, serving: '一个(100g)' },
+    '汤圆': { calories: 80, protein: 2, carbs: 15, fat: 1.5, serving: '一个(30g)' },
+    '元宵': { calories: 80, protein: 2, carbs: 15, fat: 1.5, serving: '一个(30g)' },
+    '糍粑': { calories: 150, protein: 3, carbs: 35, fat: 0.5, serving: '100g' },
+    '凉粉': { calories: 35, protein: 0, carbs: 9, fat: 0, serving: '100g' },
+    '凉皮': { calories: 120, protein: 3, carbs: 25, fat: 1, serving: '一份(150g)' },
+    '凉面': { calories: 260, protein: 7, carbs: 38, fat: 9, serving: '一份(200g)' },
+    '冰粉': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一份(200g)' },
+    '龟苓膏': { calories: 50, protein: 1, carbs: 12, fat: 0, serving: '一份(150g)' },
+
+    // 卤味/凉菜类
+    '卤牛肉': { calories: 180, protein: 28, carbs: 3, fat: 7, serving: '100g' },
+    '卤猪肉': { calories: 200, protein: 22, carbs: 4, fat: 11, serving: '100g' },
+    '卤鸡腿': { calories: 180, protein: 25, carbs: 3, fat: 8, serving: '一个(100g)' },
+    '卤鸡翅': { calories: 160, protein: 24, carbs: 2, fat: 6, serving: '2个(100g)' },
+    '卤鸭脖': { calories: 150, protein: 20, carbs: 3, fat: 7, serving: '3根(80g)' },
+    '卤鸭锁骨': { calories: 140, protein: 18, carbs: 3, fat: 6, serving: '5个(100g)' },
+    '卤鸭翅': { calories: 150, protein: 20, carbs: 2, fat: 7, serving: '3个(80g)' },
+    '卤鸡爪': { calories: 120, protein: 18, carbs: 2, fat: 5, serving: '5个(80g)' },
+    '卤凤爪': { calories: 120, protein: 18, carbs: 2, fat: 5, serving: '5个(80g)' },
+    '卤猪蹄': { calories: 250, protein: 22, carbs: 4, fat: 17, serving: '一个(120g)' },
+    '卤猪耳': { calories: 190, protein: 22, carbs: 2, fat: 11, serving: '100g' },
+    '卤猪舌': { calories: 170, protein: 24, carbs: 2, fat: 8, serving: '100g' },
+    '卤牛腱': { calories: 170, protein: 28, carbs: 2, fat: 6, serving: '100g' },
+    '卤牛肚': { calories: 100, protein: 16, carbs: 2, fat: 3, serving: '100g' },
+    '卤大肠': { calories: 220, protein: 15, carbs: 2, fat: 17, serving: '100g' },
+    '卤鸡胗': { calories: 110, protein: 20, carbs: 2, fat: 3, serving: '100g' },
+    '卤鸭血': { calories: 50, protein: 10, carbs: 2, fat: 0.5, serving: '100g' },
+    '卤豆腐': { calories: 100, protein: 8, carbs: 5, fat: 5, serving: '100g' },
+    '卤蛋': { calories: 130, protein: 12, carbs: 2, fat: 8, serving: '一个(50g)' },
+    '卤藕片': { calories: 60, protein: 2, carbs: 12, fat: 0.5, serving: '100g' },
+    '卤海带': { calories: 40, protein: 3, carbs: 5, fat: 1, serving: '100g' },
+    '卤金针菇': { calories: 45, protein: 3, carbs: 6, fat: 1, serving: '100g' },
+    '卤毛豆': { calories: 80, protein: 8, carbs: 6, fat: 3, serving: '100g' },
+    '卤花生': { calories: 160, protein: 8, carbs: 14, fat: 8, serving: '100g' },
+    '卤豆干': { calories: 100, protein: 12, carbs: 5, fat: 4, serving: '100g' },
+    '凉拌牛肉': { calories: 150, protein: 24, carbs: 3, fat: 5, serving: '100g' },
+    '凉拌鸡丝': { calories: 120, protein: 20, carbs: 4, fat: 3, serving: '100g' },
+    '凉拌猪耳': { calories: 150, protein: 18, carbs: 3, fat: 8, serving: '100g' },
+    '夫妻肺片': { calories: 180, protein: 18, carbs: 6, fat: 10, serving: '一份(150g)' },
+    '棒棒鸡': { calories: 150, protein: 18, carbs: 4, fat: 8, serving: '一份(150g)' },
+    '口水鸡': { calories: 180, protein: 20, carbs: 5, fat: 10, serving: '一份(150g)' },
+    '白斩鸡': { calories: 140, protein: 24, carbs: 2, fat: 4, serving: '一份(150g)' },
+    '白切鸡': { calories: 140, protein: 24, carbs: 2, fat: 4, serving: '一份(150g)' },
+    '手撕鸡': { calories: 130, protein: 22, carbs: 3, fat: 4, serving: '一份(150g)' },
+    '盐焗鸡': { calories: 200, protein: 25, carbs: 3, fat: 10, serving: '一份(150g)' },
+    '烧鸡': { calories: 220, protein: 25, carbs: 4, fat: 12, serving: '一只(500g)' },
+    '烧鸭': { calories: 280, protein: 22, carbs: 5, fat: 20, serving: '半只(300g)' },
+    '烤鸭': { calories: 280, protein: 22, carbs: 5, fat: 20, serving: '半只(300g)' },
+    '盐水鸭': { calories: 180, protein: 22, carbs: 3, fat: 9, serving: '一份(150g)' },
+    '酱鸭': { calories: 220, protein: 24, carbs: 5, fat: 12, serving: '半只(300g)' },
+    '板鸭': { calories: 230, protein: 25, carbs: 4, fat: 13, serving: '半只(300g)' },
+    '腊肉': { calories: 280, protein: 18, carbs: 4, fat: 22, serving: '100g' },
+    '腊肠': { calories: 300, protein: 15, carbs: 8, fat: 25, serving: '100g' },
+    '香肠': { calories: 300, protein: 12, carbs: 8, fat: 26, serving: '100g' },
+    '火腿': { calories: 330, protein: 16, carbs: 2, fat: 29, serving: '100g' },
+    '火腿肠': { calories: 220, protein: 10, carbs: 8, fat: 18, serving: '2根(80g)' },
+    '培根': { calories: 330, protein: 15, carbs: 2, fat: 30, serving: '100g' },
+    '热狗': { calories: 290, protein: 10, carbs: 28, fat: 16, serving: '一个(100g)' },
+
+    // 肉类 - 优先匹配
+    '鸡胸肉': { calories: 133, protein: 31, carbs: 0, fat: 1, serving: '100g' },
+    '鸡腿肉': { calories: 181, protein: 26, carbs: 0, fat: 8, serving: '100g' },
+    '鸡腿': { calories: 181, protein: 26, carbs: 0, fat: 8, serving: '100g' },
+    '鸡翅': { calories: 203, protein: 30, carbs: 0, fat: 9, serving: '100g' },
+    '鸭肉': { calories: 240, protein: 16, carbs: 0, fat: 19, serving: '100g' },
+    '鱼肉': { calories: 90, protein: 18, carbs: 0, fat: 2, serving: '100g' },
+    '虾肉': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '排骨': { calories: 264, protein: 20, carbs: 0, fat: 20, serving: '100g' },
+    '五花肉': { calories: 395, protein: 14, carbs: 0, fat: 37, serving: '100g' },
+    '里脊肉': { calories: 155, protein: 22, carbs: 0, fat: 6, serving: '100g' },
+    '猪蹄': { calories: 260, protein: 22, carbs: 0, fat: 18, serving: '100g' },
+
+    // 肉（通用）- 放在后面作为模糊匹配
+    '牛肉': { calories: 125, protein: 26, carbs: 0, fat: 3, serving: '100g' },
+    '肥牛': { calories: 200, protein: 22, carbs: 1, fat: 12, serving: '100g' },
+    '牛腱子肉': { calories: 130, protein: 26, carbs: 1, fat: 2.5, serving: '100g' },
+    '牛里脊': { calories: 140, protein: 26, carbs: 1, fat: 3, serving: '100g' },
+    '牛腩肉': { calories: 180, protein: 22, carbs: 2, fat: 10, serving: '100g' },
+    '牛上脑': { calories: 180, protein: 22, carbs: 1, fat: 11, serving: '100g' },
+    '牛霖': { calories: 130, protein: 26, carbs: 1, fat: 2.5, serving: '100g' },
+    '牛臀': { calories: 130, protein: 26, carbs: 1, fat: 2.5, serving: '100g' },
+    '猪肉': { calories: 143, protein: 21, carbs: 0, fat: 6, serving: '100g' },
+    '瘦肉': { calories: 120, protein: 24, carbs: 0, fat: 2, serving: '100g' },
+    '肥肉': { calories: 400, protein: 5, carbs: 0, fat: 45, serving: '100g' },
+    '前腿肉': { calories: 150, protein: 22, carbs: 0, fat: 6, serving: '100g' },
+    '后腿肉': { calories: 140, protein: 24, carbs: 0, fat: 5, serving: '100g' },
+    '梅花肉': { calories: 160, protein: 23, carbs: 0, fat: 7, serving: '100g' },
+    '鸡肉': { calories: 167, protein: 31, carbs: 0, fat: 4, serving: '100g' },
+    '鸡胸': { calories: 133, protein: 31, carbs: 0, fat: 1, serving: '100g' },
     '鸡胸肉': { calories: 133, protein: 31, carbs: 0, fat: 1, serving: '100g' },
     '鸡腿': { calories: 181, protein: 26, carbs: 0, fat: 8, serving: '100g' },
-    '猪肉': { calories: 143, protein: 21, carbs: 0, fat: 6, serving: '100g' },
-    '牛肉': { calories: 125, protein: 26, carbs: 0, fat: 3, serving: '100g' },
-    '牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
-    '酸奶': { calories: 72, protein: 3, carbs: 10, fat: 2, serving: '一杯(200g)' },
-    '苹果': { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, serving: '一个(200g)' },
-    '香蕉': { calories: 93, protein: 1, carbs: 23, fat: 0.3, serving: '一根(100g)' },
+    '鸡腿肉': { calories: 181, protein: 26, carbs: 0, fat: 8, serving: '100g' },
+    '鸡翅': { calories: 203, protein: 30, carbs: 0, fat: 9, serving: '100g' },
+    '鸡爪': { calories: 110, protein: 18, carbs: 0, fat: 5, serving: '100g' },
+    '鸡胗': { calories: 110, protein: 20, carbs: 2, fat: 3, serving: '100g' },
+    '鸡心': { calories: 120, protein: 18, carbs: 1, fat: 5, serving: '100g' },
+    '鸡肝': { calories: 120, protein: 17, carbs: 3, fat: 5, serving: '100g' },
+    '鸭肉': { calories: 240, protein: 16, carbs: 0, fat: 19, serving: '100g' },
+    '鸭腿': { calories: 200, protein: 20, carbs: 0, fat: 13, serving: '100g' },
+    '鸭翅': { calories: 180, protein: 18, carbs: 0, fat: 12, serving: '100g' },
+    '鸭脖': { calories: 140, protein: 18, carbs: 2, fat: 7, serving: '100g' },
+    '鸭胗': { calories: 100, protein: 19, carbs: 2, fat: 2, serving: '100g' },
+    '鹅肉': { calories: 250, protein: 19, carbs: 0, fat: 19, serving: '100g' },
+    '鸽肉': { calories: 200, protein: 22, carbs: 0, fat: 12, serving: '100g' },
+    '鹌鹑': { calories: 180, protein: 20, carbs: 0, fat: 11, serving: '一只(80g)' },
+    '羊肉': { calories: 143, protein: 26, carbs: 0, fat: 3, serving: '100g' },
+    '羊排': { calories: 200, protein: 22, carbs: 0, fat: 12, serving: '100g' },
+    '羊腿': { calories: 160, protein: 24, carbs: 0, fat: 6, serving: '100g' },
+    '羊蝎子': { calories: 180, protein: 24, carbs: 0, fat: 9, serving: '100g' },
+    '羊肉卷': { calories: 200, protein: 22, carbs: 0, fat: 12, serving: '100g' },
+    '鱼肉': { calories: 90, protein: 18, carbs: 0, fat: 2, serving: '100g' },
+    '鲈鱼': { calories: 100, protein: 22, carbs: 0, fat: 1.5, serving: '100g' },
+    '草鱼': { calories: 95, protein: 20, carbs: 0, fat: 2, serving: '100g' },
+    '鲤鱼': { calories: 90, protein: 18, carbs: 0, fat: 2, serving: '100g' },
+    '鲫鱼': { calories: 85, protein: 18, carbs: 0, fat: 1.5, serving: '100g' },
+    '鳝鱼': { calories: 90, protein: 20, carbs: 0, fat: 1, serving: '100g' },
+    '鳗鱼': { calories: 200, protein: 22, carbs: 0, fat: 12, serving: '100g' },
+    '三文鱼': { calories: 183, protein: 22, carbs: 0, fat: 11, serving: '100g' },
+    '金枪鱼': { calories: 130, protein: 28, carbs: 0, fat: 1, serving: '100g' },
+    '带鱼': { calories: 100, protein: 20, carbs: 0, fat: 2, serving: '100g' },
+    '黄鱼': { calories: 90, protein: 18, carbs: 0, fat: 2, serving: '100g' },
+    '平鱼': { calories: 100, protein: 20, carbs: 0, fat: 2, serving: '100g' },
+    '多宝鱼': { calories: 90, protein: 18, carbs: 0, fat: 2, serving: '100g' },
+    '桂鱼': { calories: 95, protein: 20, carbs: 0, fat: 2, serving: '100g' },
+    '石斑鱼': { calories: 100, protein: 22, carbs: 0, fat: 1.5, serving: '100g' },
+    '虾': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '大虾': { calories: 90, protein: 20, carbs: 1, fat: 1.5, serving: '100g' },
+    '基围虾': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '海虾': { calories: 90, protein: 20, carbs: 1, fat: 1.5, serving: '100g' },
+    '河虾': { calories: 80, protein: 16, carbs: 1, fat: 1, serving: '100g' },
+    '虾仁': { calories: 80, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '虾肉': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '蟹': { calories: 97, protein: 19, carbs: 1, fat: 2, serving: '100g' },
+    '大闸蟹': { calories: 120, protein: 18, carbs: 3, fat: 5, serving: '一只(150g)' },
+    '梭子蟹': { calories: 100, protein: 18, carbs: 2, fat: 3, serving: '一只(150g)' },
+    '帝王蟹': { calories: 90, protein: 18, carbs: 1, fat: 1.5, serving: '100g' },
+    '面包蟹': { calories: 85, protein: 17, carbs: 2, fat: 1, serving: '100g' },
+    '青蟹': { calories: 100, protein: 18, carbs: 2, fat: 3, serving: '一只(150g)' },
+    '花螺': { calories: 80, protein: 15, carbs: 2, fat: 1, serving: '100g' },
+    '海螺': { calories: 100, protein: 18, carbs: 3, fat: 2, serving: '100g' },
+    '鲍鱼': { calories: 80, protein: 16, carbs: 3, fat: 1, serving: '2个(60g)' },
+    '生蚝': { calories: 60, protein: 10, carbs: 3, fat: 2, serving: '2个(60g)' },
+    '扇贝': { calories: 70, protein: 12, carbs: 2, fat: 1.5, serving: '3个(60g)' },
+    '蛤蜊': { calories: 50, protein: 8, carbs: 2, fat: 1, serving: '10个(50g)' },
+    '花蛤': { calories: 50, protein: 8, carbs: 2, fat: 1, serving: '10个(50g)' },
+    '蛏子': { calories: 60, protein: 10, carbs: 3, fat: 1, serving: '10个(60g)' },
+    '海参': { calories: 70, protein: 15, carbs: 1, fat: 0.5, serving: '100g' },
+    '海胆': { calories: 110, protein: 12, carbs: 4, fat: 5, serving: '100g' },
+    '章鱼': { calories: 70, protein: 14, carbs: 2, fat: 1, serving: '100g' },
+    '鱿鱼': { calories: 80, protein: 16, carbs: 2, fat: 1, serving: '100g' },
+    '墨鱼': { calories: 80, protein: 15, carbs: 2, fat: 1, serving: '100g' },
+    '肉': { calories: 150, protein: 20, carbs: 0, fat: 8, serving: '100g' },
+
+    // 主食
+    '米饭': { calories: 130, protein: 2.5, carbs: 28, fat: 0.3, serving: '一碗(150g)' },
+    '白米饭': { calories: 130, protein: 2.5, carbs: 28, fat: 0.3, serving: '一碗(150g)' },
+    '杂粮饭': { calories: 120, protein: 3, carbs: 25, fat: 0.5, serving: '一碗(150g)' },
+    '紫米饭': { calories: 135, protein: 3, carbs: 28, fat: 0.5, serving: '一碗(150g)' },
+    '糙米饭': { calories: 110, protein: 2.5, carbs: 23, fat: 0.5, serving: '一碗(150g)' },
+    '小米饭': { calories: 115, protein: 3, carbs: 24, fat: 0.4, serving: '一碗(150g)' },
+    '薏米饭': { calories: 120, protein: 3, carbs: 25, fat: 0.5, serving: '一碗(150g)' },
+    '红豆饭': { calories: 130, protein: 4, carbs: 26, fat: 0.5, serving: '一碗(150g)' },
+    '绿豆饭': { calories: 125, protein: 4, carbs: 25, fat: 0.5, serving: '一碗(150g)' },
+    '腊肉饭': { calories: 200, protein: 6, carbs: 30, fat: 7, serving: '一碗(180g)' },
+    '煲仔饭': { calories: 220, protein: 7, carbs: 32, fat: 8, serving: '一碗(200g)' },
+    '盖浇饭': { calories: 250, protein: 10, carbs: 35, fat: 8, serving: '一份(250g)' },
+    '炒米': { calories: 160, protein: 3, carbs: 30, fat: 3, serving: '一碗(150g)' },
+    '粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2, serving: '一碗(240g)' },
+    '白粥': { calories: 40, protein: 1, carbs: 9, fat: 0.1, serving: '一碗(240g)' },
+    '小米粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2, serving: '一碗(240g)' },
+    '燕麦粥': { calories: 60, protein: 2, carbs: 12, fat: 1, serving: '一碗(240g)' },
+    '玉米粥': { calories: 55, protein: 2, carbs: 11, fat: 0.5, serving: '一碗(240g)' },
+    '山药粥': { calories: 60, protein: 2, carbs: 12, fat: 0.5, serving: '一碗(240g)' },
+    '南瓜粥': { calories: 50, protein: 1.5, carbs: 11, fat: 0.3, serving: '一碗(240g)' },
+    '菠菜粥': { calories: 55, protein: 2, carbs: 10, fat: 0.5, serving: '一碗(240g)' },
+    '青菜粥': { calories: 50, protein: 2, carbs: 10, fat: 0.4, serving: '一碗(240g)' },
+    '面条': { calories: 284, protein: 8, carbs: 59, fat: 0.8, serving: '一碗(200g)' },
+    '白面条': { calories: 280, protein: 8, carbs: 58, fat: 0.8, serving: '一碗(200g)' },
+    '挂面': { calories: 284, protein: 8, carbs: 59, fat: 0.8, serving: '一碗(200g)' },
+    '手擀面': { calories: 290, protein: 9, carbs: 58, fat: 1, serving: '一碗(200g)' },
+    '拉面': { calories: 300, protein: 10, carbs: 58, fat: 2, serving: '一碗(200g)' },
+    '烩面': { calories: 320, protein: 10, carbs: 50, fat: 10, serving: '一碗(300g)' },
+    '泡面': { calories: 450, protein: 10, carbs: 60, fat: 18, serving: '一碗(200g)' },
+    '方便面': { calories: 450, protein: 10, carbs: 60, fat: 18, serving: '一碗(200g)' },
+    '干脆面': { calories: 500, protein: 8, carbs: 60, fat: 24, serving: '一包(60g)' },
+    '粉丝': { calories: 140, protein: 0.5, carbs: 35, fat: 0.1, serving: '一碗(100g)' },
+    '粉条': { calories: 140, protein: 0.5, carbs: 35, fat: 0.1, serving: '一碗(100g)' },
+    '凉皮': { calories: 120, protein: 3, carbs: 25, fat: 1, serving: '一份(150g)' },
+    '米线': { calories: 150, protein: 3, carbs: 32, fat: 0.5, serving: '一碗(200g)' },
+    '米粉': { calories: 150, protein: 3, carbs: 32, fat: 0.5, serving: '一碗(200g)' },
+    '河粉': { calories: 160, protein: 3, carbs: 35, fat: 0.5, serving: '一碗(200g)' },
+    '肠粉': { calories: 180, protein: 5, carbs: 30, fat: 4, serving: '一份(200g)' },
+    '馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
+    '白馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
+    '杂粮馒头': { calories: 200, protein: 8, carbs: 40, fat: 1.5, serving: '一个(100g)' },
+    '红糖馒头': { calories: 240, protein: 7, carbs: 50, fat: 1.5, serving: '一个(100g)' },
+    '花卷': { calories: 220, protein: 7, carbs: 45, fat: 1.5, serving: '一个(80g)' },
+    '窝窝头': { calories: 180, protein: 6, carbs: 38, fat: 1, serving: '一个(80g)' },
+    '包子': { calories: 200, protein: 7, carbs: 35, fat: 4, serving: '一个(100g)' },
+    '肉包': { calories: 220, protein: 9, carbs: 30, fat: 8, serving: '一个(100g)' },
+    '菜包': { calories: 180, protein: 6, carbs: 32, fat: 3, serving: '一个(100g)' },
+    '豆沙包': { calories: 220, protein: 5, carbs: 42, fat: 4, serving: '一个(100g)' },
+    '奶黄包': { calories: 230, protein: 6, carbs: 40, fat: 5, serving: '一个(100g)' },
+    '叉烧包': { calories: 230, protein: 10, carbs: 35, fat: 7, serving: '一个(100g)' },
+    '灌汤包': { calories: 200, protein: 8, carbs: 28, fat: 6, serving: '一个(80g)' },
+    '蒸饺': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '10个(100g)' },
+    '饺子': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '10个(100g)' },
+    '水饺': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '10个(100g)' },
+    '煎饺': { calories: 280, protein: 10, carbs: 30, fat: 14, serving: '10个(100g)' },
+    '锅贴': { calories: 280, protein: 10, carbs: 32, fat: 14, serving: '8个(100g)' },
+    '蒸包': { calories: 220, protein: 7, carbs: 35, fat: 5, serving: '一个(100g)' },
+    '蒸馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1, serving: '一个(100g)' },
+    '包子': { calories: 200, protein: 7, carbs: 35, fat: 4, serving: '一个(100g)' },
+    '大包子': { calories: 280, protein: 10, carbs: 40, fat: 8, serving: '一个大(150g)' },
+    '烧麦': { calories: 220, protein: 8, carbs: 28, fat: 9, serving: '5个(100g)' },
+    '蒸烧麦': { calories: 220, protein: 8, carbs: 28, fat: 9, serving: '5个(100g)' },
+    '烧卖': { calories: 220, protein: 8, carbs: 28, fat: 9, serving: '5个(100g)' },
+    '馅饼': { calories: 280, protein: 8, carbs: 35, fat: 12, serving: '一个(100g)' },
+    '肉饼': { calories: 300, protein: 12, carbs: 32, fat: 14, serving: '一个(120g)' },
+    '披萨': { calories: 266, protein: 11, carbs: 33, fat: 10, serving: '一片(100g)' },
+    '汉堡': { calories: 295, protein: 15, carbs: 30, fat: 12, serving: '一个(120g)' },
     '面包': { calories: 265, protein: 8, carbs: 50, fat: 3, serving: '两片(100g)' },
+    '白面包': { calories: 260, protein: 8, carbs: 50, fat: 2, serving: '两片(100g)' },
+    '全麦面包': { calories: 240, protein: 10, carbs: 45, fat: 3, serving: '两片(100g)' },
+    '吐司': { calories: 280, protein: 8, carbs: 50, fat: 4, serving: '两片(100g)' },
+    '法棍': { calories: 270, protein: 9, carbs: 54, fat: 1, serving: '一段(100g)' },
+    '可颂': { calories: 350, protein: 7, carbs: 40, fat: 18, serving: '一个(60g)' },
+    '牛角包': { calories: 350, protein: 7, carbs: 40, fat: 18, serving: '一个(60g)' },
+    '甜甜圈': { calories: 350, protein: 5, carbs: 45, fat: 17, serving: '一个(60g)' },
+    '华夫饼': { calories: 280, protein: 6, carbs: 40, fat: 12, serving: '一块(80g)' },
+    '蛋仔': { calories: 200, protein: 4, carbs: 30, fat: 7, serving: '一份(100g)' },
+    '华夫': { calories: 280, protein: 6, carbs: 40, fat: 12, serving: '一块(80g)' },
+    '三明治': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '一个(120g)' },
+    '热狗': { calories: 290, protein: 10, carbs: 28, fat: 16, serving: '一个(100g)' },
+    '煎饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '煎饼果子': { calories: 300, protein: 10, carbs: 40, fat: 12, serving: '一个(150g)' },
+    '手抓饼': { calories: 280, protein: 8, carbs: 35, fat: 13, serving: '一个(120g)' },
+    '鸡蛋灌饼': { calories: 320, protein: 12, carbs: 38, fat: 14, serving: '一个(150g)' },
+    '鸡蛋饼': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '一个(120g)' },
+    '葱油饼': { calories: 280, protein: 6, carbs: 35, fat: 13, serving: '一个(120g)' },
+    '烧饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '油条': { calories: 386, protein: 6, carbs: 51, fat: 17, serving: '一根(50g)' },
+    '油饼': { calories: 350, protein: 8, carbs: 40, fat: 18, serving: '一个(100g)' },
+    '炸糕': { calories: 280, protein: 4, carbs: 35, fat: 14, serving: '一个(80g)' },
+    '麻花': { calories: 350, protein: 7, carbs: 50, fat: 14, serving: '100g' },
+    '馃子': { calories: 350, protein: 7, carbs: 50, fat: 14, serving: '100g' },
+    '烙饼': { calories: 230, protein: 6, carbs: 38, fat: 7, serving: '一张(100g)' },
+    '馅饼': { calories: 280, protein: 8, carbs: 35, fat: 12, serving: '一个(100g)' },
+    '披萨': { calories: 266, protein: 11, carbs: 33, fat: 10, serving: '一片(100g)' },
+    '寿司': { calories: 200, protein: 8, carbs: 35, fat: 4, serving: '一盒(200g)' },
+    '饭团': { calories: 180, protein: 5, carbs: 30, fat: 4, serving: '一个(120g)' },
+    '紫菜包饭': { calories: 200, protein: 6, carbs: 32, fat: 5, serving: '一卷(150g)' },
+    '年糕': { calories: 150, protein: 3, carbs: 35, fat: 0.5, serving: '100g' },
+    '打糕': { calories: 180, protein: 4, carbs: 38, fat: 1, serving: '100g' },
+    '糍粑': { calories: 150, protein: 3, carbs: 35, fat: 0.5, serving: '100g' },
+
+    // 蛋类
+    '鸡蛋': { calories: 144, protein: 13, carbs: 1, fat: 10, serving: '一个(50g)' },
+    '煮鸡蛋': { calories: 144, protein: 13, carbs: 1, fat: 10, serving: '一个(50g)' },
+    '煎蛋': { calories: 196, protein: 14, carbs: 1, fat: 15, serving: '一个(60g)' },
+    '荷包蛋': { calories: 196, protein: 14, carbs: 1, fat: 15, serving: '一个(60g)' },
+    '鸭蛋': { calories: 180, protein: 13, carbs: 2, fat: 13, serving: '一个(60g)' },
+    '鹅蛋': { calories: 196, protein: 13, carbs: 2, fat: 15, serving: '一个(80g)' },
+    '鹌鹑蛋': { calories: 160, protein: 13, carbs: 1, fat: 11, serving: '5个(50g)' },
+
+    // 奶类
+    '牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '纯牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '酸奶': { calories: 72, protein: 3, carbs: 10, fat: 2, serving: '一杯(200g)' },
+    '奶酪': { calories: 402, protein: 25, carbs: 2, fat: 33, serving: '100g' },
+    '芝士': { calories: 402, protein: 25, carbs: 2, fat: 33, serving: '100g' },
+
+    // 水果
+    '苹果': { calories: 52, protein: 0.3, carbs: 14, fat: 0.2, serving: '一个(200g)' },
+    '红富士': { calories: 55, protein: 0.3, carbs: 15, fat: 0.2, serving: '一个(200g)' },
+    '黄元帅': { calories: 50, protein: 0.3, carbs: 14, fat: 0.2, serving: '一个(200g)' },
+    '青苹果': { calories: 48, protein: 0.3, carbs: 13, fat: 0.2, serving: '一个(180g)' },
+    '花牛苹果': { calories: 55, protein: 0.3, carbs: 15, fat: 0.2, serving: '一个(200g)' },
+    '蛇果': { calories: 55, protein: 0.3, carbs: 15, fat: 0.2, serving: '一个(200g)' },
+    '香蕉': { calories: 93, protein: 1, carbs: 23, fat: 0.3, serving: '一根(100g)' },
+    '大香蕉': { calories: 100, protein: 1, carbs: 25, fat: 0.3, serving: '一根(120g)' },
+    '小米蕉': { calories: 80, protein: 1, carbs: 20, fat: 0.3, serving: '一根(90g)' },
+    '皇帝蕉': { calories: 80, protein: 1, carbs: 20, fat: 0.3, serving: '一根(90g)' },
+    '火龙果': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '半个(200g)' },
+    '白心火龙果': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '半个(200g)' },
+    '红心火龙果': { calories: 55, protein: 1, carbs: 14, fat: 0, serving: '半个(200g)' },
+    '仙人掌果': { calories: 45, protein: 1, carbs: 12, fat: 0, serving: '一个(100g)' },
+    '橙子': { calories: 47, protein: 1, carbs: 12, fat: 0, serving: '一个(150g)' },
+    '脐橙': { calories: 47, protein: 1, carbs: 12, fat: 0, serving: '一个(150g)' },
+    '血橙': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '一个(150g)' },
+    '冰糖橙': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '一个(150g)' },
+    '夏橙': { calories: 47, protein: 1, carbs: 12, fat: 0, serving: '一个(150g)' },
+    '橘子': { calories: 44, protein: 1, carbs: 10, fat: 0, serving: '一个(100g)' },
+    '砂糖橘': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(50g)' },
+    '蜜橘': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(100g)' },
+    '贡橘': { calories: 40, protein: 1, carbs: 10, fat: 0, serving: '一个(80g)' },
+    '芦柑': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(100g)' },
+    '沃柑': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(120g)' },
+    '耙耙柑': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(120g)' },
+    '丑橘': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(120g)' },
+    '丑柑': { calories: 45, protein: 1, carbs: 11, fat: 0, serving: '一个(120g)' },
+    '金桔': { calories: 55, protein: 1, carbs: 14, fat: 0, serving: '5个(50g)' },
+    '青金桔': { calories: 55, protein: 1, carbs: 14, fat: 0, serving: '5个(50g)' },
+    '葡萄': { calories: 67, protein: 1, carbs: 17, fat: 0, serving: '10颗(100g)' },
+    '红提': { calories: 65, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '青提': { calories: 60, protein: 1, carbs: 15, fat: 0, serving: '10颗(100g)' },
+    '巨峰': { calories: 70, protein: 1, carbs: 18, fat: 0, serving: '10颗(100g)' },
+    '夏黑': { calories: 65, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '玫瑰香': { calories: 68, protein: 1, carbs: 17, fat: 0, serving: '10颗(100g)' },
+    '阳光玫瑰': { calories: 65, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '马奶子': { calories: 65, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '葡萄干': { calories: 340, protein: 2, carbs: 83, fat: 0.5, serving: '50g' },
+    '提子': { calories: 65, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '西瓜': { calories: 30, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '麒麟瓜': { calories: 30, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '黑美人': { calories: 32, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '无籽瓜': { calories: 30, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '小凤瓜': { calories: 32, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '特小凤': { calories: 32, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '梨': { calories: 51, protein: 0.3, carbs: 13, fat: 0.1, serving: '一个(150g)' },
+    '雪梨': { calories: 50, protein: 0.3, carbs: 13, fat: 0.1, serving: '一个(150g)' },
+    '皇冠梨': { calories: 55, protein: 0.3, carbs: 14, fat: 0.1, serving: '一个(180g)' },
+    '鸭梨': { calories: 50, protein: 0.3, carbs: 13, fat: 0.1, serving: '一个(150g)' },
+    '香梨': { calories: 48, protein: 0.3, carbs: 12, fat: 0.1, serving: '一个(120g)' },
+    '酥梨': { calories: 50, protein: 0.3, carbs: 13, fat: 0.1, serving: '一个(150g)' },
+    '丰水梨': { calories: 50, protein: 0.3, carbs: 13, fat: 0.1, serving: '一个(150g)' },
+    '库尔勒香梨': { calories: 48, protein: 0.3, carbs: 12, fat: 0.1, serving: '一个(120g)' },
+    '桃': { calories: 51, protein: 1, carbs: 12, fat: 0.3, serving: '一个(150g)' },
+    '水蜜桃': { calories: 55, protein: 1, carbs: 13, fat: 0.3, serving: '一个(150g)' },
+    '黄桃': { calories: 55, protein: 1, carbs: 13, fat: 0.3, serving: '一个(150g)' },
+    '油桃': { calories: 50, protein: 1, carbs: 12, fat: 0.3, serving: '一个(130g)' },
+    '蟠桃': { calories: 51, protein: 1, carbs: 12, fat: 0.3, serving: '一个(150g)' },
+    '毛桃': { calories: 50, protein: 1, carbs: 12, fat: 0.3, serving: '一个(150g)' },
+    '久保桃': { calories: 55, protein: 1, carbs: 13, fat: 0.3, serving: '一个(180g)' },
+    '黄桃罐头': { calories: 70, protein: 1, carbs: 17, fat: 0.1, serving: '100g' },
+    '草莓': { calories: 32, protein: 1, carbs: 8, fat: 0, serving: '10颗(100g)' },
+    '奶油草莓': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '10颗(100g)' },
+    '红颜草莓': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '10颗(100g)' },
+    '久久草莓': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '10颗(100g)' },
+    '草莓干': { calories: 300, protein: 2, carbs: 75, fat: 1, serving: '50g' },
+    '猕猴桃': { calories: 61, protein: 1, carbs: 15, fat: 0.5, serving: '一个(75g)' },
+    '奇异果': { calories: 61, protein: 1, carbs: 15, fat: 0.5, serving: '一个(75g)' },
+    '绿心猕猴桃': { calories: 58, protein: 1, carbs: 14, fat: 0.5, serving: '一个(75g)' },
+    '黄心猕猴桃': { calories: 65, protein: 1, carbs: 16, fat: 0.5, serving: '一个(80g)' },
+    '红心猕猴桃': { calories: 68, protein: 1, carbs: 17, fat: 0.5, serving: '一个(80g)' },
+    '金果': { calories: 65, protein: 1, carbs: 16, fat: 0.5, serving: '一个(80g)' },
+    '柚子': { calories: 42, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '沙田柚': { calories: 40, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '蜜柚': { calories: 42, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '文旦': { calories: 40, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '葡萄柚': { calories: 42, protein: 1, carbs: 11, fat: 0, serving: '半个(150g)' },
+    '西柚': { calories: 42, protein: 1, carbs: 11, fat: 0, serving: '半个(150g)' },
+    '红心柚': { calories: 42, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '三红柚': { calories: 42, protein: 1, carbs: 10, fat: 0, serving: '一片(100g)' },
+    '芒果': { calories: 65, protein: 1, carbs: 15, fat: 0.4, serving: '一个(150g)' },
+    '台农芒': { calories: 60, protein: 1, carbs: 14, fat: 0.3, serving: '一个(120g)' },
+    '贵妃芒': { calories: 65, protein: 1, carbs: 15, fat: 0.4, serving: '一个(150g)' },
+    '金煌芒': { calories: 68, protein: 1, carbs: 16, fat: 0.4, serving: '一个(180g)' },
+    '凯特芒': { calories: 70, protein: 1, carbs: 17, fat: 0.4, serving: '一个(200g)' },
+    '青芒': { calories: 55, protein: 1, carbs: 13, fat: 0.3, serving: '一个(130g)' },
+    '芒果干': { calories: 320, protein: 2, carbs: 78, fat: 1, serving: '50g' },
+    '菠萝': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '一块(100g)' },
+    '凤梨': { calories: 50, protein: 1, carbs: 13, fat: 0, serving: '一块(100g)' },
+    '香水菠萝': { calories: 48, protein: 1, carbs: 12, fat: 0, serving: '一块(100g)' },
+    '菠萝干': { calories: 300, protein: 1, carbs: 75, fat: 0.5, serving: '50g' },
+    '菠萝蜜': { calories: 95, protein: 2, carbs: 25, fat: 0.1, serving: '100g' },
+    '哈密瓜': { calories: 34, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '网纹瓜': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '西州蜜瓜': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '伽师瓜': { calories: 35, protein: 1, carbs: 8, fat: 0, serving: '一块(200g)' },
+    '甜瓜': { calories: 26, protein: 1, carbs: 6, fat: 0, serving: '半个(200g)' },
+    '香瓜': { calories: 26, protein: 1, carbs: 6, fat: 0, serving: '半个(200g)' },
+    '羊角蜜': { calories: 28, protein: 1, carbs: 7, fat: 0, serving: '一根(150g)' },
+    '博洋瓜': { calories: 28, protein: 1, carbs: 7, fat: 0, serving: '一根(150g)' },
+    '伊丽莎白瓜': { calories: 30, protein: 1, carbs: 7, fat: 0, serving: '半个(200g)' },
+    '椰子': { calories: 231, protein: 2, carbs: 24, fat: 12, serving: '半个(100g)' },
+    '椰青': { calories: 40, protein: 1, carbs: 8, fat: 2, serving: '一个(200ml)' },
+    '椰汁': { calories: 40, protein: 1, carbs: 8, fat: 2, serving: '一杯(200ml)' },
+    '榴莲': { calories: 147, protein: 2, carbs: 27, fat: 3, serving: '100g' },
+    '金枕榴莲': { calories: 150, protein: 2, carbs: 28, fat: 3, serving: '100g' },
+    '猫山王': { calories: 160, protein: 3, carbs: 30, fat: 4, serving: '100g' },
+    '蓝莓': { calories: 57, protein: 1, carbs: 14, fat: 0.5, serving: '50g' },
+    '蓝莓干': { calories: 320, protein: 2, carbs: 78, fat: 1, serving: '50g' },
+    '车厘子': { calories: 63, protein: 1, carbs: 16, fat: 0.2, serving: '10颗(100g)' },
+    '樱桃': { calories: 63, protein: 1, carbs: 16, fat: 0.2, serving: '10颗(100g)' },
+    '红灯樱桃': { calories: 60, protein: 1, carbs: 15, fat: 0.2, serving: '10颗(100g)' },
+    '美早樱桃': { calories: 65, protein: 1, carbs: 16, fat: 0.2, serving: '10颗(100g)' },
+    '桑葚': { calories: 45, protein: 2, carbs: 10, fat: 0.4, serving: '50g' },
+    '龙眼': { calories: 60, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '桂圆': { calories: 60, protein: 1, carbs: 16, fat: 0, serving: '10颗(100g)' },
+    '桂圆干': { calories: 280, protein: 4, carbs: 70, fat: 0.2, serving: '50g' },
+    '荔枝': { calories: 66, protein: 1, carbs: 17, fat: 0.4, serving: '10颗(100g)' },
+    '妃子笑': { calories: 65, protein: 1, carbs: 16, fat: 0.4, serving: '10颗(100g)' },
+    '糯米糍': { calories: 70, protein: 1, carbs: 18, fat: 0.4, serving: '10颗(100g)' },
+    '荔枝干': { calories: 300, protein: 4, carbs: 72, fat: 0.3, serving: '50g' },
+    '枇杷': { calories: 47, protein: 1, carbs: 12, fat: 0.2, serving: '10颗(100g)' },
+    '杨梅': { calories: 30, protein: 1, carbs: 7, fat: 0.1, serving: '10颗(100g)' },
+    '杨桃': { calories: 30, protein: 1, carbs: 7, fat: 0.2, serving: '一个(100g)' },
+    '山竹': { calories: 67, protein: 0.5, carbs: 18, fat: 0.2, serving: '2个(100g)' },
+    '百香果': { calories: 97, protein: 2, carbs: 23, fat: 0.7, serving: '2个(100g)' },
+    '西番莲': { calories: 97, protein: 2, carbs: 23, fat: 0.7, serving: '2个(100g)' },
+    '人参果': { calories: 40, protein: 1, carbs: 10, fat: 0, serving: '一个(100g)' },
+    '香瓜茄': { calories: 40, protein: 1, carbs: 10, fat: 0, serving: '一个(100g)' },
+    '莲雾': { calories: 25, protein: 0.5, carbs: 6, fat: 0.1, serving: '一个(50g)' },
+    '火参果': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '一个(100g)' },
+    '刺角瓜': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '一个(100g)' },
+    '甘蔗': { calories: 65, protein: 0, carbs: 17, fat: 0, serving: '一段(100g)' },
+    '甘蔗汁': { calories: 55, protein: 0, carbs: 14, fat: 0, serving: '一杯(200ml)' },
+    '马蹄': { calories: 59, protein: 1, carbs: 14, fat: 0.1, serving: '100g' },
+    '荸荠': { calories: 59, protein: 1, carbs: 14, fat: 0.1, serving: '100g' },
+    '柿子': { calories: 70, protein: 0.5, carbs: 18, fat: 0.1, serving: '一个(100g)' },
+    '脆柿': { calories: 70, protein: 0.5, carbs: 18, fat: 0.1, serving: '一个(100g)' },
+    '软柿': { calories: 75, protein: 0.5, carbs: 20, fat: 0.1, serving: '一个(100g)' },
+    '柿饼': { calories: 250, protein: 2, carbs: 62, fat: 0.5, serving: '50g' },
+    '杏子': { calories: 36, protein: 1, carbs: 9, fat: 0.2, serving: '5个(100g)' },
+    '李子': { calories: 36, protein: 1, carbs: 9, fat: 0.2, serving: '5个(100g)' },
+    '黑布林': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '一个(80g)' },
+    '布林': { calories: 36, protein: 1, carbs: 9, fat: 0.2, serving: '一个(70g)' },
+    '西梅': { calories: 45, protein: 1, carbs: 11, fat: 0.2, serving: '5个(80g)' },
+    '青梅': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '5个(80g)' },
+    '乌梅': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '5个(80g)' },
+    '梅干': { calories: 300, protein: 2, carbs: 75, fat: 0.5, serving: '50g' },
+    '酸梅': { calories: 40, protein: 1, carbs: 10, fat: 0.2, serving: '5个(80g)' },
+    '杨桃干': { calories: 280, protein: 2, carbs: 70, fat: 0.5, serving: '50g' },
+    '山楂': { calories: 95, protein: 0.5, carbs: 25, fat: 0.1, serving: '100g' },
+    '山楂片': { calories: 320, protein: 1, carbs: 78, fat: 0.5, serving: '50g' },
+    '山楂糕': { calories: 280, protein: 1, carbs: 70, fat: 0.5, serving: '50g' },
+    '冰糖葫芦': { calories: 180, protein: 1, carbs: 45, fat: 0, serving: '一串(50g)' },
+    '沙果': { calories: 40, protein: 0.3, carbs: 10, fat: 0.1, serving: '5个(80g)' },
+    '海棠果': { calories: 40, protein: 0.3, carbs: 10, fat: 0.1, serving: '5个(80g)' },
+    '番石榴': { calories: 41, protein: 1, carbs: 10, fat: 0.4, serving: '一个(100g)' },
+    '芭乐': { calories: 41, protein: 1, carbs: 10, fat: 0.4, serving: '一个(100g)' },
+    '释迦': { calories: 90, protein: 2, carbs: 23, fat: 0.3, serving: '一个(150g)' },
+    '番荔枝': { calories: 90, protein: 2, carbs: 23, fat: 0.3, serving: '一个(150g)' },
+    '牛油果': { calories: 160, protein: 2, carbs: 8, fat: 15, serving: '半个(100g)' },
+    '酪梨': { calories: 160, protein: 2, carbs: 8, fat: 15, serving: '半个(100g)' },
+    '蛋黄果': { calories: 130, protein: 2, carbs: 30, fat: 1, serving: '一个(100g)' },
+    '仙桃': { calories: 50, protein: 1, carbs: 12, fat: 0.2, serving: '一个(100g)' },
+    '人心果': { calories: 60, protein: 1, carbs: 15, fat: 0.3, serving: '一个(100g)' },
+    '蛋蜜汁': { calories: 80, protein: 2, carbs: 15, fat: 1, serving: '一杯(200ml)' },
+    '甘蔗汁': { calories: 55, protein: 0, carbs: 14, fat: 0, serving: '一杯(200ml)' },
+
+    // 蔬菜
     '豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
+    '嫩豆腐': { calories: 61, protein: 6, carbs: 3, fat: 3, serving: '100g' },
+    '老豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
+    '南豆腐': { calories: 61, protein: 6, carbs: 3, fat: 3, serving: '100g' },
+    '北豆腐': { calories: 81, protein: 8, carbs: 4, fat: 5, serving: '100g' },
+    '内酯豆腐': { calories: 50, protein: 5, carbs: 2, fat: 2.5, serving: '100g' },
+    '千叶豆腐': { calories: 80, protein: 10, carbs: 5, fat: 3, serving: '100g' },
+    '油豆腐': { calories: 150, protein: 12, carbs: 8, fat: 10, serving: '100g' },
+    '豆皮': { calories: 150, protein: 20, carbs: 6, fat: 6, serving: '100g' },
+    '豆干': { calories: 120, protein: 15, carbs: 5, fat: 6, serving: '100g' },
+    '香干': { calories: 120, protein: 15, carbs: 5, fat: 6, serving: '100g' },
+    '豆腐丝': { calories: 130, protein: 16, carbs: 5, fat: 6, serving: '100g' },
+    '腐竹': { calories: 460, protein: 44, carbs: 22, fat: 21, serving: '100g' },
+    '豆泡': { calories: 150, protein: 12, carbs: 8, fat: 10, serving: '100g' },
+    '豆浆': { calories: 33, protein: 3, carbs: 2, fat: 1, serving: '一杯(250ml)' },
+    '豆花': { calories: 80, protein: 6, carbs: 6, fat: 3, serving: '一碗(300ml)' },
+    '豆腐脑': { calories: 80, protein: 6, carbs: 6, fat: 3, serving: '一碗(300ml)' },
+    '豆芽': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '黄豆芽': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '绿豆芽': { calories: 15, protein: 2, carbs: 2, fat: 0.1, serving: '100g' },
+    '毛豆': { calories: 131, protein: 13, carbs: 10, fat: 5, serving: '100g' },
     '番茄': { calories: 19, protein: 1, carbs: 4, fat: 0.2, serving: '一个(150g)' },
+    '西红柿': { calories: 19, protein: 1, carbs: 4, fat: 0.2, serving: '一个(150g)' },
+    '圣女果': { calories: 25, protein: 1, carbs: 5, fat: 0.2, serving: '10颗(100g)' },
+    '小番茄': { calories: 25, protein: 1, carbs: 5, fat: 0.2, serving: '10颗(100g)' },
     '土豆': { calories: 76, protein: 2, carbs: 17, fat: 0.1, serving: '一个(150g)' },
+    '马铃薯': { calories: 76, protein: 2, carbs: 17, fat: 0.1, serving: '一个(150g)' },
+    '地瓜': { calories: 99, protein: 2, carbs: 23, fat: 0.1, serving: '一个(150g)' },
     '红薯': { calories: 99, protein: 2, carbs: 23, fat: 0.1, serving: '一个(150g)' },
+    '白薯': { calories: 85, protein: 2, carbs: 20, fat: 0.1, serving: '一个(150g)' },
+    '紫薯': { calories: 80, protein: 2, carbs: 18, fat: 0.2, serving: '一个(150g)' },
+    '芋头': { calories: 80, protein: 2, carbs: 18, fat: 0.1, serving: '100g' },
+    '芋艿': { calories: 80, protein: 2, carbs: 18, fat: 0.1, serving: '100g' },
+    '山药': { calories: 57, protein: 2, carbs: 12, fat: 0, serving: '100g' },
+    '淮山': { calories: 57, protein: 2, carbs: 12, fat: 0, serving: '100g' },
+    '莲藕': { calories: 47, protein: 2, carbs: 11, fat: 0.2, serving: '100g' },
+    '菱角': { calories: 98, protein: 2, carbs: 24, fat: 0.1, serving: '100g' },
+    '荸荠': { calories: 59, protein: 1, carbs: 14, fat: 0.1, serving: '100g' },
+    '茨菇': { calories: 50, protein: 2, carbs: 11, fat: 0.2, serving: '100g' },
     '玉米': { calories: 112, protein: 4, carbs: 22, fat: 1, serving: '一根(150g)' },
+    '甜玉米': { calories: 100, protein: 4, carbs: 20, fat: 1, serving: '一根(150g)' },
+    '糯玉米': { calories: 130, protein: 4, carbs: 25, fat: 1.5, serving: '一根(150g)' },
+    '玉米粒': { calories: 90, protein: 3, carbs: 18, fat: 1, serving: '100g' },
+    '黄瓜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '一根(150g)' },
+    '青瓜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '一根(150g)' },
+    '小黄瓜': { calories: 15, protein: 1, carbs: 2, fat: 0.1, serving: '一根(100g)' },
+    '荷兰瓜': { calories: 15, protein: 1, carbs: 2, fat: 0.1, serving: '一根(100g)' },
+    '苦瓜': { calories: 17, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '丝瓜': { calories: 20, protein: 1, carbs: 4, fat: 0.1, serving: '100g' },
+    '冬瓜': { calories: 11, protein: 0, carbs: 2, fat: 0, serving: '100g' },
+    '西瓜皮': { calories: 10, protein: 0.5, carbs: 2, fat: 0, serving: '100g' },
+    '南瓜': { calories: 26, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '金瓜': { calories: 26, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '北瓜': { calories: 26, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '西葫芦': { calories: 18, protein: 1, carbs: 4, fat: 0.1, serving: '100g' },
+    '笋瓜': { calories: 18, protein: 1, carbs: 4, fat: 0.1, serving: '100g' },
+    '佛手瓜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '瓠瓜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '角瓜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '青菜': { calories: 14, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '小青菜': { calories: 14, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '油菜': { calories: 14, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '小白菜': { calories: 16, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '大白菜': { calories: 17, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '白菜': { calories: 17, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '娃娃菜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '卷心菜': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '洋白菜': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '圆白菜': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '甘蓝': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '生菜': { calories: 15, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '莴笋': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '莴苣': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '油麦菜': { calories: 15, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '苦菊': { calories: 20, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '菊花菜': { calories: 20, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '茼蒿': { calories: 21, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
+    '蓬蒿': { calories: 21, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
+    '空心菜': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '通菜': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '茴香': { calories: 25, protein: 2, carbs: 4, fat: 0.3, serving: '100g' },
+    '香菜': { calories: 25, protein: 2, carbs: 4, fat: 0.4, serving: '100g' },
+    '芫荽': { calories: 25, protein: 2, carbs: 4, fat: 0.4, serving: '100g' },
+    '韭菜': { calories: 26, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
+    '韭黄': { calories: 22, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '蒜苗': { calories: 35, protein: 2, carbs: 7, fat: 0.3, serving: '100g' },
+    '蒜苔': { calories: 35, protein: 2, carbs: 7, fat: 0.3, serving: '100g' },
+    '蒜黄': { calories: 25, protein: 2, carbs: 5, fat: 0.2, serving: '100g' },
+    '大葱': { calories: 30, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '小葱': { calories: 28, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '葱': { calories: 30, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '菠菜': { calories: 23, protein: 2, carbs: 4, fat: 0, serving: '100g' },
+    '苋菜': { calories: 25, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
+    '红苋菜': { calories: 28, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
+    '木耳菜': { calories: 20, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
+    '豆腐菜': { calories: 20, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
+    '落葵': { calories: 20, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
+    '红薯叶': { calories: 30, protein: 2, carbs: 6, fat: 0.3, serving: '100g' },
+    '红薯秧': { calories: 30, protein: 2, carbs: 6, fat: 0.3, serving: '100g' },
+    '南瓜藤': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '南瓜叶': { calories: 20, protein: 2, carbs: 3, fat: 0.2, serving: '100g' },
+    '西瓜藤': { calories: 15, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '白菜苔': { calories: 18, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '菜苔': { calories: 18, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '西兰花': { calories: 34, protein: 3, carbs: 6, fat: 0.4, serving: '100g' },
+    '花菜': { calories: 25, protein: 2, carbs: 5, fat: 0, serving: '100g' },
+    '菜花': { calories: 25, protein: 2, carbs: 5, fat: 0, serving: '100g' },
+    '白花菜': { calories: 25, protein: 2, carbs: 5, fat: 0, serving: '100g' },
+    '紫甘蓝': { calories: 25, protein: 1, carbs: 5, fat: 0.1, serving: '100g' },
+    '甘蓝菜': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '抱子甘蓝': { calories: 35, protein: 3, carbs: 7, fat: 0.4, serving: '100g' },
+    '羽衣甘蓝': { calories: 30, protein: 3, carbs: 5, fat: 0.5, serving: '100g' },
+    '芥蓝': { calories: 25, protein: 2, carbs: 4, fat: 0.3, serving: '100g' },
+    '菜心': { calories: 18, protein: 1, carbs: 3, fat: 0.1, serving: '100g' },
+    '芥菜': { calories: 20, protein: 1, carbs: 4, fat: 0.2, serving: '100g' },
+    '雪菜': { calories: 25, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
+    '雪里红': { calories: 25, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
+    '榨菜': { calories: 30, protein: 2, carbs: 6, fat: 0.2, serving: '100g' },
+    '萝卜': { calories: 20, protein: 1, carbs: 5, fat: 0.1, serving: '100g' },
+    '白萝卜': { calories: 20, protein: 1, carbs: 5, fat: 0.1, serving: '100g' },
+    '青萝卜': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '红萝卜': { calories: 22, protein: 1, carbs: 5, fat: 0.1, serving: '100g' },
+    '胡萝卜': { calories: 41, protein: 1, carbs: 10, fat: 0.2, serving: '一根(100g)' },
+    '心里美': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '樱桃萝卜': { calories: 20, protein: 1, carbs: 4, fat: 0.1, serving: '100g' },
+    '苤蓝': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '芥菜疙瘩': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '蔓菁': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '苤蓝': { calories: 25, protein: 1, carbs: 6, fat: 0.1, serving: '100g' },
+    '茄子': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '圆茄子': { calories: 21, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '长茄子': { calories: 20, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '青茄子': { calories: 20, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '紫茄子': { calories: 22, protein: 1, carbs: 5, fat: 0, serving: '100g' },
+    '西红柿': { calories: 19, protein: 1, carbs: 4, fat: 0.2, serving: '一个(150g)' },
+    '青椒': { calories: 22, protein: 1, carbs: 5, fat: 0.2, serving: '100g' },
+    '甜椒': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '彩椒': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '红椒': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '黄椒': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '杭椒': { calories: 30, protein: 1, carbs: 7, fat: 0.3, serving: '100g' },
+    '线椒': { calories: 30, protein: 1, carbs: 7, fat: 0.3, serving: '100g' },
+    '螺丝椒': { calories: 30, protein: 1, carbs: 7, fat: 0.3, serving: '100g' },
+    '朝天椒': { calories: 40, protein: 2, carbs: 9, fat: 0.4, serving: '100g' },
+    '小米辣': { calories: 40, protein: 2, carbs: 9, fat: 0.4, serving: '100g' },
+    '辣椒': { calories: 40, protein: 2, carbs: 9, fat: 0.4, serving: '100g' },
+    '灯笼椒': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '菜椒': { calories: 22, protein: 1, carbs: 5, fat: 0.2, serving: '100g' },
+    '柿子椒': { calories: 22, protein: 1, carbs: 5, fat: 0.2, serving: '100g' },
+    '洋葱': { calories: 40, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '紫洋葱': { calories: 40, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '白洋葱': { calories: 38, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '红洋葱': { calories: 40, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '大葱': { calories: 30, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
+    '小葱': { calories: 28, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '葱头': { calories: 40, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '蒜': { calories: 126, protein: 6, carbs: 28, fat: 0.3, serving: '100g' },
+    '大蒜': { calories: 126, protein: 6, carbs: 28, fat: 0.3, serving: '100g' },
+    '蒜头': { calories: 126, protein: 6, carbs: 28, fat: 0.3, serving: '100g' },
+    '蒜瓣': { calories: 120, protein: 5, carbs: 27, fat: 0.3, serving: '100g' },
+    '姜': { calories: 41, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '生姜': { calories: 41, protein: 1, carbs: 9, fat: 0, serving: '100g' },
+    '仔姜': { calories: 30, protein: 1, carbs: 7, fat: 0, serving: '100g' },
+    '沙姜': { calories: 35, protein: 1, carbs: 8, fat: 0.1, serving: '100g' },
+    '山奈': { calories: 35, protein: 1, carbs: 8, fat: 0.1, serving: '100g' },
+    '蘑菇': { calories: 22, protein: 3, carbs: 4, fat: 0, serving: '100g' },
+    '香菇': { calories: 22, protein: 2, carbs: 5, fat: 0.2, serving: '100g' },
+    '花菇': { calories: 25, protein: 3, carbs: 5, fat: 0.2, serving: '100g' },
+    '草菇': { calories: 25, protein: 3, carbs: 4, fat: 0.3, serving: '100g' },
+    '金针菇': { calories: 22, protein: 2, carbs: 4, fat: 0.3, serving: '100g' },
+    '鸡腿菇': { calories: 25, protein: 3, carbs: 4, fat: 0.2, serving: '100g' },
+    '杏鲍菇': { calories: 25, protein: 3, carbs: 4, fat: 0.2, serving: '100g' },
+    '白玉菇': { calories: 22, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '蟹味菇': { calories: 22, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '蟹菇': { calories: 22, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '平菇': { calories: 20, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '凤尾菇': { calories: 20, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '茶树菇': { calories: 30, protein: 4, carbs: 5, fat: 0.3, serving: '100g' },
+    '松茸': { calories: 25, protein: 3, carbs: 4, fat: 0.3, serving: '100g' },
+    '牛肝菌': { calories: 35, protein: 4, carbs: 5, fat: 0.5, serving: '100g' },
+    '木耳': { calories: 21, protein: 1, carbs: 6, fat: 0, serving: '100g' },
+    '黑木耳': { calories: 21, protein: 1, carbs: 6, fat: 0, serving: '100g' },
+    '银耳': { calories: 28, protein: 0.5, carbs: 7, fat: 0.2, serving: '100g' },
+    '白木耳': { calories: 28, protein: 0.5, carbs: 7, fat: 0.2, serving: '100g' },
+    '海带': { calories: 12, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '海带丝': { calories: 12, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '海带结': { calories: 14, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '昆布': { calories: 12, protein: 1, carbs: 2, fat: 0, serving: '100g' },
+    '紫菜': { calories: 35, protein: 6, carbs: 5, fat: 0.4, serving: '10g' },
+    '海苔': { calories: 40, protein: 5, carbs: 5, fat: 0.5, serving: '10g' },
+    '裙带菜': { calories: 15, protein: 1, carbs: 3, fat: 0.2, serving: '100g' },
+    '石花菜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '鹿角菜': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '发菜': { calories: 180, protein: 18, carbs: 22, fat: 0.5, serving: '50g' },
+    '竹笋': { calories: 25, protein: 2, carbs: 5, fat: 0.2, serving: '100g' },
+    '春笋': { calories: 25, protein: 2, carbs: 5, fat: 0.2, serving: '100g' },
+    '冬笋': { calories: 22, protein: 2, carbs: 4, fat: 0.2, serving: '100g' },
+    '竹笋干': { calories: 80, protein: 5, carbs: 15, fat: 0.5, serving: '100g' },
+    '芦笋': { calories: 20, protein: 2, carbs: 4, fat: 0.1, serving: '100g' },
+    '莴笋': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '茭白': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '茭笋': { calories: 25, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
+    '藕': { calories: 47, protein: 2, carbs: 11, fat: 0.2, serving: '100g' },
+    '菱角': { calories: 98, protein: 2, carbs: 24, fat: 0.1, serving: '100g' },
+    '荸荠': { calories: 59, protein: 1, carbs: 14, fat: 0.1, serving: '100g' },
+
+    // 饮品
     '咖啡': { calories: 1, protein: 0, carbs: 0, fat: 0, serving: '一杯(240ml)' },
+    '美式咖啡': { calories: 5, protein: 0, carbs: 1, fat: 0, serving: '一杯(240ml)' },
+    '拿铁': { calories: 100, protein: 5, carbs: 10, fat: 4, serving: '一杯(300ml)' },
+    '卡布奇诺': { calories: 80, protein: 4, carbs: 8, fat: 3, serving: '一杯(240ml)' },
+    '摩卡': { calories: 180, protein: 5, carbs: 28, fat: 8, serving: '一杯(300ml)' },
+    '焦糖玛奇朵': { calories: 160, protein: 4, carbs: 25, fat: 6, serving: '一杯(300ml)' },
+    '浓缩咖啡': { calories: 10, protein: 0, carbs: 1, fat: 0, serving: '一杯(30ml)' },
+    '速溶咖啡': { calories: 30, protein: 1, carbs: 5, fat: 1, serving: '一杯(200ml)' },
     '奶茶': { calories: 150, protein: 2, carbs: 25, fat: 4, serving: '一杯(500ml)' },
-    '红烧肉': { calories: 295, protein: 13, carbs: 7, fat: 24, serving: '100g' },
-    '番茄炒蛋': { calories: 89, protein: 6, carbs: 4, fat: 5, serving: '一份(200g)' },
-    '宫保鸡丁': { calories: 197, protein: 15, carbs: 9, fat: 12, serving: '一份(200g)' },
-    '炒青菜': { calories: 35, protein: 2, carbs: 4, fat: 1, serving: '一份(150g)' }
+    '珍珠奶茶': { calories: 200, protein: 3, carbs: 35, fat: 5, serving: '一杯(500ml)' },
+    '波霸奶茶': { calories: 210, protein: 3, carbs: 38, fat: 5, serving: '一杯(500ml)' },
+    '椰奶茶': { calories: 160, protein: 2, carbs: 25, fat: 6, serving: '一杯(500ml)' },
+    '泰式奶茶': { calories: 180, protein: 2, carbs: 30, fat: 6, serving: '一杯(500ml)' },
+    '丝袜奶茶': { calories: 160, protein: 2, carbs: 25, fat: 5, serving: '一杯(500ml)' },
+    '鸳鸯奶茶': { calories: 120, protein: 4, carbs: 18, fat: 4, serving: '一杯(300ml)' },
+    '奶盖': { calories: 150, protein: 2, carbs: 10, fat: 12, serving: '一份(50ml)' },
+    '芝士奶盖': { calories: 160, protein: 3, carbs: 10, fat: 13, serving: '一份(50ml)' },
+    '乌龙奶茶': { calories: 160, protein: 3, carbs: 25, fat: 5, serving: '一杯(500ml)' },
+    '四季春奶茶': { calories: 160, protein: 3, carbs: 25, fat: 5, serving: '一杯(500ml)' },
+    '可可奶茶': { calories: 180, protein: 3, carbs: 30, fat: 6, serving: '一杯(500ml)' },
+    '抹茶奶茶': { calories: 170, protein: 3, carbs: 28, fat: 5, serving: '一杯(500ml)' },
+    '柠檬水': { calories: 30, protein: 0, carbs: 8, fat: 0, serving: '一杯(300ml)' },
+    '柠檬茶': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(300ml)' },
+    '柠檬红茶': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(300ml)' },
+    '蜂蜜柠檬': { calories: 60, protein: 0, carbs: 15, fat: 0, serving: '一杯(300ml)' },
+    '柚子茶': { calories: 70, protein: 0, carbs: 18, fat: 0, serving: '一杯(300ml)' },
+    '柚子蜂蜜': { calories: 80, protein: 0, carbs: 20, fat: 0, serving: '一杯(300ml)' },
+    '冰红茶': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一杯(300ml)' },
+    '冰绿茶': { calories: 20, protein: 0, carbs: 5, fat: 0, serving: '一杯(300ml)' },
+    '康师傅冰红茶': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一瓶(500ml)' },
+    '统一冰红茶': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一瓶(500ml)' },
+    '可口可乐': { calories: 42, protein: 0, carbs: 11, fat: 0, serving: '一罐(330ml)' },
+    '百事可乐': { calories: 42, protein: 0, carbs: 11, fat: 0, serving: '一罐(330ml)' },
+    '可乐': { calories: 42, protein: 0, carbs: 11, fat: 0, serving: '一罐(330ml)' },
+    '零度可乐': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一罐(330ml)' },
+    '无糖可乐': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一罐(330ml)' },
+    '雪碧': { calories: 38, protein: 0, carbs: 10, fat: 0, serving: '一罐(330ml)' },
+    '芬达': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一罐(330ml)' },
+    '美年达': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一罐(330ml)' },
+    '七喜': { calories: 38, protein: 0, carbs: 10, fat: 0, serving: '一罐(330ml)' },
+    '橙汁': { calories: 45, protein: 1, carbs: 10, fat: 0, serving: '一杯(250ml)' },
+    '鲜橙多': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一瓶(450ml)' },
+    '果粒橙': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一瓶(450ml)' },
+    '汇源橙汁': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一瓶(450ml)' },
+    '苹果汁': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一杯(250ml)' },
+    '葡萄汁': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(250ml)' },
+    '芒果汁': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(250ml)' },
+    '桃汁': { calories: 45, protein: 0, carbs: 11, fat: 0, serving: '一杯(250ml)' },
+    '山楂汁': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(250ml)' },
+    '酸梅汤': { calories: 50, protein: 0, carbs: 12, fat: 0, serving: '一杯(300ml)' },
+    '酸梅精': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一杯(300ml)' },
+    '豆浆': { calories: 33, protein: 3, carbs: 2, fat: 1, serving: '一杯(250ml)' },
+    '甜豆浆': { calories: 60, protein: 3, carbs: 10, fat: 1, serving: '一杯(250ml)' },
+    '原磨豆浆': { calories: 45, protein: 4, carbs: 4, fat: 2, serving: '一杯(300ml)' },
+    '豆奶': { calories: 45, protein: 3, carbs: 4, fat: 2, serving: '一杯(250ml)' },
+    '王老吉': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一罐(310ml)' },
+    '加多宝': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一罐(310ml)' },
+    '和其正': { calories: 40, protein: 0, carbs: 10, fat: 0, serving: '一罐(310ml)' },
+    '凉茶': { calories: 35, protein: 0, carbs: 8, fat: 0, serving: '一罐(310ml)' },
+    '加气凉茶': { calories: 35, protein: 0, carbs: 8, fat: 0, serving: '一罐(310ml)' },
+    '牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '纯牛奶': { calories: 54, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '鲜牛奶': { calories: 55, protein: 3, carbs: 4, fat: 3, serving: '一杯(250ml)' },
+    '全脂牛奶': { calories: 60, protein: 3, carbs: 5, fat: 3.5, serving: '一杯(250ml)' },
+    '脱脂牛奶': { calories: 35, protein: 3, carbs: 5, fat: 0.5, serving: '一杯(250ml)' },
+    '低脂牛奶': { calories: 45, protein: 3, carbs: 5, fat: 2, serving: '一杯(250ml)' },
+    '高钙牛奶': { calories: 60, protein: 3, carbs: 5, fat: 3, serving: '一杯(250ml)' },
+    '旺仔牛奶': { calories: 70, protein: 2, carbs: 10, fat: 2, serving: '一罐(245ml)' },
+    '特仑苏': { calories: 65, protein: 3, carbs: 5, fat: 3.5, serving: '一盒(250ml)' },
+    '金典': { calories: 60, protein: 3, carbs: 5, fat: 3, serving: '一盒(250ml)' },
+    '安慕希': { calories: 90, protein: 3, carbs: 12, fat: 3, serving: '一杯(205g)' },
+    '酸奶': { calories: 72, protein: 3, carbs: 10, fat: 2, serving: '一杯(200g)' },
+    '原味酸奶': { calories: 70, protein: 3, carbs: 9, fat: 2, serving: '一杯(200g)' },
+    '草莓酸奶': { calories: 90, protein: 3, carbs: 15, fat: 2, serving: '一杯(200g)' },
+    '蓝莓酸奶': { calories: 90, protein: 3, carbs: 15, fat: 2, serving: '一杯(200g)' },
+    '黄桃酸奶': { calories: 90, protein: 3, carbs: 15, fat: 2, serving: '一杯(200g)' },
+    '希腊酸奶': { calories: 100, protein: 10, carbs: 5, fat: 5, serving: '一杯(150g)' },
+    '养乐多': { calories: 70, protein: 1, carbs: 15, fat: 0.5, serving: '一瓶(100ml)' },
+    '味可滋': { calories: 80, protein: 2, carbs: 14, fat: 2, serving: '一盒(250ml)' },
+    '奶茶味牛奶': { calories: 80, protein: 2, carbs: 12, fat: 3, serving: '一杯(250ml)' },
+    '燕麦奶': { calories: 60, protein: 2, carbs: 10, fat: 2, serving: '一杯(250ml)' },
+    '杏仁奶': { calories: 40, protein: 1, carbs: 3, fat: 3, serving: '一杯(240ml)' },
+    '核桃奶': { calories: 70, protein: 2, carbs: 8, fat: 4, serving: '一杯(250ml)' },
+    '豆奶': { calories: 45, protein: 3, carbs: 4, fat: 2, serving: '一杯(250ml)' },
+    '米糊': { calories: 80, protein: 1, carbs: 18, fat: 0.5, serving: '一杯(250ml)' },
+    '杏仁露': { calories: 50, protein: 1, carbs: 8, fat: 2, serving: '一罐(240ml)' },
+    '核桃花生露': { calories: 60, protein: 2, carbs: 8, fat: 3, serving: '一罐(240ml)' },
+    '露露': { calories: 55, protein: 2, carbs: 7, fat: 3, serving: '一罐(240ml)' },
+    '六个核桃': { calories: 65, protein: 2, carbs: 8, fat: 3, serving: '一罐(240ml)' },
+    '椰汁': { calories: 40, protein: 1, carbs: 8, fat: 2, serving: '一杯(200ml)' },
+    '椰树椰汁': { calories: 45, protein: 1, carbs: 9, fat: 2, serving: '一盒(250ml)' },
+    '水': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一杯(250ml)' },
+    '矿泉水': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(500ml)' },
+    '纯净水': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(500ml)' },
+    '苏打水': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(330ml)' },
+    '气泡水': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(330ml)' },
+    '农夫山泉': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(550ml)' },
+    '怡宝': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(555ml)' },
+    '百岁山': { calories: 0, protein: 0, carbs: 0, fat: 0, serving: '一瓶(570ml)' },
+
+    // 其他
+    '坚果': { calories: 600, protein: 20, carbs: 20, fat: 50, serving: '50g' },
+    '混合坚果': { calories: 600, protein: 20, carbs: 20, fat: 50, serving: '50g' },
+    '每日坚果': { calories: 550, protein: 18, carbs: 25, fat: 45, serving: '30g' },
+    '花生': { calories: 574, protein: 26, carbs: 16, fat: 44, serving: '100g' },
+    '炒花生': { calories: 600, protein: 25, carbs: 18, fat: 48, serving: '100g' },
+    '卤花生': { calories: 500, protein: 22, carbs: 25, fat: 35, serving: '100g' },
+    '花生米': { calories: 574, protein: 26, carbs: 16, fat: 44, serving: '100g' },
+    '瓜子': { calories: 600, protein: 25, carbs: 17, fat: 50, serving: '100g' },
+    '葵花子': { calories: 600, protein: 25, carbs: 17, fat: 50, serving: '100g' },
+    '南瓜子': { calories: 550, protein: 30, carbs: 15, fat: 45, serving: '100g' },
+    '西瓜子': { calories: 560, protein: 28, carbs: 18, fat: 46, serving: '100g' },
+    '松子': { calories: 640, protein: 15, carbs: 20, fat: 60, serving: '100g' },
+    '松籽': { calories: 640, protein: 15, carbs: 20, fat: 60, serving: '100g' },
+    '开心果': { calories: 600, protein: 20, carbs: 25, fat: 50, serving: '100g' },
+    '腰果': { calories: 560, protein: 18, carbs: 30, fat: 45, serving: '100g' },
+    '杏仁': { calories: 580, protein: 22, carbs: 20, fat: 50, serving: '100g' },
+    '美国杏仁': { calories: 580, protein: 22, carbs: 20, fat: 50, serving: '100g' },
+    '巴旦木': { calories: 580, protein: 22, carbs: 20, fat: 50, serving: '100g' },
+    '山核桃': { calories: 650, protein: 15, carbs: 20, fat: 60, serving: '100g' },
+    '碧根果': { calories: 670, protein: 15, carbs: 18, fat: 65, serving: '100g' },
+    '夏威夷果': { calories: 700, protein: 10, carbs: 15, fat: 72, serving: '100g' },
+    '澳洲坚果': { calories: 700, protein: 10, carbs: 15, fat: 72, serving: '100g' },
+    '榛子': { calories: 630, protein: 15, carbs: 20, fat: 58, serving: '100g' },
+    '板栗': { calories: 210, protein: 4, carbs: 46, fat: 1.5, serving: '100g' },
+    '栗子': { calories: 210, protein: 4, carbs: 46, fat: 1.5, serving: '100g' },
+    '锥栗': { calories: 210, protein: 4, carbs: 46, fat: 1.5, serving: '100g' },
+    '核桃': { calories: 650, protein: 15, carbs: 18, fat: 60, serving: '100g' },
+    '山核桃': { calories: 650, protein: 15, carbs: 18, fat: 60, serving: '100g' },
+    '纸皮核桃': { calories: 640, protein: 15, carbs: 18, fat: 58, serving: '100g' },
+    '核桃仁': { calories: 650, protein: 15, carbs: 18, fat: 60, serving: '100g' },
+    '栗子': { calories: 210, protein: 4, carbs: 46, fat: 1.5, serving: '100g' },
+    '银杏': { calories: 180, protein: 4, carbs: 38, fat: 1.5, serving: '100g' },
+    '白果': { calories: 180, protein: 4, carbs: 38, fat: 1.5, serving: '100g' },
+    '薯片': { calories: 547, protein: 6, carbs: 53, fat: 35, serving: '100g' },
+    '薯条': { calories: 312, protein: 3, carbs: 41, fat: 15, serving: '100g' },
+    '炸薯条': { calories: 312, protein: 3, carbs: 41, fat: 15, serving: '100g' },
+    '薯片': { calories: 547, protein: 6, carbs: 53, fat: 35, serving: '100g' },
+    '乐事薯片': { calories: 530, protein: 6, carbs: 52, fat: 34, serving: '一包(75g)' },
+    '可比克薯片': { calories: 530, protein: 6, carbs: 52, fat: 34, serving: '一包(75g)' },
+    '上好佳薯片': { calories: 520, protein: 6, carbs: 50, fat: 32, serving: '一包(75g)' },
+    '虾条': { calories: 420, protein: 8, carbs: 60, fat: 16, serving: '100g' },
+    '爆米花': { calories: 387, protein: 13, carbs: 78, fat: 5, serving: '100g' },
+    '锅巴': { calories: 440, protein: 8, carbs: 65, fat: 17, serving: '100g' },
+    '小米锅巴': { calories: 450, protein: 8, carbs: 60, fat: 20, serving: '100g' },
+    '薯条杯': { calories: 300, protein: 3, carbs: 40, fat: 14, serving: '一杯(100g)' },
+    '虾片': { calories: 400, protein: 5, carbs: 60, fat: 15, serving: '100g' },
+    '雪米饼': { calories: 400, protein: 5, carbs: 70, fat: 12, serving: '100g' },
+    '仙贝': { calories: 380, protein: 7, carbs: 65, fat: 10, serving: '100g' },
+    '雪饼': { calories: 380, protein: 7, carbs: 65, fat: 10, serving: '100g' },
+    '饼干': { calories: 435, protein: 7, carbs: 70, fat: 15, serving: '100g' },
+    '奥利奥': { calories: 500, protein: 5, carbs: 65, fat: 25, serving: '100g' },
+    '夹心饼干': { calories: 450, protein: 6, carbs: 60, fat: 20, serving: '100g' },
+    '曲奇': { calories: 500, protein: 5, carbs: 60, fat: 26, serving: '100g' },
+    '威化饼干': { calories: 480, protein: 5, carbs: 65, fat: 22, serving: '100g' },
+    '苏打饼干': { calories: 400, protein: 8, carbs: 65, fat: 14, serving: '100g' },
+    '消化饼干': { calories: 420, protein: 8, carbs: 65, fat: 16, serving: '100g' },
+    '梳打饼干': { calories: 400, protein: 8, carbs: 65, fat: 14, serving: '100g' },
+    '钙奶饼干': { calories: 420, protein: 8, carbs: 65, fat: 16, serving: '100g' },
+    '早餐饼干': { calories: 430, protein: 7, carbs: 65, fat: 17, serving: '100g' },
+    '压缩饼干': { calories: 450, protein: 8, carbs: 60, fat: 20, serving: '100g' },
+    '巧克力': { calories: 546, protein: 5, carbs: 60, fat: 31, serving: '100g' },
+    '牛奶巧克力': { calories: 520, protein: 6, carbs: 58, fat: 28, serving: '100g' },
+    '黑巧克力': { calories: 580, protein: 8, carbs: 45, fat: 42, serving: '100g' },
+    '白巧克力': { calories: 530, protein: 5, carbs: 60, fat: 30, serving: '100g' },
+    '德芙': { calories: 550, protein: 6, carbs: 58, fat: 32, serving: '100g' },
+    '费列罗': { calories: 580, protein: 8, carbs: 52, fat: 38, serving: '一颗(13g)' },
+    '士力架': { calories: 500, protein: 10, carbs: 55, fat: 26, serving: '一条(58g)' },
+    '健达巧克力': { calories: 520, protein: 7, carbs: 55, fat: 30, serving: '一条(45g)' },
+    'M&M巧克力豆': { calories: 480, protein: 4, carbs: 65, fat: 22, serving: '一袋(50g)' },
+    '巧克力棒': { calories: 500, protein: 6, carbs: 55, fat: 28, serving: '一根(40g)' },
+    '糖果': { calories: 380, protein: 0, carbs: 97, fat: 0, serving: '100g' },
+    '奶糖': { calories: 400, protein: 3, carbs: 80, fat: 7, serving: '100g' },
+    '水果糖': { calories: 380, protein: 0, carbs: 95, fat: 0, serving: '100g' },
+    '硬糖': { calories: 400, protein: 0, carbs: 100, fat: 0, serving: '100g' },
+    '软糖': { calories: 350, protein: 2, carbs: 85, fat: 2, serving: '100g' },
+    'QQ糖': { calories: 340, protein: 2, carbs: 82, fat: 1, serving: '100g' },
+    '橡皮糖': { calories: 340, protein: 2, carbs: 82, fat: 1, serving: '100g' },
+    '棉花糖': { calories: 320, protein: 1, carbs: 80, fat: 0, serving: '100g' },
+    '薄荷糖': { calories: 400, protein: 0, carbs: 98, fat: 0, serving: '100g' },
+    '润喉糖': { calories: 380, protein: 0, carbs: 95, fat: 0, serving: '100g' },
+    '话梅': { calories: 300, protein: 1, carbs: 75, fat: 0.5, serving: '100g' },
+    '陈皮梅': { calories: 300, protein: 1, carbs: 75, fat: 0.5, serving: '100g' },
+    '梅子': { calories: 300, protein: 1, carbs: 75, fat: 0.5, serving: '100g' },
+    '跳跳糖': { calories: 380, protein: 0, carbs: 95, fat: 0, serving: '100g' },
+    '口香糖': { calories: 200, protein: 0, carbs: 50, fat: 0, serving: '10片(20g)' },
+    '泡泡糖': { calories: 300, protein: 0, carbs: 75, fat: 0, serving: '10片(30g)' },
+    '冰淇淋': { calories: 207, protein: 4, carbs: 24, fat: 11, serving: '100g' },
+    '香草冰淇淋': { calories: 210, protein: 4, carbs: 25, fat: 11, serving: '100g' },
+    '草莓冰淇淋': { calories: 200, protein: 3, carbs: 26, fat: 9, serving: '100g' },
+    '巧克力冰淇淋': { calories: 220, protein: 4, carbs: 26, fat: 12, serving: '100g' },
+    '抹茶冰淇淋': { calories: 200, protein: 3, carbs: 25, fat: 10, serving: '100g' },
+    '哈根达斯': { calories: 250, protein: 5, carbs: 28, fat: 14, serving: '100g' },
+    '八喜冰淇淋': { calories: 200, protein: 4, carbs: 22, fat: 11, serving: '100g' },
+    '可爱多': { calories: 280, protein: 4, carbs: 32, fat: 15, serving: '一个(75g)' },
+    '梦龙': { calories: 300, protein: 4, carbs: 28, fat: 18, serving: '一个(75g' },
+    '巧乐兹': { calories: 260, protein: 4, carbs: 30, fat: 13, serving: '一个(70g)' },
+    '冰淇淋蛋糕': { calories: 280, protein: 5, carbs: 30, fat: 15, serving: '一块(100g)' },
+    '雪糕': { calories: 180, protein: 3, carbs: 22, fat: 9, serving: '一根(70g)' },
+    '冰棍': { calories: 100, protein: 0, carbs: 25, fat: 0, serving: '一根(80g)' },
+    '冰棒': { calories: 100, protein: 0, carbs: 25, fat: 0, serving: '一根(80g)' },
+    '老冰棍': { calories: 80, protein: 0, carbs: 20, fat: 0, serving: '一根(80g)' },
+    '冰砖': { calories: 200, protein: 4, carbs: 24, fat: 10, serving: '一块(90g)' },
+    '奶砖': { calories: 200, protein: 4, carbs: 24, fat: 10, serving: '一块(90g)' },
+    '蛋糕': { calories: 347, protein: 8, carbs: 51, fat: 13, serving: '100g' },
+    '奶油蛋糕': { calories: 380, protein: 7, carbs: 45, fat: 20, serving: '一块(120g)' },
+    '生日蛋糕': { calories: 350, protein: 6, carbs: 42, fat: 18, serving: '一块(100g)' },
+    '草莓蛋糕': { calories: 350, protein: 6, carbs: 45, fat: 17, serving: '一块(100g)' },
+    '巧克力蛋糕': { calories: 400, protein: 7, carbs: 48, fat: 22, serving: '一块(120g)' },
+    '芝士蛋糕': { calories: 350, protein: 8, carbs: 35, fat: 20, serving: '一块(100g)' },
+    '慕斯蛋糕': { calories: 320, protein: 5, carbs: 40, fat: 16, serving: '一块(100g)' },
+    '提拉米苏': { calories: 350, protein: 6, carbs: 35, fat: 20, serving: '一份(120g)' },
+    '千层蛋糕': { calories: 340, protein: 6, carbs: 40, fat: 18, serving: '一块(100g)' },
+    '拿破仑蛋糕': { calories: 380, protein: 7, carbs: 40, fat: 22, serving: '一块(120g)' },
+    '肉松蛋糕': { calories: 350, protein: 10, carbs: 42, fat: 16, serving: '一个(80g)' },
+    '海绵蛋糕': { calories: 300, protein: 6, carbs: 48, fat: 10, serving: '一块(80g)' },
+    '戚风蛋糕': { calories: 280, protein: 5, carbs: 45, fat: 9, serving: '一块(80g)' },
+    '天使蛋糕': { calories: 250, protein: 6, carbs: 48, fat: 3, serving: '一块(80g)' },
+    '马芬蛋糕': { calories: 380, protein: 5, carbs: 45, fat: 20, serving: '一个(100g)' },
+    '杯子蛋糕': { calories: 350, protein: 5, carbs: 42, fat: 18, serving: '一个(80g)' },
+    '纸杯蛋糕': { calories: 350, protein: 5, carbs: 42, fat: 18, serving: '一个(80g)' },
+    '披萨': { calories: 266, protein: 11, carbs: 33, fat: 10, serving: '一片(100g)' },
+    '汉堡': { calories: 295, protein: 15, carbs: 30, fat: 12, serving: '一个(120g)' },
+    '炸鸡': { calories: 298, protein: 24, carbs: 10, fat: 18, serving: '100g' },
+    '炸鸡腿': { calories: 280, protein: 22, carbs: 10, fat: 18, serving: '一个(120g)' },
+    '炸鸡翅': { calories: 260, protein: 20, carbs: 8, fat: 17, serving: '2个(100g)' },
+    '炸鸡排': { calories: 300, protein: 25, carbs: 12, fat: 18, serving: '一块(150g)' },
+    '炸鸡米花': { calories: 280, protein: 18, carbs: 15, fat: 18, serving: '100g' },
+    '鸡块': { calories: 280, protein: 18, carbs: 15, fat: 18, serving: '100g' },
+    '薯条': { calories: 312, protein: 3, carbs: 41, fat: 15, serving: '100g' },
+    '鸡米花': { calories: 280, protein: 18, carbs: 15, fat: 18, serving: '100g' },
+    '洋葱圈': { calories: 280, protein: 5, carbs: 35, fat: 14, serving: '100g' },
+    '鸡柳': { calories: 260, protein: 20, carbs: 12, fat: 15, serving: '100g' },
+    '鸡排': { calories: 280, protein: 22, carbs: 10, fat: 18, serving: '一块(150g)' },
+    '鸡腿堡': { calories: 350, protein: 18, carbs: 38, fat: 15, serving: '一个(180g)' },
+    '鸡翅': { calories: 260, protein: 20, carbs: 8, fat: 17, serving: '2个(100g)' },
+    '烤翅': { calories: 260, protein: 20, carbs: 8, fat: 17, serving: '2个(100g)' },
+    '奥尔良烤翅': { calories: 250, protein: 22, carbs: 8, fat: 14, serving: '2个(100g)' },
+    '辣翅': { calories: 260, protein: 20, carbs: 10, fat: 17, serving: '2个(100g)' },
+    '蛋卷': { calories: 380, protein: 8, carbs: 45, fat: 18, serving: '100g' },
+    '蛋仔': { calories: 200, protein: 4, carbs: 30, fat: 7, serving: '一份(100g)' },
+    '鸡蛋仔': { calories: 200, protein: 4, carbs: 30, fat: 7, serving: '一份(100g)' },
+    '铜锣烧': { calories: 280, protein: 6, carbs: 48, fat: 8, serving: '一个(50g)' },
+    '蛋黄派': { calories: 360, protein: 5, carbs: 55, fat: 14, serving: '100g' },
+    '小面包': { calories: 300, protein: 7, carbs: 50, fat: 8, serving: '100g' },
+    '手撕面包': { calories: 280, protein: 7, carbs: 48, fat: 7, serving: '100g' },
+    '毛毛虫面包': { calories: 320, protein: 8, carbs: 48, fat: 12, serving: '一个(100g)' },
+    '肉松面包': { calories: 320, protein: 10, carbs: 45, fat: 12, serving: '一个(100g)' },
+    '豆沙面包': { calories: 320, protein: 7, carbs: 55, fat: 8, serving: '一个(100g)' },
+    '椰蓉面包': { calories: 340, protein: 7, carbs: 50, fat: 13, serving: '一个(100g)' },
+    '丹麦面包': { calories: 350, protein: 8, carbs: 45, fat: 16, serving: '一个(100g)' },
+    '起酥面包': { calories: 380, protein: 8, carbs: 42, fat: 20, serving: '一个(100g)' },
+    '三明治': { calories: 250, protein: 10, carbs: 30, fat: 10, serving: '一个(120g)' },
+    '汉堡': { calories: 295, protein: 15, carbs: 30, fat: 12, serving: '一个(120g)' },
+    '热狗': { calories: 290, protein: 10, carbs: 28, fat: 16, serving: '一个(100g)' },
+    '肉夹馍': { calories: 350, protein: 15, carbs: 40, fat: 15, serving: '一个(150g)' },
+    '烧饼夹鸡蛋': { calories: 320, protein: 12, carbs: 42, fat: 12, serving: '一个(150g)' },
+    '鸡蛋灌饼': { calories: 320, protein: 12, carbs: 38, fat: 14, serving: '一个(150g)' },
+    '煎饼果子': { calories: 300, protein: 10, carbs: 40, fat: 12, serving: '一个(150g)' },
+    '煎饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '手抓饼': { calories: 280, protein: 8, carbs: 35, fat: 13, serving: '一个(120g)' },
+    '杂粮煎饼': { calories: 220, protein: 7, carbs: 35, fat: 6, serving: '一个(150g)' },
+    '山东煎饼': { calories: 220, protein: 7, carbs: 35, fat: 6, serving: '一个(150g)' },
+    '杂粮煎饼': { calories: 220, protein: 7, carbs: 35, fat: 6, serving: '一个(150g)' },
+    '煎饼': { calories: 200, protein: 6, carbs: 30, fat: 6, serving: '一个(100g)' },
+    '炸鸡': { calories: 298, protein: 24, carbs: 10, fat: 18, serving: '100g' }
 };
 
 const quantityMap = {
@@ -314,108 +1394,124 @@ function resetSpeechTimeout() {
     }, 3000);
 }
 
-// 处理识别结果
+
+// 处理识别结果 - 语音识别完成后调用
 function processRecognitionResult(text) {
     stopRecording();
-    
-    // 显示结果
-    document.getElementById('recognizedText').textContent = text;
-    recognizedFoods = parseVoiceText(text);
-    
-    if (recognizedFoods.length === 0) {
-        document.getElementById('foodList').innerHTML = 
-            '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 未能识别食物，已填充到下方输入框，可修改后重新识别</div>';
-        document.getElementById('textInput').value = text;
-    } else {
-        let html = '';
-        recognizedFoods.forEach((item) => {
-            html += '<div class="card mb-2"><div class="card-body py-2"><div class="d-flex justify-content-between align-items-center"><div><strong>' + item.quantity + item.unit + '</strong> ' + item.name + '</div><span class="badge bg-success">' + item.calories + ' kcal</span></div></div></div>';
-        });
-        document.getElementById('foodList').innerHTML = html;
+    displayFoodResults(text);
+}
+
+// 切换食物选中状态
+function toggleFood(idx) {
+    const checkbox = document.getElementById('foodCheck' + idx);
+    const card = document.getElementById('foodCard' + idx);
+    const food = recognizedFoods.find(f => f.idx === idx);
+
+    if (food) {
+        food.selected = checkbox.checked;
+        if (checkbox.checked) {
+            card.classList.remove('bg-secondary', 'text-white');
+        } else {
+            card.classList.add('bg-secondary', 'text-white');
+        }
         updateNutritionTable();
     }
-    
-    // 显示结果卡片
-    document.getElementById('voiceArea').style.display = 'none';
-    document.getElementById('recordingIndicator').style.display = 'none';
-    document.getElementById('actionButtons').style.display = 'none';
-    
-    const resultCard = document.getElementById('resultCard');
-    resultCard.style.display = 'block';
-    resultCard.style.animation = 'fadeInUp 0.5s ease';
-    
-    resultCard.scrollIntoView({ behavior: 'smooth' });
 }
 
 // 解析语音文本
 function parseVoiceText(text) {
-    const results = [];
-    text = text.replace(/[，。！？、]/g, ' ');
-    
-    const pattern1 = /([一二两三四五六七八九十\d]+)\s*(个|碗|杯|瓶|份|块|根|盘|袋|条)?\s*(.+?)(?:\s|$)/g;
-    let match;
-    
-    while ((match = pattern1.exec(text)) !== null) {
-        const q = match[1];
-        const u = match[2] || '';
-        const name = match[3].trim();
-        const quantity = quantityMap[q] || parseInt(q) || 1;
-        
-        for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
-            if (name.includes(foodName) || foodName.includes(name)) {
-                results.push({
-                    name: foodName,
-                    quantity: quantity,
-                    unit: u || nutrition.serving,
-                    calories: Math.round(nutrition.calories * quantity),
-                    protein: Math.round(nutrition.protein * quantity * 10) / 10,
-                    carbs: Math.round(nutrition.carbs * quantity * 10) / 10,
-                    fat: Math.round(nutrition.fat * quantity * 10) / 10
-                });
-                break;
-            }
-        }
-    }
-    
-    // 简单匹配
-    if (results.length === 0) {
+    try {
+        const results = [];
+        // 处理各种分隔符：中文顿号、逗号、空格等
+        text = text.replace(/[，。！？、；\s,，]+/g, ' ').trim();
+
+        // 先获取所有可能匹配的食物
+        const matchedFoods = [];
+
+        // 检查每个食物是否在文本中
         for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
             if (text.includes(foodName)) {
-                results.push({
-                    name: foodName,
-                    quantity: 1,
-                    unit: nutrition.serving,
-                    calories: nutrition.calories,
-                    protein: nutrition.protein,
-                    carbs: nutrition.carbs,
-                    fat: nutrition.fat
-                });
-                break;
+                matchedFoods.push({ name: foodName, nutrition: nutrition });
             }
         }
+
+        // 按食物名长度排序（优先匹配更长的名称）
+        matchedFoods.sort((a, b) => b.name.length - a.name.length);
+
+        // 从文本中提取数量（支持多位数字，但设置上限防止语音误识别）
+        const pattern = /(\d+|[一二两三四五六七八九十]+)/;
+        let quantity = 1;
+        const qMatch = text.match(pattern);
+        if (qMatch) {
+            const parsed = quantityMap[qMatch[1]] || parseInt(qMatch[1]) || 1;
+            // 数字超过500或超过10份量时，使用默认值1（防止语音误识别噪音）
+            quantity = (parsed > 500 || parsed > 10) ? 1 : parsed;
+        }
+
+        // 添加所有匹配的食物
+        for (const item of matchedFoods) {
+            results.push({
+                name: item.name,
+                quantity: quantity,
+                unit: item.nutrition.serving,
+                calories: Math.round(item.nutrition.calories * quantity),
+                protein: Math.round(item.nutrition.protein * quantity * 10) / 10,
+                carbs: Math.round(item.nutrition.carbs * quantity * 10) / 10,
+                fat: Math.round(item.nutrition.fat * quantity * 10) / 10
+            });
+        }
+
+        return results;
+    } catch(e) {
+        console.error('解析食物文本出错:', e);
+        return [];
     }
-    
-    return results;
 }
 
 // 更新营养表格
 function updateNutritionTable() {
     let html = '';
     let totalCal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
-    
+
     recognizedFoods.forEach((item) => {
-        html += '<tr><td>' + item.name + '</td><td>' + item.quantity + item.unit + '</td><td>' + item.calories + '</td><td>' + item.protein + '</td><td>' + item.carbs + '</td><td>' + item.fat + '</td></tr>';
-        totalCal += item.calories;
-        totalProtein += item.protein;
-        totalCarbs += item.carbs;
-        totalFat += item.fat;
+        if (item && item.selected) {
+            const name = item.name || '未知';
+            const qty = item.quantity || 1;
+            const unit = item.unit || '';
+            const cal = item.calories || 0;
+            const protein = item.protein || 0;
+            const carbs = item.carbs || 0;
+            const fat = item.fat || 0;
+
+            // 解析单位中的数字，计算实际重量
+            let displayQty = qty + '份';
+            if (unit) {
+                const unitMatch = unit.match(/(\d+)/);
+                if (unitMatch) {
+                    const baseWeight = parseInt(unitMatch[1]);
+                    displayQty = qty + '份(' + (baseWeight * qty) + 'g)';
+                }
+            }
+
+            html += '<tr><td>' + name + '</td><td>' + displayQty + '</td><td>' + cal + '</td><td>' + protein + '</td><td>' + carbs + '</td><td>' + fat + '</td></tr>';
+            totalCal += cal;
+            totalProtein += protein;
+            totalCarbs += carbs;
+            totalFat += fat;
+        }
     });
-    
-    document.getElementById('nutritionTable').innerHTML = html;
-    document.getElementById('totalCal').textContent = Math.round(totalCal);
-    document.getElementById('totalProtein').textContent = Math.round(totalProtein * 10) / 10;
-    document.getElementById('totalCarbs').textContent = Math.round(totalCarbs * 10) / 10;
-    document.getElementById('totalFat').textContent = Math.round(totalFat * 10) / 10;
+
+    const tableEl = document.getElementById('nutritionTable');
+    const totalCalEl = document.getElementById('totalCal');
+    const totalProteinEl = document.getElementById('totalProtein');
+    const totalCarbsEl = document.getElementById('totalCarbs');
+    const totalFatEl = document.getElementById('totalFat');
+
+    if (tableEl) tableEl.innerHTML = html;
+    if (totalCalEl) totalCalEl.textContent = Math.round(totalCal);
+    if (totalProteinEl) totalProteinEl.textContent = Math.round(totalProtein * 10) / 10;
+    if (totalCarbsEl) totalCarbsEl.textContent = Math.round(totalCarbs * 10) / 10;
+    if (totalFatEl) totalFatEl.textContent = Math.round(totalFat * 10) / 10;
 }
 
 // 开始语音
@@ -475,24 +1571,101 @@ function processTextInput() {
         alert('请输入食物名称');
         return;
     }
-    
-    // 禁用按钮防止重复点击
-    const btn = document.getElementById('textSubmitBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 识别中...';
-    
-    // 隐藏麦克风
-    document.getElementById('voiceArea').style.display = 'none';
-    document.getElementById('actionButtons').style.display = 'none';
-    
-    // 直接显示结果
-    processRecognitionResult(text);
-    
-    // 恢复按钮状态
-    setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-search"></i> 识别';
-    }, 1000);
+
+    // 停止任何正在进行的语音识别
+    if (isRecording) {
+        stopRecording();
+    }
+
+    // 直接调用结果显示
+    displayFoodResults(text);
+}
+
+// 直接显示食物结果
+function displayFoodResults(text) {
+    try {
+        // 隐藏麦克风区域
+        const voiceArea = document.getElementById('voiceArea');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const actionButtons = document.getElementById('actionButtons');
+        const textCard = document.getElementById('textCard');
+
+        if (voiceArea) voiceArea.style.display = 'none';
+        if (recordingIndicator) recordingIndicator.style.display = 'none';
+        if (actionButtons) actionButtons.style.display = 'none';
+        if (textCard) textCard.style.display = 'none';
+
+        // 显示识别的文字
+        const recognizedTextEl = document.getElementById('recognizedText');
+        if (recognizedTextEl) recognizedTextEl.textContent = text;
+
+        recognizedFoods = parseVoiceText(text);
+
+        const foodListEl = document.getElementById('foodList');
+        const saveSelectedBtn = document.getElementById('saveSelectedBtn');
+
+        if (recognizedFoods.length === 0) {
+            if (foodListEl) {
+                foodListEl.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 未能识别"' + text + '"，请修改后重新识别</div>';
+            }
+            const textInputEl = document.getElementById('textInput');
+            if (textInputEl) textInputEl.value = text;
+            if (saveSelectedBtn) saveSelectedBtn.style.display = 'none';
+            // 未识别时显示文字输入区
+            if (textCard) textCard.style.display = 'block';
+        } else {
+            // 为每个食物添加选中状态和索引
+            recognizedFoods.forEach((item, index) => {
+                item.selected = true;
+                item.idx = index;
+            });
+
+            let html = '';
+            recognizedFoods.forEach((item) => {
+                const idx = item.idx || 0;
+                const qty = item.quantity || 1;
+                const unit = item.unit || '';
+                const name = item.name || '未知食物';
+                const cal = item.calories || 0;
+
+                // 解析单位中的数字，计算实际重量
+                let displayQty = qty + '份';
+                if (unit) {
+                    const unitMatch = unit.match(/(\d+)/);
+                    if (unitMatch) {
+                        const baseWeight = parseInt(unitMatch[1]);
+                        displayQty = qty + '份(' + (baseWeight * qty) + 'g)';
+                    }
+                }
+
+                html += '<div class="card mb-2" id="foodCard' + idx + '">';
+                html += '<div class="card-body py-2">';
+                html += '<div class="d-flex justify-content-between align-items-center">';
+                html += '<div class="form-check">';
+                html += '<input class="form-check-input" type="checkbox" checked id="foodCheck' + idx + '" onclick="toggleFood(' + idx + ')">';
+                html += '<label class="form-check-label" for="foodCheck' + idx + '">';
+                html += '<strong>' + displayQty + '</strong> ' + name;
+                html += '</label>';
+                html += '</div>';
+                html += '<span class="badge bg-success">' + cal + ' kcal</span>';
+                html += '</div></div></div>';
+            });
+            if (foodListEl) foodListEl.innerHTML = html;
+            updateNutritionTable();
+            if (saveSelectedBtn) saveSelectedBtn.style.display = 'block';
+        }
+
+        // 显示结果卡片
+        const resultCard = document.getElementById('resultCard');
+        if (resultCard) {
+            resultCard.style.display = 'block';
+            resultCard.style.animation = 'fadeInUp 0.5s ease';
+            resultCard.scrollIntoView({ behavior: 'smooth' });
+        }
+    } catch(e) {
+        console.error('显示结果出错:', e);
+        alert('显示结果出错，请重试');
+    }
 }
 
 // 继续记录
@@ -500,29 +1673,50 @@ function continueRecording() {
     document.getElementById('resultCard').style.display = 'none';
     document.getElementById('voiceArea').style.display = 'block';
     document.getElementById('actionButtons').style.display = 'block';
-    
+    document.getElementById('textCard').style.display = 'block';
+    document.getElementById('textInput').value = '';
+
     // 重置状态
     recognizedFoods = [];
     currentTranscript = '';
     document.getElementById('voiceHint').textContent = '点击麦克风开始说话';
-    
+
     const micButton = document.getElementById('micButton');
     micButton.classList.add('ready');
-    
+
     document.getElementById('voiceArea').scrollIntoView({ behavior: 'smooth' });
 }
 
-// 保存所有记录
-function saveAllRecords() {
-    if (recognizedFoods.length === 0) {
-        alert('没有可添加的食物');
+
+// 保存选中的食物
+function saveSelectedRecords() {
+    const selectedFoods = recognizedFoods.filter(f => f.selected);
+
+    if (selectedFoods.length === 0) {
+        alert('请至少选择一种食物');
         return;
     }
-    
+
+    // 准备发送到后端的数据 - 确保字段名与后端一致
+    const foodsToSave = selectedFoods.map(item => ({
+        food_name: item.name || '未知食物',  // 转换为 food_name
+        name: item.name,  // 同时保留 name 字段以防万一
+        quantity: item.quantity || 1,
+        serving_size: item.quantity || 1,
+        calories: item.calories || 0,
+        protein: item.protein || 0,
+        carbs: item.carbs || 0,
+        fat: item.fat || 0,
+        calories_per_100g: item.nutrition ? item.nutrition.calories : 0,
+        protein_per_100g: item.nutrition ? item.nutrition.protein : 0,
+        carbs_per_100g: item.nutrition ? item.nutrition.carbs : 0,
+        fat_per_100g: item.nutrition ? item.nutrition.fat : 0
+    }));
+
     fetch('{{ url_for("add_diet_record") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ foods: recognizedFoods })
+        body: JSON.stringify({ foods: foodsToSave })
     })
     .then(response => response.json())
     .then(data => {
@@ -550,48 +1744,30 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('micButton').classList.add('ready');
     }
     
-    // 绑定按钮事件 - 使用 addEventListener 提高兼容性
-    const micBtn = document.getElementById('micButton');
-    const stopBtnEl = document.getElementById('stopBtn');
-    const textSubmitBtn = document.getElementById('textSubmitBtn');
-    const saveAllBtnEl = document.getElementById('saveAllBtn');
-    const continueBtnEl = document.getElementById('continueBtn');
-    const examplesBtn = document.getElementById('examplesBtn');
-    const textModeBtn = document.getElementById('textModeBtn');
-    const textInputEl = document.getElementById('textInput');
-    
-    micBtn.addEventListener('click', startVoiceInput);
-    stopBtnEl.addEventListener('click', stopRecording);
-    textSubmitBtn.addEventListener('click', processTextInput);
-    saveAllBtnEl.addEventListener('click', saveAllRecords);
-    continueBtnEl.addEventListener('click', continueRecording);
-    examplesBtn.addEventListener('click', function() {
+    // 绑定按钮事件 - 使用 onclick 提高移动端兼容性
+    document.getElementById('micButton').onclick = startVoiceInput;
+    document.getElementById('stopBtn').onclick = stopRecording;
+    document.getElementById('textSubmitBtn').onclick = processTextInput;
+    document.getElementById('saveSelectedBtn').onclick = saveSelectedRecords;
+    document.getElementById('continueBtn').onclick = continueRecording;
+    document.getElementById('examplesBtn').onclick = function() {
         new bootstrap.Modal(document.getElementById('exampleModal')).show();
-    });
-    textModeBtn.addEventListener('click', function() {
-        window.location.href = '{{ url_for("food_text") }}';
-    });
-    
+    };
+
     // 回车提交
-    textInputEl.addEventListener('keypress', function(e) {
+    document.getElementById('textInput').onkeypress = function(e) {
         if (e.key === 'Enter') {
             processTextInput();
         }
-    });
-    
-    // 确保文字输入按钮在移动端也能响应
-    textSubmitBtn.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        processTextInput();
-    });
-    
-    // 移动端触摸事件
-    const micButton = document.getElementById('micButton');
-    micButton.addEventListener('touchstart', function(e) {
+    };
+
+    // 移动端触摸事件 - 麦克风
+    const micButtonEl = document.getElementById('micButton');
+    micButtonEl.addEventListener('touchstart', function(e) {
         e.preventDefault();
         this.style.transform = 'scale(0.95)';
     }, { passive: false });
-    micButton.addEventListener('touchend', function(e) {
+    micButtonEl.addEventListener('touchend', function(e) {
         e.preventDefault();
         this.style.transform = '';
         startVoiceInput();

@@ -1017,7 +1017,7 @@ def add_diet_record():
             
             # 支持批量添加（多食物批量输入）
             foods = data.get('foods', [])
-            meal_type = data.get('meal_type', 'snack')
+            meal_type = data.get('meal_type')  # 不再默认零食
             
             # 获取记录日期
             record_date_str = data.get('record_date')
@@ -1028,6 +1028,20 @@ def add_diet_record():
                     record_date = date.today()
             else:
                 record_date = date.today()
+            
+            # 根据时间智能判断餐次
+            if not meal_type or meal_type == 'snack':
+                current_hour = now_bj().hour
+                if current_hour >= 5 and current_hour < 10:
+                    meal_type = 'breakfast'
+                elif current_hour >= 10 and current_hour < 14:
+                    meal_type = 'lunch'
+                elif current_hour >= 14 and current_hour < 17:
+                    meal_type = 'snack'
+                elif current_hour >= 17 and current_hour < 21:
+                    meal_type = 'dinner'
+                else:
+                    meal_type = 'snack'  # 深夜默认为零食
             
             if foods:
                 for item in foods:
@@ -1045,10 +1059,13 @@ def add_diet_record():
                         carbs = float(item.get('carbs', 0))
                         fat = float(item.get('fat', 0))
                     
+                    # 兼容 JavaScript 发送的 name 和 food_name 字段
+                    food_name = item.get('food_name') or item.get('name') or '未知食物'
+                    
                     record = FoodRecord(
                         user_id=current_user.id,
                         food_id=item.get('food_id'),
-                        food_name=item.get('food_name', '未知'),
+                        food_name=food_name,
                         quantity=quantity,
                         meal_type=meal_type,
                         calories=calories,

@@ -86,7 +86,7 @@
                             {{ {'breakfast': '早餐', 'lunch': '午餐', 'dinner': '晚餐', 'snack': '零食'}.get(record.meal_type, '其他') }}
                         </span>
                         <div class="fw-bold">{{ record.food_name }}</div>
-                        <small class="text-muted">{{ record.time.strftime('%H:%M') if record.time else '--:--' }} · {{ record.quantity|int }}g</small>
+                        <small class="text-muted">{{ record.time.strftime('%H:%M') if record.time else '--:--' }} · {{ record.quantity|int }}份</small>
                     </div>
                     <div class="text-end">
                         <div class="text-danger fw-bold">{{ record.calories|int }} kcal</div>
@@ -134,7 +134,7 @@
                             </span>
                         </td>
                         <td>{{ record.food_name }}</td>
-                        <td>{{ record.quantity|int }}g</td>
+                        <td>{{ record.quantity|int }}份</td>
                         <td class="text-danger fw-bold">{{ record.calories|round|int }} kcal</td>
                         <td>{{ (record.protein)|round(1) }}g</td>
                         <td>{{ (record.carbs)|round(1) }}g</td>
@@ -188,7 +188,8 @@
                 <div class="row">
                     <div class="col-6 mb-3">
                         <label class="form-label">份量 (g)</label>
-                        <input type="number" class="form-control" id="editQuantity" min="1" max="5000">
+                        <input type="number" class="form-control" id="editQuantity" min="1" max="5000" oninput="recalculateNutrition()">
+                        <input type="hidden" id="originalQuantity">
                     </div>
                     <div class="col-6 mb-3">
                         <label class="form-label">热量 (kcal)</label>
@@ -256,13 +257,33 @@
     function editRecord(id, name, quantity, calories, protein, carbs, fat, mealType) {
         document.getElementById('editRecordId').value = id;
         document.getElementById('editFoodName').value = name;
+        document.getElementById('originalQuantity').value = quantity;  // 保存原始份量
         document.getElementById('editQuantity').value = quantity;
-        document.getElementById('editCalories').value = calories;
-        document.getElementById('editProtein').value = protein;
-        document.getElementById('editCarbs').value = carbs;
-        document.getElementById('editFat').value = fat;
+        document.getElementById('editCalories').value = Math.round(calories);
+        document.getElementById('editProtein').value = Math.round(protein * 10) / 10;
+        document.getElementById('editCarbs').value = Math.round(carbs * 10) / 10;
+        document.getElementById('editFat').value = Math.round(fat * 10) / 10;
         document.getElementById('editMealType').value = mealType;
         new bootstrap.Modal(document.getElementById('editModal')).show();
+    }
+
+    // 根据份量变化自动重新计算营养数据
+    function recalculateNutrition() {
+        const originalQty = parseFloat(document.getElementById('originalQuantity').value) || 1;
+        const currentQty = parseFloat(document.getElementById('editQuantity').value) || originalQty;
+        const ratio = currentQty / originalQty;
+
+        // 获取原始营养值（从当前输入框获取，因为可能已被修改）
+        let cal = parseFloat(document.getElementById('editCalories').value) || 0;
+        let protein = parseFloat(document.getElementById('editProtein').value) || 0;
+        let carbs = parseFloat(document.getElementById('editCarbs').value) || 0;
+        let fat = parseFloat(document.getElementById('editFat').value) || 0;
+
+        // 根据比例重新计算
+        document.getElementById('editCalories').value = Math.round(cal * ratio);
+        document.getElementById('editProtein').value = Math.round(protein * ratio * 10) / 10;
+        document.getElementById('editCarbs').value = Math.round(carbs * ratio * 10) / 10;
+        document.getElementById('editFat').value = Math.round(fat * ratio * 10) / 10;
     }
 
     // 保存编辑
