@@ -180,6 +180,7 @@ let isRecording = false;
 let recognizedFoods = [];
 let currentTranscript = '';
 let speechTimeout = null;
+let customFoods = {}; // 存储自定义食物
 
 // 食物数据库 - 按优先级排序（越具体的放前面）
 const foodDatabase = {
@@ -505,6 +506,9 @@ const foodDatabase = {
     '海虾': { calories: 90, protein: 20, carbs: 1, fat: 1.5, serving: '100g' },
     '河虾': { calories: 80, protein: 16, carbs: 1, fat: 1, serving: '100g' },
     '虾仁': { calories: 80, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '白灼虾': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
+    '白灼大虾': { calories: 90, protein: 20, carbs: 1, fat: 1.5, serving: '100g' },
+    '清蒸虾': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
     '虾肉': { calories: 85, protein: 18, carbs: 1, fat: 1, serving: '100g' },
     '蟹': { calories: 97, protein: 19, carbs: 1, fat: 2, serving: '100g' },
     '大闸蟹': { calories: 120, protein: 18, carbs: 3, fat: 5, serving: '一只(150g)' },
@@ -909,6 +913,9 @@ const foodDatabase = {
     '小葱': { calories: 28, protein: 1, carbs: 6, fat: 0.2, serving: '100g' },
     '葱': { calories: 30, protein: 1, carbs: 7, fat: 0.1, serving: '100g' },
     '菠菜': { calories: 23, protein: 2, carbs: 4, fat: 0, serving: '100g' },
+    '芹菜': { calories: 14, protein: 1, carbs: 3, fat: 0, serving: '100g' },
+    '西芹': { calories: 17, protein: 1, carbs: 4, fat: 0, serving: '100g' },
+    '香芹': { calories: 15, protein: 1, carbs: 3, fat: 0, serving: '100g' },
     '苋菜': { calories: 25, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
     '红苋菜': { calories: 28, protein: 2, carbs: 5, fat: 0.3, serving: '100g' },
     '木耳菜': { calories: 20, protein: 2, carbs: 3, fat: 0.3, serving: '100g' },
@@ -1428,8 +1435,11 @@ function parseVoiceText(text) {
         // 先获取所有可能匹配的食物
         const matchedFoods = [];
 
+        // 合并内置数据库和自定义食物库
+        const allFoods = { ...foodDatabase, ...customFoods };
+
         // 检查每个食物是否在文本中
-        for (const [foodName, nutrition] of Object.entries(foodDatabase)) {
+        for (const [foodName, nutrition] of Object.entries(allFoods)) {
             if (text.includes(foodName)) {
                 matchedFoods.push({ name: foodName, nutrition: nutrition });
             }
@@ -1605,8 +1615,72 @@ function displayFoodResults(text) {
         const saveSelectedBtn = document.getElementById('saveSelectedBtn');
 
         if (recognizedFoods.length === 0) {
+            // 清理文本中的标点符号
+            const cleanText = text.replace(/[。.。,，、;；:：!！?？]+$/g, '');
+            // 未识别时显示学习表单
             if (foodListEl) {
-                foodListEl.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> 未能识别"' + text + '"，请修改后重新识别</div>';
+                foodListEl.innerHTML = `
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle"></i> 未能识别"<strong>${cleanText}</strong>"
+                    </div>
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <i class="bi bi-plus-circle"></i> 学习新食物：<strong>${cleanText}</strong>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small">将"${cleanText}"添加到食物库，下次即可识别</p>
+                            <form id="learnFoodForm">
+                                <input type="hidden" id="learnFoodName" value="${cleanText}">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">食物名称</label>
+                                        <input type="text" class="form-control" id="learnName" value="${cleanText}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">类别</label>
+                                        <select class="form-select" id="learnCategory">
+                                            <option value="蔬菜">蔬菜</option>
+                                            <option value="水果">水果</option>
+                                            <option value="肉类">肉类</option>
+                                            <option value="主食">主食</option>
+                                            <option value="蛋奶">蛋奶</option>
+                                            <option value="豆制品">豆制品</option>
+                                            <option value="饮料">饮料</option>
+                                            <option value="零食">零食</option>
+                                            <option value="其他">其他</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6 col-md-3 mb-3">
+                                        <label class="form-label">热量 (kcal/100g)</label>
+                                        <input type="number" class="form-control" id="learnCalories" placeholder="如: 20" required>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-3">
+                                        <label class="form-label">蛋白质 (g)</label>
+                                        <input type="number" class="form-control" id="learnProtein" step="0.1" placeholder="如: 1.5" required>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-3">
+                                        <label class="form-label">碳水 (g)</label>
+                                        <input type="number" class="form-control" id="learnCarbs" step="0.1" placeholder="如: 3" required>
+                                    </div>
+                                    <div class="col-6 col-md-3 mb-3">
+                                        <label class="form-label">脂肪 (g)</label>
+                                        <input type="number" class="form-control" id="learnFat" step="0.1" placeholder="如: 0.2" required>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary" onclick="submitLearnFood()">
+                                        <i class="bi bi-check-circle"></i> 学习此食物
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="hideLearnForm()">
+                                        <i class="bi bi-x-circle"></i> 取消
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                `;
             }
             const textInputEl = document.getElementById('textInput');
             if (textInputEl) textInputEl.value = text;
@@ -1650,6 +1724,29 @@ function displayFoodResults(text) {
                 html += '<span class="badge bg-success">' + cal + ' kcal</span>';
                 html += '</div></div></div>';
             });
+
+            // 检查是否需要显示"学习更精确名称"选项
+            const cleanText = text.replace(/[。.。,，、;；:：!！?？]+$/g, '').trim();
+            const matchedNames = recognizedFoods.map(f => f.name).join('、');
+            // 如果识别的名称不包含原始输入的所有字符，显示学习选项
+            const isPartialMatch = cleanText.length > 0 && !cleanText.includes(matchedNames) && !matchedNames.includes(cleanText);
+
+            if (isPartialMatch || recognizedFoods.length === 0) {
+                html += `
+                    <div class="card mt-3 border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <i class="bi bi-lightbulb"></i> 想学习"<strong>${cleanText}</strong>"这个名称吗？
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted">当前识别为"${matchedNames}"，如果您想学习"${cleanText}"，可以点击下方按钮</p>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="showLearnForm('${cleanText}')">
+                                <i class="bi bi-plus-circle"></i> 学习新名称
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
             if (foodListEl) foodListEl.innerHTML = html;
             updateNutritionTable();
             if (saveSelectedBtn) saveSelectedBtn.style.display = 'block';
@@ -1684,7 +1781,133 @@ function continueRecording() {
     const micButton = document.getElementById('micButton');
     micButton.classList.add('ready');
 
+
     document.getElementById('voiceArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+// 提交学习新食物
+function submitLearnFood() {
+    let name = document.getElementById('learnName').value.trim();
+    // 清理名称末尾的标点符号
+    name = name.replace(/[。.。,，、;；:：!！?？]+$/g, '');
+    const category = document.getElementById('learnCategory').value;
+    const calories = parseFloat(document.getElementById('learnCalories').value) || 0;
+    const protein = parseFloat(document.getElementById('learnProtein').value) || 0;
+    const carbs = parseFloat(document.getElementById('learnCarbs').value) || 0;
+    const fat = parseFloat(document.getElementById('learnFat').value) || 0;
+
+    if (!name) {
+        alert('请输入食物名称');
+        return;
+    }
+    if (calories <= 0) {
+        alert('请输入热量值');
+        return;
+    }
+
+    fetch('/api/add_food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, calories, protein, carbs, fat })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // 添加到自定义食物库
+            customFoods[name] = {
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fat,
+                serving: '100g'
+            };
+            // 重新解析当前输入
+            const textInputEl = document.getElementById('textInput');
+            if (textInputEl && textInputEl.value) {
+                processRecognitionResult(textInputEl.value);
+            }
+        } else {
+            alert('添加失败: ' + data.message);
+        }
+    })
+    .catch(err => {
+        alert('添加失败: ' + err);
+    });
+}
+
+// 显示学习表单
+function showLearnForm(foodName) {
+    const foodListEl = document.getElementById('foodList');
+    if (foodListEl) {
+        foodListEl.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-plus-circle"></i> 学习新食物：<strong>${foodName}</strong>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">将"${foodName}"添加到食物库，下次即可识别</p>
+                    <form id="learnFoodForm">
+                        <input type="hidden" id="learnFoodName" value="${foodName}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">食物名称</label>
+                                <input type="text" class="form-control" id="learnName" value="${foodName}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">类别</label>
+                                <select class="form-select" id="learnCategory">
+                                    <option value="蔬菜">蔬菜</option>
+                                    <option value="水果">水果</option>
+                                    <option value="肉类">肉类</option>
+                                    <option value="主食">主食</option>
+                                    <option value="蛋奶">蛋奶</option>
+                                    <option value="豆制品">豆制品</option>
+                                    <option value="饮料">饮料</option>
+                                    <option value="零食">零食</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 col-md-3 mb-3">
+                                <label class="form-label">热量 (kcal/100g)</label>
+                                <input type="number" class="form-control" id="learnCalories" placeholder="如: 20" required>
+                            </div>
+                            <div class="col-6 col-md-3 mb-3">
+                                <label class="form-label">蛋白质 (g)</label>
+                                <input type="number" class="form-control" id="learnProtein" step="0.1" placeholder="如: 1.5" required>
+                            </div>
+                            <div class="col-6 col-md-3 mb-3">
+                                <label class="form-label">碳水 (g)</label>
+                                <input type="number" class="form-control" id="learnCarbs" step="0.1" placeholder="如: 3" required>
+                            </div>
+                            <div class="col-6 col-md-3 mb-3">
+                                <label class="form-label">脂肪 (g)</label>
+                                <input type="number" class="form-control" id="learnFat" step="0.1" placeholder="如: 0.2" required>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary" onclick="submitLearnFood()">
+                                <i class="bi bi-check-circle"></i> 学习此食物
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="hideLearnForm()">
+                                <i class="bi bi-x-circle"></i> 取消
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 取消学习表单
+function hideLearnForm() {
+    const foodListEl = document.getElementById('foodList');
+    if (foodListEl) {
+        foodListEl.innerHTML = '<div class="alert alert-info">请重新输入食物名称</div>';
+    }
 }
 
 
@@ -1735,15 +1958,35 @@ function saveSelectedRecords() {
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 从API获取食物列表，加载到自定义食物库
+    fetch('/api/all_foods')
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.foods) {
+            // 加载到自定义食物库
+            for (const f of data.foods) {
+                customFoods[f.name] = {
+                    calories: f.calories || 0,
+                    protein: f.protein || 0,
+                    carbs: f.carbs || 0,
+                    fat: f.fat || 0,
+                    serving: f.serving || '100g'
+                };
+            }
+            console.log('已加载 ' + data.foods.length + ' 种食物到自定义库');
+        }
+    })
+    .catch(err => console.error('加载食物列表失败:', err));
+
     // 初始化语音识别
     const speechAvailable = initSpeechRecognition();
-    
+
     if (!speechAvailable) {
         document.getElementById('voiceArea').style.display = 'none';
     } else {
         document.getElementById('micButton').classList.add('ready');
     }
-    
+
     // 绑定按钮事件 - 使用 onclick 提高移动端兼容性
     document.getElementById('micButton').onclick = startVoiceInput;
     document.getElementById('stopBtn').onclick = stopRecording;

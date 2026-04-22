@@ -14,7 +14,10 @@
         <form method="GET" class="row g-3">
             <div class="col-md-6">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="搜索食物..." value="{{ request.args.get('search', '') }}">
+                    <input type="text" name="search" class="form-control" id="foodSearchInput" placeholder="搜索食物..." value="{{ request.args.get('search', '') }}">
+                    <button class="btn btn-outline-success" type="button" id="voiceSearchBtn" onclick="toggleFoodVoiceSearch()" title="语音搜索">
+                        <i class="bi bi-mic"></i>
+                    </button>
                     <button class="btn btn-outline-primary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -119,9 +122,348 @@
 <script>
 let currentFood = null;
 let detailModal = null;
+let foodVoiceRecognition = null;
+let isFoodVoiceSearching = false;
+
+// 百度语音识别变量
+let foodMediaRecorder = null;
+let foodAudioChunks = [];
+
+// 语音搜索食物
+let foodVoiceToggleLocked = false; // 防抖标志
+
+function toggleFoodVoiceSearch() {
+    // 防抖：如果正在处理中，直接返回
+    if (foodVoiceToggleLocked) {
+        console.log('toggleFoodVoiceSearch 被锁定，忽略此次调用');
+        return;
+    }
+    foodVoiceToggleLocked = true;
+    console.log('toggleFoodVoiceSearch 被调用, 当前状态:', isFoodVoiceSearching);
+    console.log('foodVoiceRecognition 对象:', foodVoiceRecognition);
+    
+    if (!foodVoiceRecognition) {
+        console.log('初始化食物语音识别...');
+        foodVoiceRecognition = initFoodVoiceRecognition();
+        console.log('初始化后 foodVoiceRecognition:', foodVoiceRecognition);
+    }
+    if (!foodVoiceRecognition) {
+        alert('您的浏览器不支持语音识别，请使用Chrome或Edge浏览器');
+        foodVoiceToggleLocked = false;
+        return;
+    }
+
+    if (isFoodVoiceSearching) {
+        console.log('停止录音...');
+        try {
+            foodVoiceRecognition.stop();
+            console.log('停止录音成功');
+        } catch(e) {
+            console.error('停止录音失败:', e);
+        }
+    } else {
+        console.log('开始录音...');
+        try {
+            foodVoiceRecognition.start();
+            console.log('开始录音成功');
+        } catch(e) {
+            console.error('开始录音失败:', e);
+        }
+    }
+    // 1秒后解锁
+    setTimeout(() => { foodVoiceToggleLocked = false; }, 1000);
+}
+
+// 初始化语音识别
+function initFoodVoiceRecognition() {
+    console.log('初始化食物语音搜索...');
+    
+    // 优先使用浏览器原生语音识别
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        console.log('使用浏览器原生语音识别');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'zh-CN';
+
+        recognition.onstart = function() {
+            isFoodVoiceSearching = true;
+            updateFoodVoiceBtn(true);
+        };
+
+        recognition.onresult = function(event) {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            // 去掉末尾标点
+            transcript = transcript.replace(/[。！？，、；：""''【】（）\s]+$/, '').trim();
+            
+            const searchInput = document.getElementById('foodSearchInput');
+            searchInput.value = transcript;
+            
+            // 自动提交搜索
+            searchInput.closest('form').submit();
+        };
+
+        recognition.onerror = function(event) {
+            console.error('语音识别错误:', event.error);
+            isFoodVoiceSearching = false;
+            updateFoodVoiceBtn(false);
+            if (event.error === 'no-speech') {
+                alert('未识别到语音，请重试');
+            }
+        };
+
+        recognition.onend = function() {
+            isFoodVoiceSearching = false;
+            updateFoodVoiceBtn(false);
+        };
+
+        return recognition;
+    }
+    
+    // 回退到百度语音识别
+    console.log('浏览器不支持原生识别，尝试百度语音...');
+    if (canUseBaiduVoice()) {
+        console.log('使用百度语音识别');
+        return createBaiduVoiceRecognition();
+    }
+    
+    alert('您的浏览器不支持语音识别，请使用Chrome或Edge浏览器');
+    return null;
+}
+
+// 检查是否可以使用百度语音
+function canUseBaiduVoice() {
+    return 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+}
+
+// 创建百度语音识别对象
+function createBaiduVoiceRecognition() {
+    return {
+        start: function() {
+            startFoodBaiduRecording();
+        },
+        stop: function() {
+            stopFoodBaiduRecording();
+        }
+    };
+}
+
+// 百度语音录制变量
+let foodAudioContext = null;
+let foodMediaStream = null;
+
+// 开始百度语音录制
+async function startFoodBaiduRecording() {
+    console.log('开始获取麦克风权限...');
+    try {
+        foodAudioChunks = [];
+        
+        // 使用getUserMedia获取音频流
+        foodMediaStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true
+        });
+        console.log('麦克风权限获取成功');
+        
+        // 创建AudioContext用于录制WAV
+        foodAudioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000
+        });
+        
+        // 确保 AudioContext 处于运行状态
+        if (foodAudioContext.state === 'suspended') {
+            console.log('AudioContext 处于暂停状态，需要恢复...');
+            await foodAudioContext.resume();
+            console.log('AudioContext 已恢复');
+        }
+        
+        const source = foodAudioContext.createMediaStreamSource(foodMediaStream);
+        const processor = foodAudioContext.createScriptProcessor(4096, 1, 1);
+        
+        processor.onaudioprocess = function(e) {
+            if (isFoodVoiceSearching) {
+                const inputData = e.inputBuffer.getChannelData(0);
+                // 转换为Int16Array
+                const int16Array = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    int16Array[i] = Math.max(-32768, Math.min(32767, Math.floor(inputData[i] * 32767)));
+                }
+                foodAudioChunks.push(int16Array);
+                console.log('录到音频块，大小:', int16Array.length);
+            }
+        };
+        
+        source.connect(processor);
+        processor.connect(foodAudioContext.destination);
+        
+        // 保存processor以便停止时断开
+        window._foodAudioProcessor = processor;
+        
+        isFoodVoiceSearching = true;
+        console.log('录音已开始，请说话...');
+        updateFoodVoiceBtn(true);
+        
+    } catch (err) {
+        console.error('无法访问麦克风:', err);
+        alert('无法访问麦克风，请检查权限设置');
+    }
+}
+
+// 停止百度语音录制
+function stopFoodBaiduRecording() {
+    console.log('停止录音，音频块数量:', foodAudioChunks.length);
+    isFoodVoiceSearching = false;
+    
+    if (window._foodAudioProcessor) {
+        window._foodAudioProcessor.disconnect();
+        window._foodAudioProcessor = null;
+    }
+    
+    if (foodAudioContext) {
+        foodAudioContext.close();
+        foodAudioContext = null;
+    }
+    
+    if (foodMediaStream) {
+        foodMediaStream.getTracks().forEach(track => track.stop());
+        foodMediaStream = null;
+    }
+    
+    updateFoodVoiceBtn(false);
+    
+    // 发送音频
+    sendFoodToBaiduASR();
+}
+
+// 创建WAV文件头
+function createFoodWavHeader(dataLength, sampleRate) {
+    const header = new ArrayBuffer(44);
+    const view = new DataView(header);
+    
+    // RIFF chunk descriptor
+    writeFoodString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeFoodString(view, 8, 'WAVE');
+    
+    // fmt sub-chunk
+    writeFoodString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    
+    // data sub-chunk
+    writeFoodString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    return header;
+}
+
+function writeFoodString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+// 发送音频到百度语音识别
+async function sendFoodToBaiduASR() {
+    console.log('开始发送音频到百度，音频块数量:', foodAudioChunks.length);
+    
+    if (foodAudioChunks.length === 0) {
+        console.error('没有录到音频数据');
+        alert('没有录到音频，请重试');
+        return;
+    }
+    
+    const btn = document.getElementById('voiceSearchBtn');
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+    
+    try {
+        // 合并所有音频块
+        let totalLength = 0;
+        for (const chunk of foodAudioChunks) {
+            totalLength += chunk.length * 2;
+        }
+        console.log('音频总长度:', totalLength, '字节');
+        
+        // 创建WAV文件
+        const wavHeader = createFoodWavHeader(totalLength, 16000);
+        const wavData = new Uint8Array(wavHeader.byteLength + totalLength);
+        wavData.set(new Uint8Array(wavHeader), 0);
+        
+        let offset = wavHeader.byteLength;
+        for (const chunk of foodAudioChunks) {
+            const int16View = new Int16Array(chunk.buffer, chunk.byteOffset, chunk.length);
+            const uint8View = new Uint8Array(int16View.buffer);
+            wavData.set(uint8View, offset);
+            offset += uint8View.length;
+        }
+        console.log('WAV文件创建完成，大小:', wavData.length, '字节');
+        
+        // 转换为base64
+        let binary = '';
+        for (let i = 0; i < wavData.length; i++) {
+            binary += String.fromCharCode(wavData[i]);
+        }
+        const base64Audio = btoa(binary);
+        console.log('base64音频长度:', base64Audio.length);
+        
+        console.log('开始发送请求到百度API...');
+        const response = await fetch('/api/baidu_asr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audio: base64Audio })
+        });
+        console.log('收到响应, 状态:', response.status);
+        
+        const result = await response.json();
+        console.log('解析响应结果:', result);
+        
+        if (result.success && result.text) {
+            const searchInput = document.getElementById('foodSearchInput');
+            searchInput.value = result.text;
+            // 自动提交搜索
+            searchInput.closest('form').submit();
+        } else {
+            alert('识别失败: ' + (result.message || '未知错误'));
+        }
+        
+    } catch (err) {
+        console.error('百度语音识别失败:', err);
+        alert('识别失败，请重试');
+    }
+}
+
+// 更新语音按钮状态
+function updateFoodVoiceBtn(recording) {
+    const btn = document.getElementById('voiceSearchBtn');
+    if (recording) {
+        btn.classList.add('btn-danger');
+        btn.classList.remove('btn-outline-success');
+        btn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    } else {
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-outline-success');
+        btn.innerHTML = '<i class="bi bi-mic"></i>';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     detailModal = new bootstrap.Modal(document.getElementById('foodDetailModal'));
+    
+    // 回车触发表单提交
+    document.getElementById('foodSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.closest('form').submit();
+        }
+    });
 });
 
 function showFoodDetail(foodId) {

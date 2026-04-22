@@ -4,9 +4,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
     <h4 class="mb-2 mb-sm-0"><i class="bi bi-egg-fried" style="color: #43a047;"></i> 饮食记录</h4>
-    <a href="{{ url_for('add_diet_record') }}" class="btn" style="background: #43a047; color: white;">
-        <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">添加记录</span><span class="d-sm-none">添加</span>
-    </a>
+    <button type="button" class="btn" style="background: #43a047; color: white;" onclick="openVoiceModal()">
+        <i class="bi bi-mic-fill"></i> <span class="d-none d-sm-inline">语音添加</span><span class="d-sm-none">语音</span>
+    </button>
 </div>
 
 <!-- 日期选择器 -->
@@ -242,6 +242,163 @@
         </div>
     </div>
 </div>
+
+<!-- 语音输入模态框 -->
+<div class="modal fade" id="voiceInputModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #43a047; color: white;">
+                <h5 class="modal-title"><i class="bi bi-mic-fill"></i> 语音添加饮食记录</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="closeVoiceModal()"></button>
+            </div>
+            <div class="modal-body p-3">
+                <style>
+                #voiceInputModal .mic-btn {
+                    width: 120px;
+                    height: 120px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #43a047, #2e7d32);
+                    border: none;
+                    color: white;
+                    font-size: 3rem;
+                    box-shadow: 0 4px 15px rgba(67, 160, 71, 0.4);
+                    transition: all 0.3s;
+                }
+                #voiceInputModal .mic-btn:hover { transform: scale(1.05); }
+                #voiceInputModal .mic-btn.recording {
+                    background: linear-gradient(135deg, #dc3545, #c82333);
+                    animation: pulse-recording 1s infinite;
+                }
+                @keyframes pulse-recording {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.08); }
+                }
+                #voiceInputModal .result-card {
+                    animation: fadeInUp 0.4s ease;
+                }
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                </style>
+                
+                <!-- 语音输入区域 -->
+                <div id="voiceInputArea" class="text-center py-4">
+                    <button type="button" class="mic-btn mb-3" id="modalMicBtn" onclick="toggleModalRecording()">
+                        <i class="bi bi-mic-fill"></i>
+                    </button>
+                    <p class="text-muted mb-2" id="modalVoiceHint">点击麦克风开始说话</p>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="showVoiceExamples()">查看示例</button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="switchToTextMode()">切换文字</button>
+                    </div>
+                </div>
+                
+                <!-- 文字输入区域 -->
+                <div id="textInputArea" style="display: none;" class="py-3">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="modalTextInput" placeholder="输入食物名称，如：一碗米饭、两个鸡蛋">
+                        <button class="btn btn-primary" type="button" onclick="processModalTextInput()">
+                            <i class="bi bi-search"></i> 识别
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="switchToVoiceMode()">
+                        <i class="bi bi-mic"></i> 切换语音
+                    </button>
+                </div>
+                
+                <!-- 识别结果 -->
+                <div id="voiceResultArea" style="display: none;" class="result-card">
+                    <div class="alert alert-info">
+                        <i class="bi bi-chat-left-text"></i> 您说的：<strong id="modalRecognizedText"></strong>
+                    </div>
+                    <div id="modalFoodList" class="mb-3"></div>
+                    <div id="modalFoodActions" class="d-flex gap-2">
+                        <button class="btn btn-success flex-grow-1" onclick="saveModalRecords()">
+                            <i class="bi bi-check-lg"></i> 添加到今日饮食
+                        </button>
+                        <button class="btn btn-outline-success" onclick="resetModalVoice()">
+                            <i class="bi bi-arrow-repeat"></i> 继续
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 未识别区域 -->
+                <div id="voiceNotFoundArea" style="display: none;" class="result-card">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 未找到匹配的食物"<strong id="notFoundText"></strong>"
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">请输入正确的食物名称：</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="modalLearnFoodName" placeholder="食物名称">
+                            <select class="form-select" id="modalFoodCategory" style="max-width: 120px;">
+                                <option value="主食">主食</option>
+                                <option value="蔬菜">蔬菜</option>
+                                <option value="肉类">肉类</option>
+                                <option value="水果">水果</option>
+                                <option value="饮品">饮品</option>
+                                <option value="零食">零食</option>
+                                <option value="汤类">汤类</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small">热量 (kcal/100g)</label>
+                                <input type="number" class="form-control" id="modalLearnCalories" placeholder="如：200">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">蛋白质 (g/100g)</label>
+                                <input type="number" class="form-control" id="modalLearnProtein" placeholder="如：10">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small">碳水 (g/100g)</label>
+                                <input type="number" class="form-control" id="modalLearnCarbs" placeholder="如：25">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">脂肪 (g/100g)</label>
+                                <input type="number" class="form-control" id="modalLearnFat" placeholder="如：5">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-warning flex-grow-1" onclick="learnAndAddFood()">
+                                <i class="bi bi-brain"></i> 学习并添加
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="resetModalVoice()">
+                                <i class="bi bi-arrow-repeat"></i> 重试
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 示例弹窗 -->
+<div class="modal fade" id="voiceExampleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">语音输入示例</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>您可以这样说：</p>
+                <ul class="list-group">
+                    <li class="list-group-item">"一碗米饭"</li>
+                    <li class="list-group-item">"两个鸡蛋"</li>
+                    <li class="list-group-item">"一杯牛奶"</li>
+                    <li class="list-group-item">"100克鸡胸肉"</li>
+                    <li class="list-group-item">"一碗番茄炒蛋"</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -257,7 +414,7 @@
     function editRecord(id, name, quantity, calories, protein, carbs, fat, mealType) {
         document.getElementById('editRecordId').value = id;
         document.getElementById('editFoodName').value = name;
-        document.getElementById('originalQuantity').value = quantity;  // 保存原始份量
+        document.getElementById('originalQuantity').value = quantity;
         document.getElementById('editQuantity').value = quantity;
         document.getElementById('editCalories').value = Math.round(calories);
         document.getElementById('editProtein').value = Math.round(protein * 10) / 10;
@@ -272,14 +429,10 @@
         const originalQty = parseFloat(document.getElementById('originalQuantity').value) || 1;
         const currentQty = parseFloat(document.getElementById('editQuantity').value) || originalQty;
         const ratio = currentQty / originalQty;
-
-        // 获取原始营养值（从当前输入框获取，因为可能已被修改）
         let cal = parseFloat(document.getElementById('editCalories').value) || 0;
         let protein = parseFloat(document.getElementById('editProtein').value) || 0;
         let carbs = parseFloat(document.getElementById('editCarbs').value) || 0;
         let fat = parseFloat(document.getElementById('editFat').value) || 0;
-
-        // 根据比例重新计算
         document.getElementById('editCalories').value = Math.round(cal * ratio);
         document.getElementById('editProtein').value = Math.round(protein * ratio * 10) / 10;
         document.getElementById('editCarbs').value = Math.round(carbs * ratio * 10) / 10;
@@ -298,7 +451,6 @@
             fat: parseFloat(document.getElementById('editFat').value),
             meal_type: document.getElementById('editMealType').value
         };
-
         fetch('/api/diet/update/' + id, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -329,18 +481,14 @@
     // 确认删除
     function confirmDelete() {
         if (!deleteRecordId) return;
-
         fetch('/api/diet/delete/' + deleteRecordId, {
             method: 'POST'
         })
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                // 删除表格行
                 const row = document.getElementById('record-' + deleteRecordId);
-                if (row) {
-                    row.remove();
-                }
+                if (row) { row.remove(); }
                 bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
                 location.reload();
             } else {
@@ -352,5 +500,817 @@
             alert('删除失败，请重试');
         });
     }
+
+// 食物数据库
+const foodDatabase = {
+    '米饭': { calories: 116, protein: 2.6, carbs: 25.9, fat: 0.3 },
+    '一碗米饭': { calories: 174, protein: 3.9, carbs: 38.9, fat: 0.5 },
+    '馒头': { calories: 223, protein: 7, carbs: 47, fat: 1.1 },
+    '吐司': { calories: 277, protein: 9, carbs: 53, fat: 3.2 },
+    '一片吐司': { calories: 70, protein: 2, carbs: 13, fat: 0.8 },
+    '面条': { calories: 284, protein: 8, carbs: 59, fat: 0.8 },
+    '打卤面': { calories: 350, protein: 12, carbs: 55, fat: 8 },
+    '拉面': { calories: 380, protein: 15, carbs: 50, fat: 12 },
+    '刀削面': { calories: 360, protein: 14, carbs: 52, fat: 10 },
+    '炸酱面': { calories: 400, protein: 15, carbs: 55, fat: 14 },
+    '白粥': { calories: 46, protein: 1.1, carbs: 9.9, fat: 0.2 },
+    '小米粥': { calories: 46, protein: 1.4, carbs: 9.3, fat: 0.4 },
+    '鸡蛋': { calories: 144, protein: 13, carbs: 1.3, fat: 9.5 },
+    '两个鸡蛋': { calories: 288, protein: 26, carbs: 2.6, fat: 19 },
+    '三个鸡蛋': { calories: 432, protein: 39, carbs: 3.9, fat: 28.5 },
+    '牛奶': { calories: 54, protein: 3, carbs: 3.4, fat: 3.2 },
+    '一杯牛奶': { calories: 135, protein: 7.5, carbs: 8.5, fat: 8 },
+    '酸奶': { calories: 72, protein: 2.9, carbs: 9.3, fat: 2.7 },
+    '苹果': { calories: 52, protein: 0.3, carbs: 13.8, fat: 0.2 },
+    '一个苹果': { calories: 104, protein: 0.6, carbs: 27.6, fat: 0.4 },
+    '香蕉': { calories: 93, protein: 1.4, carbs: 22.8, fat: 0.2 },
+    '鸡胸肉': { calories: 133, protein: 31, carbs: 0, fat: 1.2 },
+    '牛肉': { calories: 125, protein: 26, carbs: 0, fat: 3.3 },
+    '鱼肉': { calories: 90, protein: 18, carbs: 0, fat: 2 },
+    '虾': { calories: 85, protein: 18, carbs: 1, fat: 0.6 },
+    '白菜': { calories: 17, protein: 1.2, carbs: 3.1, fat: 0.1 },
+    '西红柿': { calories: 19, protein: 0.9, carbs: 3.5, fat: 0.2 },
+    '番茄炒蛋': { calories: 120, protein: 8, carbs: 6, fat: 7 },
+    '土豆': { calories: 76, protein: 2, carbs: 17, fat: 0.1 },
+    '红薯': { calories: 99, protein: 1.1, carbs: 23.6, fat: 0.1 },
+    '玉米': { calories: 112, protein: 4, carbs: 22.8, fat: 1.2 },
+    '面包': { calories: 265, protein: 8, carbs: 50, fat: 3.2 },
+    '饼干': { calories: 435, protein: 7, carbs: 73, fat: 15 },
+    '奶茶': { calories: 60, protein: 0.5, carbs: 10, fat: 2 },
+    '咖啡': { calories: 1, protein: 0.1, carbs: 0, fat: 0 },
+    '豆腐': { calories: 81, protein: 8, carbs: 2, fat: 4 },
+    '饺子': { calories: 242, protein: 12, carbs: 30, fat: 9 },
+    '包子': { calories: 227, protein: 8, carbs: 37, fat: 5 },
+    '汉堡': { calories: 295, protein: 15, carbs: 30, fat: 12 },
+    '薯条': { calories: 312, protein: 3, carbs: 41, fat: 15 },
+    '炸鸡': { calories: 298, protein: 24, carbs: 10, fat: 18 },
+    '可乐': { calories: 42, protein: 0, carbs: 10.6, fat: 0 },
+    '啤酒': { calories: 43, protein: 0.4, carbs: 3.6, fat: 0 },
+    '葡萄': { calories: 67, protein: 0.6, carbs: 17.3, fat: 0.2 },
+    '西瓜': { calories: 30, protein: 0.6, carbs: 7.6, fat: 0.1 },
+    '草莓': { calories: 30, protein: 0.7, carbs: 7.1, fat: 0.3 },
+    '坚果': { calories: 607, protein: 20, carbs: 15, fat: 54 },
+    '巧克力': { calories: 546, protein: 5, carbs: 60, fat: 31 },
+    '冰淇淋': { calories: 207, protein: 3.5, carbs: 24, fat: 11 },
+    '蛋糕': { calories: 347, protein: 6, carbs: 51, fat: 14 },
+    '红烧肉': { calories: 295, protein: 13, carbs: 7, fat: 24 },
+    '红烧排骨': { calories: 280, protein: 18, carbs: 8, fat: 20 },
+    '红烧狮子头': { calories: 300, protein: 20, carbs: 15, fat: 18 },
+    '糖醋排骨': { calories: 260, protein: 16, carbs: 20, fat: 14 },
+    '可乐鸡翅': { calories: 240, protein: 18, carbs: 15, fat: 12 },
+    '宫保鸡丁': { calories: 197, protein: 15, carbs: 9, fat: 12 },
+    '番茄蛋汤': { calories: 50, protein: 3, carbs: 4, fat: 2 },
+    '西红柿蛋汤': { calories: 50, protein: 3, carbs: 4, fat: 2 },
+    '牛肉面': { calories: 350, protein: 20, carbs: 45, fat: 12 },
+    '油条': { calories: 386, protein: 6, carbs: 51, fat: 17 },
+    '煎饼果子': { calories: 300, protein: 10, carbs: 40, fat: 12 },
+    '小笼包': { calories: 250, protein: 10, carbs: 30, fat: 10 },
+    '馄饨': { calories: 220, protein: 10, carbs: 25, fat: 9 },
+    '豆腐脑': { calories: 80, protein: 6, carbs: 6, fat: 3 },
+    '鸡蛋羹': { calories: 90, protein: 8, carbs: 2, fat: 5 },
+    '麻辣烫': { calories: 350, protein: 15, carbs: 40, fat: 15 },
+    '火锅': { calories: 300, protein: 20, carbs: 15, fat: 18 },
+    '烤肉': { calories: 250, protein: 20, carbs: 3, fat: 18 },
+    '炒饭': { calories: 180, protein: 6, carbs: 25, fat: 6 },
+    '炒面': { calories: 280, protein: 8, carbs: 38, fat: 10 },
+    '水煮鱼': { calories: 200, protein: 20, carbs: 5, fat: 12 },
+    '酸菜鱼': { calories: 180, protein: 22, carbs: 6, fat: 8 },
+    '排骨汤': { calories: 100, protein: 10, carbs: 5, fat: 5 },
+    '鸡汤': { calories: 80, protein: 10, carbs: 2, fat: 4 },
+    '蘑菇炖小鸡': { calories: 250, protein: 25, carbs: 10, fat: 12 },
+    '小鸡炖蘑菇': { calories: 250, protein: 25, carbs: 10, fat: 12 },
+    '炖鸡': { calories: 200, protein: 22, carbs: 5, fat: 10 },
+    '红烧鸡': { calories: 220, protein: 20, carbs: 8, fat: 12 },
+    '鱼汤': { calories: 50, protein: 8, carbs: 2, fat: 1 },
+    '蘑菇': { calories: 24, protein: 3.5, carbs: 2.4, fat: 0.2 },
+    '香菇': { calories: 26, protein: 3.6, carbs: 3.2, fat: 0.2 },
+    '西兰花': { calories: 34, protein: 3.5, carbs: 5.5, fat: 0.4 },
+    '菠菜': { calories: 24, protein: 2.6, carbs: 3.6, fat: 0.3 },
+    '黄瓜': { calories: 15, protein: 0.8, carbs: 2.9, fat: 0.2 },
+    '茄子': { calories: 22, protein: 1.2, carbs: 4.5, fat: 0.2 },
+    '青椒': { calories: 22, protein: 1, carbs: 4.6, fat: 0.2 },
+    '豆干': { calories: 140, protein: 15, carbs: 3, fat: 8 },
+    '年糕': { calories: 150, protein: 3, carbs: 35, fat: 0.5 },
+    '粉丝': { calories: 140, protein: 0.5, carbs: 35, fat: 0.1 },
+    '燕麦': { calories: 377, protein: 13, carbs: 66, fat: 7 },
+    '猪肉': { calories: 143, protein: 21, carbs: 0, fat: 7 },
+    '五花肉': { calories: 395, protein: 14, carbs: 0, fat: 37 },
+    '排骨': { calories: 278, protein: 16, carbs: 0, fat: 24 },
+    '里脊肉': { calories: 115, protein: 22, carbs: 0, fat: 3 },
+    '羊肉': { calories: 118, protein: 19, carbs: 0, fat: 5 },
+    '鸭肉': { calories: 90, protein: 16, carbs: 0.5, fat: 3 },
+    '鸡腿': { calories: 181, protein: 23, carbs: 0, fat: 10 },
+    '鸡翅': { calories: 203, protein: 22, carbs: 0, fat: 13 },
+    '烤串': { calories: 200, protein: 15, carbs: 5, fat: 14 },
+    '烤鸡翅': { calories: 220, protein: 20, carbs: 5, fat: 14 },
+    '烤鸡腿': { calories: 240, protein: 25, carbs: 3, fat: 14 },
+    '炸鸡腿': { calories: 280, protein: 22, carbs: 10, fat: 18 },
+    '炸鸡翅': { calories: 260, protein: 20, carbs: 8, fat: 17 },
+    '薯片': { calories: 547, protein: 6, carbs: 53, fat: 35 },
+    '沙琪玛': { calories: 380, protein: 6, carbs: 60, fat: 13 },
+    '蛋挞': { calories: 280, protein: 5, carbs: 35, fat: 14 },
+    '卤牛肉': { calories: 180, protein: 28, carbs: 3, fat: 7 },
+    '奶茶': { calories: 60, protein: 0.5, carbs: 10, fat: 2 },
+    '珍珠奶茶': { calories: 80, protein: 0.5, carbs: 15, fat: 2 },
+    '拿铁': { calories: 70, protein: 3, carbs: 6, fat: 3 },
+    '美式咖啡': { calories: 10, protein: 0.5, carbs: 0, fat: 0 },
+    '可乐': { calories: 42, protein: 0, carbs: 10.6, fat: 0 },
+    '雪碧': { calories: 42, protein: 0, carbs: 10.6, fat: 0 },
+    '啤酒': { calories: 43, protein: 0.4, carbs: 3.6, fat: 0 },
+    '一瓶啤酒': { calories: 140, protein: 1.3, carbs: 11.7, fat: 0 },
+    '红酒': { calories: 75, protein: 0, carbs: 2.5, fat: 0 },
+    '白酒': { calories: 280, protein: 0, carbs: 0, fat: 0 },
+    '橙汁': { calories: 45, protein: 0.5, carbs: 10, fat: 0 },
+    '椰汁': { calories: 50, protein: 0.5, carbs: 10, fat: 2 },
+    '冰红茶': { calories: 35, protein: 0, carbs: 8, fat: 0 },
+    '酸梅汤': { calories: 40, protein: 0, carbs: 10, fat: 0 },
+    '红牛': { calories: 45, protein: 0, carbs: 11, fat: 0 },
+    '开心果': { calories: 614, protein: 20, carbs: 20, fat: 50 },
+    '杏仁': { calories: 600, protein: 20, carbs: 15, fat: 50 },
+    '核桃': { calories: 650, protein: 15, carbs: 15, fat: 58 },
+    '花生': { calories: 560, protein: 25, carbs: 15, fat: 45 },
+    '瓜子': { calories: 580, protein: 20, carbs: 15, fat: 50 },
+    '板栗': { calories: 189, protein: 4, carbs: 42, fat: 1 },
+    '牛肉干': { calories: 310, protein: 45, carbs: 10, fat: 10 },
+    '猪肉脯': { calories: 300, protein: 35, carbs: 15, fat: 12 },
+    '月饼': { calories: 400, protein: 8, carbs: 50, fat: 20 },
+    '粽子': { calories: 200, protein: 4, carbs: 40, fat: 2 },
+    '汤圆': { calories: 80, protein: 2, carbs: 15, fat: 1.5 },
+    '春卷': { calories: 280, protein: 6, carbs: 35, fat: 14 },
+    '油条': { calories: 386, protein: 6, carbs: 51, fat: 17 },
+    '油饼': { calories: 350, protein: 8, carbs: 40, fat: 18 },
+    '麻花': { calories: 350, protein: 7, carbs: 50, fat: 14 },
+    '沙琪玛': { calories: 380, protein: 6, carbs: 60, fat: 13 },
+    '桃酥': { calories: 480, protein: 7, carbs: 60, fat: 24 },
+    '蛋糕': { calories: 347, protein: 6, carbs: 51, fat: 14 },
+    '奶油蛋糕': { calories: 400, protein: 5, carbs: 50, fat: 20 },
+    '生日蛋糕': { calories: 380, protein: 5, carbs: 48, fat: 18 },
+    '芝士蛋糕': { calories: 350, protein: 7, carbs: 40, fat: 18 },
+    '布丁': { calories: 120, protein: 3, carbs: 20, fat: 3 },
+    '果冻': { calories: 60, protein: 0, carbs: 15, fat: 0 },
+    '龟苓膏': { calories: 50, protein: 1, carbs: 12, fat: 0 },
+    '凉粉': { calories: 35, protein: 0, carbs: 9, fat: 0 },
+    '冰粉': { calories: 40, protein: 0, carbs: 10, fat: 0 },
+    '泡芙': { calories: 320, protein: 5, carbs: 35, fat: 18 },
+    '曲奇': { calories: 450, protein: 5, carbs: 60, fat: 20 },
+    '能量棒': { calories: 200, protein: 5, carbs: 25, fat: 10 }
+};
+
+// 模态框变量
+let modalRecognition = null;
+let modalIsRecording = false;
+let modalFoods = [];
+let customFoods = {}; // 存储自定义食物（从API加载）
+
+// 百度语音识别相关变量
+let mediaRecorder = null;
+let audioChunks = [];
+let baiduAccessToken = null;
+let recognitionSource = 'browser'; // 'browser' 或 'baidu'
+
+// 打开语音输入模态框
+function openVoiceModal() {
+    resetModalVoice();
+    const modal = new bootstrap.Modal(document.getElementById('voiceInputModal'));
+    modal.show();
+}
+
+// 关闭语音输入模态框
+function closeVoiceModal() {
+    if (modalIsRecording) stopModalRecording();
+}
+
+// 重置模态框
+function resetModalVoice() {
+    document.getElementById('voiceInputArea').style.display = 'block';
+    document.getElementById('textInputArea').style.display = 'none';
+    document.getElementById('voiceResultArea').style.display = 'none';
+    document.getElementById('voiceNotFoundArea').style.display = 'none';
+    document.getElementById('modalTextInput').value = '';
+    document.getElementById('modalVoiceHint').textContent = '点击麦克风开始说话';
+    // 清空学习表单
+    document.getElementById('modalLearnFoodName').value = '';
+    document.getElementById('modalLearnCalories').value = '';
+    document.getElementById('modalLearnProtein').value = '';
+    document.getElementById('modalLearnCarbs').value = '';
+    document.getElementById('modalLearnFat').value = '';
+    const micBtn = document.getElementById('modalMicBtn');
+    if (micBtn) {
+        micBtn.classList.remove('recording');
+        micBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    }
+    modalFoods = [];
+    modalIsRecording = false;
+    if (modalRecognition) {
+        try { modalRecognition.stop(); } catch(e) {}
+    }
+}
+
+// 切换到文字模式
+function switchToTextMode() {
+    document.getElementById('voiceInputArea').style.display = 'none';
+    document.getElementById('textInputArea').style.display = 'block';
+    document.getElementById('modalTextInput').focus();
+    if (modalIsRecording) stopModalRecording();
+}
+
+// 切换到语音模式
+function switchToVoiceMode() {
+    document.getElementById('textInputArea').style.display = 'none';
+    document.getElementById('voiceInputArea').style.display = 'block';
+    document.getElementById('modalTextInput').value = '';
+}
+
+// 显示示例
+function showVoiceExamples() {
+    new bootstrap.Modal(document.getElementById('voiceExampleModal')).show();
+}
+
+// 初始化语音识别
+function initModalSpeechRecognition() {
+    console.log('初始化语音识别...');
+    
+    // 优先使用浏览器原生语音识别
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        console.log('使用浏览器原生语音识别');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'zh-CN';
+        
+        recognition.onstart = function() {
+            modalIsRecording = true;
+            document.getElementById('modalVoiceHint').textContent = '正在聆听...';
+            document.getElementById('modalMicBtn').classList.add('recording');
+        };
+        
+        recognition.onresult = function(event) {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            if (finalTranscript) {
+                processModalRecognition(finalTranscript);
+            } else if (interimTranscript) {
+                document.getElementById('modalVoiceHint').textContent = interimTranscript;
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('语音识别错误:', event.error);
+            modalIsRecording = false;
+            document.getElementById('modalVoiceHint').textContent = '识别出错，请重试';
+            document.getElementById('modalMicBtn').classList.remove('recording');
+        };
+        
+        recognition.onend = function() {
+            modalIsRecording = false;
+            document.getElementById('modalMicBtn').classList.remove('recording');
+        };
+        
+        return recognition;
+    }
+    
+    // 回退到百度语音识别
+    console.log('浏览器不支持原生识别，尝试百度语音...');
+    if (canUseBaiduVoice()) {
+        console.log('使用百度语音识别');
+        return createBaiduVoiceRecognition();
+    }
+    
+    console.log('浏览器不支持语音识别');
+    return null;
+}
+
+// 检查是否可以使用百度语音
+function canUseBaiduVoice() {
+    return 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+}
+
+// 创建百度语音识别对象
+function createBaiduVoiceRecognition() {
+    return {
+        start: function() {
+            startBaiduRecording();
+        },
+        stop: function() {
+            stopBaiduRecording();
+        }
+    };
+}
+
+// 百度语音录制变量
+let audioContext = null;
+let mediaStream = null;
+
+// 开始百度语音录制
+async function startBaiduRecording() {
+    console.log('开始获取麦克风权限...');
+    try {
+        audioChunks = [];
+        
+        // 使用getUserMedia获取音频流
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: true
+        });
+        console.log('麦克风权限获取成功');
+        
+        // 创建AudioContext用于录制WAV
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000
+        });
+        
+        // 确保 AudioContext 处于运行状态
+        if (audioContext.state === 'suspended') {
+            console.log('AudioContext 处于暂停状态，需要恢复...');
+            await audioContext.resume();
+            console.log('AudioContext 已恢复');
+        }
+        
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        
+        processor.onaudioprocess = function(e) {
+            if (modalIsRecording) {
+                const inputData = e.inputBuffer.getChannelData(0);
+                // 转换为Int16Array
+                const int16Array = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    int16Array[i] = Math.max(-32768, Math.min(32767, Math.floor(inputData[i] * 32767)));
+                }
+                audioChunks.push(int16Array);
+                console.log('录到音频块，大小:', int16Array.length);
+            }
+        };
+        
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+        
+        // 保存processor以便停止时断开
+        window._audioProcessor = processor;
+        
+        modalIsRecording = true;
+        recognitionSource = 'baidu';
+        document.getElementById('modalVoiceHint').textContent = '正在聆听...（百度云识别）';
+        document.getElementById('modalMicBtn').classList.add('recording');
+        console.log('录音已开始，请说话...');
+        
+    } catch (err) {
+        console.error('无法访问麦克风:', err);
+        alert('无法访问麦克风，请检查权限设置');
+    }
+}
+
+// 停止百度语音录制
+function stopBaiduRecording() {
+    console.log('stopBaiduRecording 被调用');
+    modalIsRecording = false;
+    
+    if (window._audioProcessor) {
+        window._audioProcessor.disconnect();
+        window._audioProcessor = null;
+    }
+    
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+    }
+    
+    document.getElementById('modalMicBtn').classList.remove('recording');
+    
+    // 发送音频进行识别
+    console.log('调用 sendToBaiduASR...');
+    sendToBaiduASR();
+}
+
+// 创建WAV文件头
+function createWavHeader(dataLength, sampleRate) {
+    const header = new ArrayBuffer(44);
+    const view = new DataView(header);
+    
+    // RIFF chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(view, 8, 'WAVE');
+    
+    // fmt sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // SubChunk1Size
+    view.setUint16(20, 1, true);  // AudioFormat (PCM)
+    view.setUint16(22, 1, true);  // NumChannels
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // ByteRate
+    view.setUint16(32, 2, true);  // BlockAlign
+    view.setUint16(34, 16, true);  // BitsPerSample
+    
+    // data sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataLength, true);
+    
+    return header;
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+// 发送音频到百度语音识别
+async function sendToBaiduASR() {
+    console.log('sendToBaiduASR 被调用');
+    console.log('audioChunks 数量:', audioChunks.length);
+    
+    if (audioChunks.length === 0) {
+        console.error('没有录到音频数据！');
+        alert('没有录到音频，请重试');
+        return;
+    }
+    
+    const hint = document.getElementById('modalVoiceHint');
+    if (hint) {
+        hint.textContent = '正在识别...';
+    }
+    
+    try {
+        // 合并所有音频块
+        let totalLength = 0;
+        for (const chunk of audioChunks) {
+            totalLength += chunk.length * 2; // Int16 = 2 bytes
+        }
+        console.log('音频总长度:', totalLength, '字节');
+        
+        // 创建WAV文件
+        const wavHeader = createWavHeader(totalLength, 16000);
+        const wavData = new Uint8Array(wavHeader.byteLength + totalLength);
+        wavData.set(new Uint8Array(wavHeader), 0);
+        
+        let offset = wavHeader.byteLength;
+        for (const chunk of audioChunks) {
+            const int16View = new Int16Array(chunk.buffer, chunk.byteOffset, chunk.length);
+            const uint8View = new Uint8Array(int16View.buffer);
+            wavData.set(uint8View, offset);
+            offset += uint8View.length;
+        }
+        
+        // 转换为base64
+        let binary = '';
+        for (let i = 0; i < wavData.length; i++) {
+            binary += String.fromCharCode(wavData[i]);
+        }
+        const base64Audio = btoa(binary);
+        console.log('base64音频长度:', base64Audio.length);
+        
+        console.log('开始发送请求到百度API...');
+        const response = await fetch('/api/baidu_asr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audio: base64Audio })
+        });
+        console.log('收到响应, 状态:', response.status);
+        
+        const result = await response.json();
+        console.log('解析响应结果:', result);
+        
+        if (result.success && result.text) {
+            processModalRecognition(result.text);
+        } else {
+            hint.textContent = '识别失败: ' + (result.message || '未知错误');
+            setTimeout(() => { hint.textContent = '点击麦克风开始说话'; }, 3000);
+        }
+        
+    } catch (err) {
+        console.error('百度语音识别失败:', err);
+        hint.textContent = '识别失败，请重试';
+        setTimeout(() => { hint.textContent = '点击麦克风开始说话'; }, 3000);
+    }
+}
+
+// 切换录音
+let toggleRecordingLocked = false; // 防抖标志
+
+function toggleModalRecording() {
+    // 防抖：如果正在处理中，直接返回
+    if (toggleRecordingLocked) {
+        console.log('toggleModalRecording 被锁定，忽略此次调用');
+        return;
+    }
+    toggleRecordingLocked = true;
+    console.log('toggleModalRecording 被调用, 当前状态:', modalIsRecording);
+    console.log('modalRecognition 对象:', modalRecognition);
+    
+    if (!modalRecognition) {
+        console.log('初始化语音识别...');
+        modalRecognition = initModalSpeechRecognition();
+        console.log('初始化后 modalRecognition:', modalRecognition);
+    }
+    if (!modalRecognition) {
+        alert('您的浏览器不支持语音识别，请使用Chrome或Edge浏览器');
+        toggleRecordingLocked = false;
+        return;
+    }
+    if (modalIsRecording) {
+        console.log('停止录音...');
+        try {
+            stopModalRecording();
+            console.log('停止录音成功');
+        } catch(e) {
+            console.error('停止录音失败:', e);
+        }
+    } else {
+        console.log('开始录音...');
+        try {
+            startModalRecording();
+            console.log('开始录音成功');
+        } catch(e) {
+            console.error('开始录音失败:', e);
+        }
+    }
+    // 1秒后解锁
+    setTimeout(() => { toggleRecordingLocked = false; }, 1000);
+}
+
+function startModalRecording() {
+    if (modalRecognition) modalRecognition.start();
+}
+
+function stopModalRecording() {
+    if (modalRecognition) modalRecognition.stop();
+}
+
+// 处理识别
+function processModalRecognition(text) {
+    text = text.trim();
+    console.log('processModalRecognition called with:', text);
+    if (!text) {
+        alert('输入为空');
+        return;
+    }
+    
+    const voiceHint = document.getElementById('modalVoiceHint');
+    if (voiceHint) {
+        voiceHint.textContent = '识别中...';
+    } else {
+        console.error('modalVoiceHint not found');
+    }
+    
+    modalFoods = parseFoodText(text);
+    console.log('parsed foods:', modalFoods);
+    
+    if (modalFoods.length > 0) {
+        const recognizedText = document.getElementById('modalRecognizedText');
+        if (recognizedText) recognizedText.textContent = text;
+        displayModalFoods(modalFoods);
+        const resultArea = document.getElementById('voiceResultArea');
+        const inputArea = document.getElementById('voiceInputArea');
+        if (resultArea) {
+            resultArea.style.display = 'block';
+            console.log('voiceResultArea shown');
+        }
+        if (inputArea) inputArea.style.display = 'none';
+    } else {
+        console.log('No foods matched, showing not found area');
+        // 去掉末尾标点
+        const cleanText = text.replace(/[。！？，、；：""''【】（）\s]+$/, '').trim();
+        const notFoundText = document.getElementById('notFoundText');
+        if (notFoundText) notFoundText.textContent = cleanText;
+        
+        // 显示未识别区域，隐藏其他区域
+        const notFoundArea = document.getElementById('voiceNotFoundArea');
+        const resultArea = document.getElementById('voiceResultArea');
+        const inputArea = document.getElementById('voiceInputArea');
+        if (notFoundArea) notFoundArea.style.display = 'block';
+        if (resultArea) resultArea.style.display = 'none';
+        if (inputArea) inputArea.style.display = 'none';
+        
+        // 预填食物名称（去掉标点）
+        const learnFoodName = document.getElementById('modalLearnFoodName');
+        if (learnFoodName) learnFoodName.value = cleanText;
+    }
+}
+
+// 处理文字输入
+function processModalTextInput() {
+    try {
+        console.log('processModalTextInput called');
+        const textInput = document.getElementById('modalTextInput');
+        if (!textInput) {
+            alert('输入框不存在');
+            return;
+        }
+        let text = textInput.value.trim();
+        // 去掉末尾的标点符号
+        text = text.replace(/[。！？，、；：""''【】（）]+$/, '');
+        console.log('input text:', text);
+        if (!text) {
+            alert('请输入食物名称');
+            return;
+        }
+        processModalRecognition(text);
+    } catch (e) {
+        console.error('Error in processModalTextInput:', e);
+        alert('发生错误: ' + e.message);
+    }
+}
+
+// 解析食物
+function parseFoodText(text) {
+    const foods = [];
+    const quantityMap = {'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+    
+    // 去掉末尾的标点符号和空格
+    text = text.replace(/[。！？，、；：""''【】（）\s]+$/, '').trim();
+    
+    // 合并内置数据库和自定义食物库
+    const allFoods = { ...foodDatabase, ...customFoods };
+    
+    // 精确匹配
+    if (allFoods[text]) {
+        const food = allFoods[text];
+        foods.push({name: text, quantity: 1, calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat});
+        return foods;
+    }
+    
+    // 提取数量
+    const pattern = /(\d+|[一二两三四五六七八九十]+)(份?|个?|碗?|杯?|根?|片?|串?|克|g|千克|毫升|ml)?(.*)/;
+    const match = text.match(pattern);
+    
+    if (match) {
+        let quantity = 1;
+        if (match[1]) {
+            quantity = quantityMap[match[1]] || parseInt(match[1]) || 1;
+            if (quantity > 10) quantity = 1;
+        }
+        const remainingText = match[3] || text;
+        
+        // 匹配所有可能的食物（按名称长度排序，优先匹配更长的名称）
+        const matchedFoods = [];
+        for (const name in allFoods) {
+            if (remainingText.includes(name) || name.includes(remainingText.replace(/[的和不]/g, ''))) {
+                matchedFoods.push({ name, food: allFoods[name] });
+            }
+        }
+        matchedFoods.sort((a, b) => b.name.length - a.name.length);
+        
+        for (const item of matchedFoods) {
+            foods.push({
+                name: item.name, quantity: quantity,
+                calories: Math.round(item.food.calories * quantity),
+                protein: Math.round(item.food.protein * quantity * 10) / 10,
+                carbs: Math.round(item.food.carbs * quantity * 10) / 10,
+                fat: Math.round(item.food.fat * quantity * 10) / 10
+            });
+            if (foods.length >= 5) break; // 限制最多5种食物
+        }
+    }
+    
+    return foods;
+}
+
+// 显示食物
+function displayModalFoods(foods) {
+    const container = document.getElementById('modalFoodList');
+    let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>食物</th><th>份量</th><th>热量</th></tr></thead><tbody>';
+    let totalCal = 0;
+    
+    foods.forEach(food => {
+        html += '<tr><td>' + food.name + '</td><td>' + food.quantity + '份</td><td class="text-danger">' + food.calories + ' kcal</td></tr>';
+        totalCal += food.calories;
+    });
+    
+    html += '</tbody><tfoot><tr class="table-success"><td colspan="2"><strong>合计</strong></td><td><strong>' + totalCal + ' kcal</strong></td></tr></tfoot></table></div>';
+    container.innerHTML = html;
+}
+
+// 学习并添加食物
+async function learnAndAddFood() {
+    const foodName = document.getElementById('modalLearnFoodName').value.trim();
+    const category = document.getElementById('modalFoodCategory').value;
+    const calories = parseFloat(document.getElementById('modalLearnCalories').value) || 0;
+    const protein = parseFloat(document.getElementById('modalLearnProtein').value) || 0;
+    const carbs = parseFloat(document.getElementById('modalLearnCarbs').value) || 0;
+    const fat = parseFloat(document.getElementById('modalLearnFat').value) || 0;
+    
+    if (!foodName) {
+        alert('请输入食物名称');
+        return;
+    }
+    
+    if (calories === 0) {
+        alert('请输入食物热量');
+        return;
+    }
+    
+    try {
+        // 调用添加食物API
+        const response = await fetch('/api/add_food', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: foodName,
+                category: category,
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fat
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 添加到自定义食物库（前端缓存）
+            customFoods[foodName] = { calories, protein, carbs, fat };
+            
+            // 添加到饮食记录
+            modalFoods = [{
+                name: foodName,
+                quantity: 1,
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fat
+            }];
+            
+            // 保存到数据库
+            await saveModalRecords();
+            
+            alert('已学习"' + foodName + '"并添加到今日饮食！');
+        } else {
+            alert(data.message || '学习失败');
+        }
+    } catch (error) {
+        console.error('学习食物出错:', error);
+        alert('学习失败：' + error.message);
+    }
+}
+
+// 保存记录
+function saveModalRecords() {
+    if (modalFoods.length === 0) {
+        alert('没有可添加的食物');
+        return;
+    }
+    
+    const foodsToSave = modalFoods.map(item => ({
+        food_name: item.name, name: item.name, quantity: item.quantity,
+        calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat
+    }));
+    
+    fetch('{{ url_for("add_diet_record") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foods: foodsToSave })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('已添加到今日饮食！');
+            bootstrap.Modal.getInstance(document.getElementById('voiceInputModal')).hide();
+            location.reload();
+        } else {
+            alert('添加失败：' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加失败，请重试');
+    });
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    modalRecognition = initModalSpeechRecognition();
+    
+    // 从API获取自定义食物库
+    fetch('/api/all_foods')
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.foods) {
+            for (const f of data.foods) {
+                customFoods[f.name] = {
+                    calories: f.calories || 0,
+                    protein: f.protein || 0,
+                    carbs: f.carbs || 0,
+                    fat: f.fat || 0
+                };
+            }
+            console.log('已加载 ' + data.foods.length + ' 种自定义食物');
+        }
+    })
+    .catch(err => console.error('加载自定义食物失败:', err));
+});
 </script>
 {% endblock %}

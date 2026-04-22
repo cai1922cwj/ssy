@@ -5,7 +5,7 @@
 """
 from __future__ import unicode_literals
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -18,6 +18,8 @@ import random
 import re
 from io import BytesIO
 import feedparser
+import requests
+import wave
 
 from models import db, User, Food, FoodRecord, Exercise, ExerciseRecord, WeightRecord, BmiRecord, SleepRecord, TeaCoffeeLog, IntermittentFasting, HealthNews, AIAnalysis, CategoryLibrary, LearnedFood, FoodImageSample, FoodRecognitionLog, PageView
 from functools import wraps
@@ -970,6 +972,147 @@ def api_add_food():
         app.logger.error(f'添加食物失败: {e}')
         return jsonify({'success': False, 'message': str(e)})
 
+
+
+
+
+@app.route('/api/baidu_voice_token')
+def api_baidu_voice_token():
+    """获取百度语音识别access_token"""
+    try:
+        api_key = app.config.get('BAIDU_API_KEY')
+        secret_key = app.config.get('BAIDU_SECRET_KEY')
+        
+        if not api_key or not secret_key:
+            return jsonify({'success': False, 'message': '未配置百度API密钥'})
+        
+        url = "https://aip.baidubce.com/oauth/2.0/token"
+        params = {
+            "grant_type": "client_credentials",
+            "client_id": api_key,
+            "client_secret": secret_key
+        }
+        
+        response = requests.post(url, params=params, timeout=10)
+        result = response.json()
+        
+        if 'access_token' in result:
+            return jsonify({
+                'success': True, 
+                'access_token': result['access_token'],
+                'expires_in': result.get('expires_in', 2592000)
+            })
+        else:
+            return jsonify({'success': False, 'message': result.get('error_description', '获取token失败')})
+    except Exception as e:
+        app.logger.error(f'获取百度语音token失败: {e}')
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/baidu_asr', methods=['POST'])
+def api_baidu_asr():
+    """
+    百度语音识别API
+    接收: audio base64编码的音频数据
+    返回: 识别文字
+    """
+    try:
+        api_key = app.config.get('BAIDU_API_KEY')
+        secret_key = app.config.get('BAIDU_SECRET_KEY')
+        
+        if not api_key or not secret_key:
+            return jsonify({'success': False, 'message': '未配置百度API密钥'})
+        
+        # 先获取 token（增加缓存机制）
+        token_url = "https://aip.baidubce.com/oauth/2.0/token"
+        token_params = {
+            "grant_type": "client_credentials",
+            "client_id": api_key,
+            "client_secret": secret_key
+        }
+        
+        token_response = requests.post(token_url, params=token_params, timeout=30)
+        token_result = token_response.json()
+        
+        if 'access_token' not in token_result:
+            return jsonify({'success': False, 'message': '获取access_token失败'})
+        
+        access_token = token_result['access_token']
+        
+        # 获取音频数据
+        audio_data = request.files.get('audio')
+        audio_bytes = None
+        
+        if audio_data:
+            audio_bytes = audio_data.read()
+        else:
+            # 从base64获取
+            data = request.get_json(silent=True) or {}
+            audio_base64 = data.get('audio', '')
+            if audio_base64:
+                app.logger.info(f'收到base64音频数据，长度: {len(audio_base64)}')
+                try:
+                    audio_bytes = base64.b64decode(audio_base64)
+                    app.logger.info(f'解码后音频数据长度: {len(audio_bytes)}')
+                except Exception as e:
+                    app.logger.error(f'音频解码失败: {e}')
+                    return jsonify({'success': False, 'message': '音频解码失败'})
+        
+        if not audio_bytes:
+            app.logger.error('没有收到音频数据')
+            return jsonify({'success': False, 'message': '没有音频数据'})
+        
+        # 调用百度短语音识别API（新版，支持更多格式）
+        asr_url = f"https://vop.baidu.com/pro_api"
+        
+        # 百度语音识别参数
+        params = {
+            'dev_pid': 1537,  # 中文普通话识别
+            'format': 'wav',  # 使用wav格式
+            'rate': 16000,
+            'token': access_token,
+            'cuid': 'entropy_food_app',
+            'len': len(audio_bytes),
+            'channel': 1
+        }
+        
+        headers = {
+            'Content-Type': 'audio/wav; rate=16000'
+        }
+        
+        app.logger.info(f'发送百度ASR请求, 音频长度: {len(audio_bytes)}, URL: {asr_url}')
+        
+        # 增加超时时间到60秒
+        asr_response = requests.post(
+            asr_url,
+            params=params,
+            headers=headers,
+            data=audio_bytes,
+            timeout=60
+        )
+        
+        result = asr_response.json()
+        app.logger.info(f'百度ASR响应: {result}')
+        
+        if result.get('err_no') == 0 and result.get('result'):
+            text = result['result'][0]
+            # 去掉末尾标点
+            text = re.sub(r'[。！？，、；：""''【】（）\s]+$', '', text.strip())
+            return jsonify({'success': True, 'text': text})
+        else:
+            err_msg = result.get('err_msg', '识别失败')
+            err_no = result.get('err_no', 0)
+            app.logger.error(f'百度语音识别失败: err_no={err_no}, err_msg={err_msg}')
+            return jsonify({'success': False, 'message': err_msg})
+            
+    except requests.exceptions.Timeout:
+        app.logger.error('百度语音识别超时')
+        return jsonify({'success': False, 'message': '识别超时，请重试或缩短语音'})
+    except Exception as e:
+        app.logger.error(f'百度语音识别异常: {e}')
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'message': str(e)})
 
 
 @app.route('/api/all_foods')
