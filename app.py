@@ -914,6 +914,86 @@ def add_food():
     return render_template('add_food.html')
 
 
+@app.route('/api/add_food', methods=['POST'])
+@login_required
+def api_add_food():
+    """API接口：添加新食物到数据库（用于语音学习功能）"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        # 清理名称末尾的标点符号
+        name = name.rstrip('。.。,，、;；:：!！?？')
+
+        category = data.get('category', '其他')
+        calories = float(data.get('calories', 0))
+        protein = float(data.get('protein', 0))
+        carbs = float(data.get('carbs', 0))
+        fat = float(data.get('fat', 0))
+        serving = data.get('serving', '100g')
+
+        if not name:
+            return jsonify({'success': False, 'message': '食物名称不能为空'})
+
+        # 检查是否已存在（忽略大小写）
+        existing = Food.query.filter(Food.name.ilike(name)).first()
+        if existing:
+            return jsonify({'success': False, 'message': f'"{name}" 已存在于数据库中'})
+
+        food = Food(
+            name=name,
+            category=category,
+            calories=calories,
+            protein=protein,
+            carbs=carbs,
+            fat=fat,
+            fiber=0,
+            is_custom=True,
+            created_by=current_user.id
+        )
+        db.session.add(food)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'"{name}" 已添加到食物库！',
+            'food': {
+                'name': name,
+                'category': category,
+                'calories': calories,
+                'protein': protein,
+                'carbs': carbs,
+                'fat': fat,
+                'serving': serving
+            }
+        })
+    except Exception as e:
+        app.logger.error(f'添加食物失败: {e}')
+        return jsonify({'success': False, 'message': str(e)})
+
+
+
+@app.route('/api/all_foods')
+def api_get_foods():
+    """API接口：获取所有食物列表"""
+    try:
+        foods = Food.query.all()
+        food_list = []
+        for f in foods:
+            food_list.append({
+                'name': f.name,
+                'category': f.category,
+                'calories': f.calories,
+                'protein': f.protein,
+                'carbs': f.carbs,
+                'fat': f.fat,
+                'serving': '100g'
+            })
+        return jsonify({'success': True, 'foods': food_list})
+    except Exception as e:
+        app.logger.error(f'获取食物列表失败: {e}')
+        return jsonify({'success': False, 'message': str(e), 'foods': []})
+
+
 @app.route('/admin/sync-foods')
 @login_required
 def admin_sync_foods():
@@ -1362,19 +1442,43 @@ def exercise():
 def add_exercise():
     """添加运动记录"""
     if request.method == 'POST':
+        # 检查是否为JSON请求
+        if request.is_json:
+            data = request.get_json()
+            exercise_name = data.get('exercise_name')
+            duration = int(data.get('duration', 30))
+            calories_burned = int(data.get('calories_burned', 0))
+            intensity = data.get('intensity', 'moderate')
+
+            if not exercise_name:
+                return jsonify({'success': False, 'message': '运动名称不能为空'})
+
+            record = ExerciseRecord(
+                user_id=current_user.id,
+                exercise_name=exercise_name,
+                duration=duration,
+                calories_burned=calories_burned,
+                intensity=intensity
+            )
+            db.session.add(record)
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': '运动记录已保存'})
+
+        # 表单请求处理
         exercise_ids = request.form.getlist('exercise_ids')
         exercise_name = request.form.get('exercise_name')
         duration = int(request.form.get('duration', 30))
         intensity = request.form.get('intensity', 'moderate')
-        
+
         # 获取自定义运动的卡路里
         custom_calories = request.form.get('custom_calories')
         custom_name = request.form.get('exercise_name')
-        
+
         # 处理选择的运动
         added_count = 0
         total_calories = 0
-        
+
         if exercise_ids:
             for ex_id in exercise_ids:
                 try:
@@ -1394,7 +1498,7 @@ def add_exercise():
                         added_count += 1
                 except (ValueError, TypeError):
                     continue
-        
+
         # 处理自定义运动
         if custom_name and custom_calories:
             cal_per_hour = int(custom_calories)
@@ -1411,21 +1515,90 @@ def add_exercise():
             db.session.add(record)
             total_calories += calories
             added_count += 1
-        
+
         if added_count > 0:
             db.session.commit()
             flash(f'已添加 {added_count} 项运动记录！共燃烧 {total_calories} kcal', 'success')
         else:
             flash('请至少选择一项运动', 'warning')
-        
+
         return redirect(url_for('exercise'))
-    
+
     exercises = Exercise.query.order_by(Exercise.category, Exercise.name).all()
     # 常用运动：选择热量消耗较高的8种
     common_exercises = Exercise.query.filter(
         Exercise.name.in_(['跑步', '游泳', '骑自行车', '跳绳', '篮球', '羽毛球', '快走', '瑜伽'])
     ).all()
     return render_template('add_exercise.html', exercises=exercises, common_exercises=common_exercises)
+
+
+@app.route('/api/add_exercise', methods=['POST'])
+@login_required
+def api_add_exercise():
+    """API接口：添加新运动到数据库"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        # 清理名称末尾的标点符号
+        import re
+        name = re.sub(r'[。.，、;：!？]+$', '', name)
+
+        if not name:
+            return jsonify({'success': False, 'message': '运动名称不能为空'})
+
+        # 检查是否已存在
+        existing = Exercise.query.filter(Exercise.name.ilike(name)).first()
+        if existing:
+            return jsonify({'success': False, 'message': f'"{name}" 已存在于运动库中'})
+
+        category = data.get('category', '其他')
+        met_value = float(data.get('met_value', 5.0))
+        calories_per_hour = int(data.get('calories_per_hour', 300))
+        intensity = data.get('intensity', 'moderate')
+
+        exercise = Exercise(
+            name=name,
+            category=category,
+            met_value=met_value,
+            calories_per_hour=calories_per_hour,
+            description=f'用户学习添加: {name}'
+        )
+        db.session.add(exercise)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'"{name}" 已添加到运动库！',
+            'exercise': {
+                'name': name,
+                'category': category,
+                'met_value': met_value,
+                'calories_per_hour': calories_per_hour,
+                'intensity': intensity
+            }
+        })
+    except Exception as e:
+        app.logger.error(f'添加运动失败: {e}')
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route('/api/all_exercises')
+def api_all_exercises():
+    """API接口：获取所有运动列表"""
+    try:
+        exercises = Exercise.query.all()
+        exercise_list = []
+        for ex in exercises:
+            exercise_list.append({
+                'name': ex.name,
+                'category': ex.category,
+                'met_value': ex.met_value,
+                'calories_per_hour': ex.calories_per_hour
+            })
+        return jsonify({'success': True, 'exercises': exercise_list})
+    except Exception as e:
+        app.logger.error(f'获取运动列表失败: {e}')
+        return jsonify({'success': False, 'message': str(e), 'exercises': []})
 
 
 @app.route('/exercise/edit/<int:record_id>', methods=['GET', 'POST'])
